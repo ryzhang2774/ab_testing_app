@@ -264,6 +264,18 @@ def _duration_test_statistic(fit: dict, data: pd.DataFrame, origin: int, duratio
 
 
 _PLANNER_ORIGIN_CACHE: dict[tuple, dict] = {}
+_PLANNER_CACHE_LIMIT = 48
+
+
+def _validate_model_series(data: pd.DataFrame) -> None:
+    if not {"_date", "_outcome"}.issubset(data.columns) or data.empty:
+        raise ValueError("Load a valid date and numeric outcome series before calculating.")
+    dates = pd.to_datetime(data["_date"], errors="coerce")
+    values = pd.to_numeric(data["_outcome"], errors="coerce")
+    if dates.isna().any() or dates.duplicated().any():
+        raise ValueError("Model input needs unique valid dates. Resolve duplicate timestamps first.")
+    if not np.isfinite(values).all():
+        raise ValueError("Some periods have missing or non-finite outcomes. Choose a missing-period policy in advanced data handling before calculating.")
 
 
 def _planner_origin_cache_key(data: pd.DataFrame, origin: int, frequency: str, predictors: list[str], seasonality: str, local_trend: bool, alpha: float, seed: int, horizon: int) -> tuple:
@@ -370,6 +382,7 @@ def _analytical_duration_plan(data: pd.DataFrame, durations: list[int], effect: 
 
 def run_duration_power_simulation(data: pd.DataFrame, frequency: str, covariates: list[str], seasonality: str, local_trend: bool, interval: float, effect: float | None, effect_type: str, target_power: float = 0.8, maximum_duration: int = 26, ramp_period: int = 4, simulations: int = 20, seed: int = 123, alpha: float = 0.05, effect_pattern: str = "constant") -> dict:
     """Estimate duration or MDE with adaptive cross-fitted validation."""
+    _validate_model_series(data)
     durations = planning_durations(frequency, maximum_duration)
     data = data.sort_values("_date").reset_index(drop=True)
     dates = pd.to_datetime(data["_date"]).sort_values().reset_index(drop=True)
@@ -399,6 +412,8 @@ def run_duration_power_simulation(data: pd.DataFrame, frequency: str, covariates
             continue
         try:
             origin_cache[index] = fit_bsts_model(window, pseudo_date, frequency, covariates, confidence_level, draws=max(200, int(simulations) * 5), seasonality=design["seasonality"], local_trend=local_trend, seed=origin_seed, holdout_length=8, planner_mode=True)
+            if len(_PLANNER_ORIGIN_CACHE) >= _PLANNER_CACHE_LIMIT:
+                _PLANNER_ORIGIN_CACHE.pop(next(iter(_PLANNER_ORIGIN_CACHE)))
             _PLANNER_ORIGIN_CACHE[cache_key] = origin_cache[index]
         except Exception:
             origin_cache[index] = None
@@ -801,6 +816,8 @@ def _joint_forecast_draws(fitted, steps: int, exog: pd.DataFrame | None, frame: 
         values = values[:, None]
     if values.shape != (steps, draws):
         values = values.reshape(steps, draws)
+    if not np.isfinite(values).all():
+        raise RuntimeError("Forecast simulation produced non-finite values. Try a simpler trend or seasonality setting.")
     return values.T
 
 
@@ -819,6 +836,7 @@ def fit_bsts_model(
     planner_mode: bool = False,
 ) -> dict:
     """Fit a pre-period structural state-space model and forecast the counterfactual."""
+    _validate_model_series(data)
     if not 0 < credible_interval < 1:
         raise ValueError("Prediction interval must be between 0 and 1.")
     pre, post = intervention_periods(data, intervention_date, campaign_end_date)

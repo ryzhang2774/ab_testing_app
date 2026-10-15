@@ -103,6 +103,7 @@ class DesignConfig:
     alpha: float = 0.05
     target_power: float = 0.8
     allocation: str = "Traffic Allocation"
+    allocation_method: str = "Pairwise Neyman with shared control"
     sample_size_basis: str = "Power All Configured Metrics"
     multiplicity_method: str = "Holm"
     audience_decision_scope: str = "Separate decision per audience"

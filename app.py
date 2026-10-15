@@ -7,12 +7,13 @@ import pandas as pd
 import streamlit as st
 from dataclasses import asdict, fields
 from datetime import datetime
+from src.experiment_platform.customer_ui import simple_customer_analysis
 
 from src.experiment_platform.customer import (
     adjusted_alpha,
     analysis_integrity_summary,
+    analyze_customer_records,
     apply_customer_template,
-    arm_decision_scorecard,
     assign_group_labels,
     binary_results,
     build_analysis_dataset,
@@ -20,6 +21,11 @@ from src.experiment_platform.customer import (
     calculate_group_design,
     calculate_variant_group_design,
     continuous_results,
+    continuous_summary_results,
+    combine_partner_summaries,
+    split_partner_targets,
+    plan_from_arm_summaries,
+    validate_arm_summaries,
     default_numeric_groups,
     design_sample_size,
     design_sample_size_by_arm,
@@ -30,7 +36,6 @@ from src.experiment_platform.customer import (
     detectable_effect_continuous_unequal,
     duration,
     expected_power,
-    experiment_recommendation,
     fixed_unit_values,
     guardrail_status,
     historical_arm_statistics,
@@ -39,8 +44,6 @@ from src.experiment_platform.customer import (
     power_binary,
     power_continuous,
     power_continuous_unequal,
-    project_rollout_impact,
-    recommendation_status,
     response_summary,
     sample_size_binary,
     sample_size_continuous,
@@ -53,7 +56,7 @@ from src.experiment_platform.customer import (
     validate_metric_assumptions,
     validate_numeric_strategy,
 )
-from src.experiment_platform.charts import bsts_counterfactual_chart, cumulative_impact_chart, customer_allocation_health_chart, customer_category_bar, customer_decision_map, customer_design_tradeoff_chart, customer_group_summary_chart, customer_history_coverage, customer_metric_distribution, customer_option_chart, customer_required_accounts_chart, customer_rollout_impact_chart, customer_strategy_outcome_chart, customer_traffic_allocation_chart, detectable_effect_curve, forest_plot, geo_balance_chart, geo_dma_map, geo_trend_chart, historical_association, impact_chart, portfolio_value_chart, pre_post_bar, response_plot, time_series_line, timeseries_chart_context
+from src.experiment_platform.charts import bsts_counterfactual_chart, cumulative_impact_chart, customer_allocation_health_chart, customer_category_bar, customer_design_tradeoff_chart, customer_group_summary_chart, customer_history_coverage, customer_metric_distribution, customer_option_chart, customer_required_accounts_chart, customer_strategy_outcome_chart, customer_traffic_allocation_chart, detectable_effect_curve, forest_plot, geo_balance_chart, geo_dma_map, geo_trend_chart, historical_association, impact_chart, portfolio_value_chart, pre_post_bar, response_plot, time_series_line, timeseries_chart_context
 from src.experiment_platform.core import (
     AnalysisConfig,
     CUSTOMER_DEMO_SCENARIOS,
@@ -87,7 +90,7 @@ from src.experiment_platform.core import (
     validate_metric,
 )
 from src.experiment_platform.geography import DMA_CENTROIDS, GeoConfig, aggregate_trend, build_geo_preview, evaluate_geo_balance, infer_geo_schema, leave_one_dma_out, plan_geo_test, prepare_geo_analysis, prepare_geo_panel, run_panel_did, run_placebo_tests, validate_fixed_assignment, validate_geo_panel
-from src.experiment_platform.portfolio import PORTFOLIO_STATUSES, build_rollout_plan, business_report_html, duplicate_experiment, freeze_decision_snapshot, load_experiments, portfolio_summary, pulse_summary, save_configuration, upsert_experiment, value_timeline
+from src.experiment_platform.portfolio import PORTFOLIO_STATUSES, build_rollout_plan, business_report_html, configuration_fingerprint, duplicate_experiment, freeze_decision_snapshot, load_experiments, portfolio_summary, pulse_summary, save_configuration, upsert_experiment, value_timeline
 from src.experiment_platform.timeseries import TimeSeriesConfig, build_business_interpretation, build_timeseries_preview, campaign_decision_date, classify_calibration, config_fingerprint, data_fingerprint, detect_frequency, duplicate_timestamp_count, duration_power_status, fit_bsts_model, humanize_column_name, incremental_outcome_label, infer_timeseries_columns, method_config_fingerprint, planning_config_fingerprint, planning_durations, prepare_timeseries_data, predictor_candidates, probability_positive_label, projected_operational_exposure, run_duration_power_simulation, run_pre_post_analysis
 
 
@@ -1072,17 +1075,18 @@ def apply_experiment_template(strategy: StrategyConfig, template: str) -> None:
     apply_customer_template(strategy, legacy.get(template, template))
 
 
-def format_effect_table(df: pd.DataFrame, metric_type: str, strategy_label: str = "Strategy Arm") -> pd.DataFrame:
+def format_effect_table(df: pd.DataFrame, metric_type: str, strategy_label: str = "Strategy Arm", alpha: float = 0.05) -> pd.DataFrame:
     out = df.copy().rename(columns={"Credit Line": strategy_label})
     out[strategy_label] = out[strategy_label].apply(maybe_money)
     out["Mean / Rate"] = out["Mean / Rate"].apply(lambda value: percent(value, 2) if metric_type == "Binary" else number(value, 2))
     out["Effect vs Control"] = out["Effect vs Control"].apply(lambda value: "" if pd.isna(value) else (percent(value, 2) if metric_type == "Binary" else number(value, 2)))
     out["Relative Lift"] = out["Relative Lift"].apply(lambda value: "" if pd.isna(value) else percent(value, 2))
-    out["95% CI"] = df.apply(lambda row: "" if pd.isna(row["CI Lower"]) else f"{number(row['CI Lower'], 2)} to {number(row['CI Upper'], 2)}", axis=1)
+    interval_label = f"{100 * (1 - alpha):g}% CI"
+    out[interval_label] = df.apply(lambda row: "" if pd.isna(row["CI Lower"]) else f"{number(row['CI Lower'], 2)} to {number(row['CI Upper'], 2)}", axis=1)
     if "Adjusted p-value" not in out.columns:
         out["Adjusted p-value"] = out["p-value"]
     out["Adjusted p-value"] = out["Adjusted p-value"].apply(lambda value: "" if pd.isna(value) else p_value(value))
-    return out[[strategy_label, "N", "Mean / Rate", "Effect vs Control", "Relative Lift", "95% CI", "Adjusted p-value", "Result"]]
+    return out[[strategy_label, "N", "Mean / Rate", "Effect vs Control", "Relative Lift", interval_label, "Adjusted p-value", "Result"]]
 
 
 def metric_sample_size(metric: MetricConfig, df: pd.DataFrame, alpha: float, target_power: float) -> int:
@@ -1163,6 +1167,9 @@ def workspace_configuration(experiment_type: str) -> dict:
             "design_config": asdict(st.session_state.design_config),
             "analysis_config": asdict(st.session_state.analysis_config),
             "metrics_config": {role: asdict(metric) for role, metric in st.session_state.metrics_config.items()},
+            "customer_input_mode": st.session_state.get("customer_input_mode", "Customer records"),
+            "customer_summary_drafts": st.session_state.get("customer_summary_drafts", {}),
+            "customer_simple_settings": st.session_state.get("customer_simple_settings", {}),
         }
     if experiment_type == "Geography":
         return {"geo_config": asdict(st.session_state.geo_config)}
@@ -1177,22 +1184,15 @@ def workspace_result_summary(experiment_type: str) -> dict:
         treatments = primary[~primary["Is Control"]].copy()
         if treatments.empty:
             return {"headline": "Customer analysis completed", "confidence": "No treatment comparison available"}
-        direction = st.session_state.metrics_config["Primary"].direction
-        ordered = treatments.sort_values("Effect vs Control", ascending=direction == "Lower is Better")
-        leader = ordered.iloc[0]
-        lift = leader.get("Relative Lift", float("nan"))
-        headline = f'{leader["Credit Line"]} is the leading tested option'
-        if pd.notna(lift):
-            headline += f" at {lift:+.1%} versus control"
+        grouped = st.session_state.get("group_analysis_results") or {"All customers": st.session_state.analysis_results_by_role}
         return {
-            "headline": headline,
-            "confidence": str(leader.get("Result", "Analysis complete")),
-            "leading_option": str(leader["Credit Line"]),
-            "relative_lift": None if pd.isna(lift) else float(lift),
+            "headline": "Customer effect estimates available for business review",
+            "confidence": st.session_state.get("customer_evidence_note", "Review uncertainty and data quality before interpreting results"),
+            "results": {group: {role: frame.astype(object).where(frame.notna(), None).to_dict("records") for role, frame in roles.items()} for group, roles in grouped.items()},
         }
     if experiment_type == "Geography":
         result = st.session_state.get("geo_analysis")
-        if not result:
+        if not result or result.get("_signature") != geo_analysis_signature():
             return {}
         return {
             "headline": f'Estimated geographic lift: {float(result.get("lift", 0)):+.1%}',
@@ -1201,7 +1201,10 @@ def workspace_result_summary(experiment_type: str) -> dict:
         }
     cfg: TimeSeriesConfig = st.session_state.ts_config
     result = st.session_state.get("ts_bsts_result") if cfg.analysis_method == "Structural Time Series Counterfactual" else st.session_state.get("ts_prepost_result")
-    if not result:
+    prepared = st.session_state.ts_prepared_df
+    fingerprint = f"{method_config_fingerprint(cfg, cfg.analysis_method)}:{data_fingerprint(prepared)}"
+    stored = st.session_state.get("ts_structural_fingerprint") if cfg.analysis_method == "Structural Time Series Counterfactual" else st.session_state.get("ts_prepost_fingerprint")
+    if not result or fingerprint != stored:
         return {}
     if cfg.analysis_method == "Structural Time Series Counterfactual":
         return {
@@ -1228,15 +1231,20 @@ def save_current_workspace(experiment_type: str) -> dict:
         }
     record = save_configuration(existing, workspace_configuration(experiment_type))
     result = workspace_result_summary(experiment_type)
-    now = datetime.now().isoformat(timespec="seconds")
     if experiment_type == "Customer":
         design: DesignConfig = st.session_state.design_config
         primary = st.session_state.metrics_config.get("Primary")
         result_frame = st.session_state.analysis_results_by_role.get("Primary")
-        sample_collected = int(result_frame["N"].sum()) if result_frame is not None and not result_frame.empty else 0
+        grouped = st.session_state.get("group_analysis_results") or {"All customers": st.session_state.analysis_results_by_role}
+        sample_collected = sum(int(roles["Primary"]["N"].sum()) for roles in grouped.values() if "Primary" in roles) if result else 0
         sample_target = int(design.total_sample_size or sum(design.arm_sample_sizes.values()))
         planned = design.arm_sample_sizes
-        observed = result_frame.set_index("Credit Line")["N"].to_dict() if result_frame is not None and not result_frame.empty else {}
+        observed = {}
+        if result:
+            for roles in grouped.values():
+                for _, row in roles.get("Primary", pd.DataFrame()).iterrows():
+                    arm = str(row["Credit Line"])
+                    observed[arm] = observed.get(arm, 0) + int(row["N"])
         all_arms = list(dict.fromkeys([*planned, *observed]))
         planned_total = max(sum(planned.values()), 1)
         observed_total = max(sum(observed.values()), 1)
@@ -1255,7 +1263,7 @@ def save_current_workspace(experiment_type: str) -> dict:
                         "observed_pct": 100 * float(observed.get(arm, 0)) / observed_total,
                         "planned_pct": 100 * float(planned.get(arm, 0)) / planned_total,
                     }
-                    for arm in all_arms
+                    for arm in all_arms if planned and result
                 ],
             }
         )
@@ -1295,19 +1303,33 @@ def save_current_workspace(experiment_type: str) -> dict:
                 "allocation": [],
             }
         )
-    record["data_updated_at"] = now
+    # Unknown source freshness must remain unknown; saving is not a data refresh.
+    record["data_updated_at"] = st.session_state.get(f"{experiment_type}_data_updated_at", "")
     if result:
         record["latest_result"] = result
-        record["analysis_timestamp"] = now
-        record["status"] = "Ready to decide"
-        record["progress"] = 100
-        record["action"] = "Review and decide"
-        record["primary_direction"] = result.get("headline", "Analysis complete")
-    else:
-        record.setdefault("status", "Planning")
+        record["result_config_fingerprint"] = record["config_fingerprint"]
+        if experiment_type == "Customer":
+            record["analysis_timestamp"] = st.session_state.get("customer_analysis_timestamp", "")
+        elif experiment_type == "Geography":
+            record["analysis_timestamp"] = st.session_state.geo_analysis.get("_calculated_at", "")
+        else:
+            record["analysis_timestamp"] = st.session_state.get("ts_structural_timestamp" if st.session_state.ts_config.analysis_method == "Structural Time Series Counterfactual" else "ts_prepost_timestamp", "")
         target = max(int(record.get("sample_target", 0)), 0)
         collected = max(int(record.get("sample_collected", 0)), 0)
-        record["progress"] = min(int(100 * collected / target), 99) if target else int(record.get("progress", 15))
+        record["progress"] = min(int(100 * collected / target), 100) if target else 0
+        record["action"] = "Review evidence"
+        record["primary_direction"] = result.get("headline", "Analysis complete")
+    else:
+        record["latest_result"] = {}
+        record["analysis_timestamp"] = ""
+        record["result_config_fingerprint"] = ""
+        record["primary_direction"] = "No current result"
+        if record.get("status") == "Ready to decide":
+            record["status"] = "Planning"
+        record["action"] = "Update analysis" if existing.get("latest_result") else "Review plan"
+        target = max(int(record.get("sample_target", 0)), 0)
+        collected = max(int(record.get("sample_collected", 0)), 0)
+        record["progress"] = min(int(100 * collected / target), 99) if target else 0
     saved = upsert_experiment(record)
     st.session_state.active_portfolio_id = saved["id"]
     st.session_state.portfolio_selected_id = saved["id"]
@@ -1328,6 +1350,19 @@ def restore_portfolio_experiment(experiment: dict) -> None:
             for role, metric_payload in payload.get("metrics_config", {}).items()
         } or st.session_state.metrics_config
         st.session_state.experiment_name = experiment["name"]
+        st.session_state.customer_input_mode = payload.get("customer_input_mode", "Customer records")
+        st.session_state.customer_summary_drafts = payload.get("customer_summary_drafts", {})
+        st.session_state.customer_simple_settings = payload.get("customer_simple_settings", {})
+        for key in list(st.session_state):
+            if key.startswith("customer_summary_") and key != "customer_summary_drafts":
+                del st.session_state[key]
+            elif key.startswith("simple_"):
+                del st.session_state[key]
+        st.session_state.group_analysis_results = {}
+        st.session_state.group_response_results = {}
+        st.session_state.pop("customer_upload_signature", None)
+        st.session_state.pop("customer_results_upload_signature", None)
+        st.session_state.pop("group_results_upload_signature", None)
         st.session_state.pop("customer_experiment_name_v2", None)
         st.session_state.analysis_results_by_role = {}
         st.session_state.response_by_role = {}
@@ -1353,7 +1388,7 @@ def restore_portfolio_experiment(experiment: dict) -> None:
             st.session_state.ts_prepared_df = pd.DataFrame()
     st.session_state.active_portfolio_id = experiment["id"]
     st.session_state.portfolio_selected_id = experiment["id"]
-    intent = "analyze" if experiment["status"] in {"Running", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"} else "plan"
+    intent = "analyze" if experiment.get("latest_result") or experiment["status"] in {"Running", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"} else "plan"
     portfolio_workspace(experiment["type"], intent)
 
 
@@ -1572,7 +1607,13 @@ def render_experiment_detail(experiment: dict) -> None:
 
 
 def show_command_center() -> None:
-    experiments = load_experiments()
+    try:
+        experiments = load_experiments()
+    except ValueError as exc:
+        st.error(str(exc))
+        return
+    if any(item["id"] in {"customer-acquisition-line", "geo-holiday-media", "customer-retention-offer", "customer-activation", "ts-search-demand", "customer-dining-offer", "ts-brand-reengagement", "geo-southeast-expansion"} for item in experiments):
+        st.info("This portfolio contains example experiments. Example values are not live business results.")
     summary = portfolio_summary(experiments)
     title_col, back_col, action_col = st.columns([3.7, 1.05, 1.25])
     title_col.markdown(
@@ -1664,7 +1705,13 @@ def show_overview() -> None:
         show_command_center()
         return
 
-    experiments = load_experiments()
+    try:
+        experiments = load_experiments()
+    except ValueError as exc:
+        st.error(str(exc))
+        experiments = []
+    if any(item["id"] in {"customer-acquisition-line", "geo-holiday-media", "customer-retention-offer", "customer-activation", "ts-search-demand", "customer-dining-offer", "ts-brand-reengagement", "geo-southeast-expansion"} for item in experiments):
+        st.caption("Portfolio preview includes demo experiments and illustrative values, not live business results.")
     summary = portfolio_summary(experiments)
     alerts = [item for item in experiments if item.get("alert")]
     st.markdown(
@@ -2883,6 +2930,10 @@ def render_customer_plan(
         st.session_state.group_response_results = {}
     st.session_state.customer_group_plan_signature = signature
     design.group_plan_rows = plan_rows
+    design.arm_sample_sizes = {}
+    for row in plan_rows:
+        arm = str(row["Arm"])
+        design.arm_sample_sizes[arm] = design.arm_sample_sizes.get(arm, 0) + int(row["Required Accounts"])
     design.total_sample_size = sum(int(row["Required Accounts"]) for row in plan_rows)
     design.required_n_per_arm = max(int(row["Required Accounts"]) for row in plan_rows)
     design.binding_metric = "; ".join(binding_labels)
@@ -2895,7 +2946,7 @@ def render_customer_plan(
         "Ready to review" if within_window else "Needs adjustment",
         [
             ("Required Accounts", f"{design.total_sample_size:,.0f}", "treatment"),
-            ("Longest Test Duration", duration_label(int(math.ceil(total_duration)), design.traffic_frequency), ""),
+            ("Recruitment Time", duration_label(int(math.ceil(total_duration)), design.traffic_frequency), ""),
             ("Customer Groups", f"{len(group_names):,.0f}", ""),
             ("Test Options", f"{arm_count:,.0f}", ""),
         ],
@@ -2951,8 +3002,13 @@ def render_customer_plan(
             "Flow per Period": flow_label,
         }
     )
-    output = output[["Group", "Test Option", "Type", "Required Accounts", "Share of Eligible Traffic", flow_label, "Test Duration"]]
+    output = output[["Group", "Test Option", "Type", "Required Accounts", "Share of Eligible Traffic", flow_label, "Test Duration"]].rename(columns={"Test Duration": "Recruitment Time"})
     st.dataframe(output, use_container_width=True, hide_index=True)
+    st.caption("Recruitment time covers collecting the required accounts; the outcome observation window is additional.")
+    def open_simple_results():
+        st.session_state.customer_intent = "analyze"
+        st.session_state.customer_input_mode = "Simple results"
+    st.button("Analyze this plan", key="customer_analyze_this_plan", type="primary", on_click=open_simple_results)
     weak_support = [
         row for row in plan_rows
         if str(row.get("Support", "")) in {"Limited", "Insufficient"}
@@ -3363,7 +3419,7 @@ def customer_plan_step() -> None:
         all_comparisons,
         binding_labels,
         group_names,
-        "Historical customers are assigned to the closest proposed numeric strategy value within each customer group. Automatic distance protection excludes observations farther than half of the widest gap between test values unless a custom limit is supplied. Means and standard deviations are estimated separately for every group and value, and the design uses generalized Neyman allocation.",
+        "Historical customers are assigned to the closest proposed numeric strategy value within each customer group. Automatic distance protection excludes observations farther than half of the widest gap between test values unless a custom limit is supplied. Means and standard deviations are estimated separately for every group and value, and the design uses the selected Neyman shared-control allocation method.",
     )
 
 
@@ -3579,7 +3635,7 @@ def design_step() -> None:
         shown_allocation["Allocation Share"] = shown_allocation["Allocation Share"].map(lambda value: percent(value, 1))
         st.markdown("**Estimated Sample by Arm**")
         st.dataframe(shown_allocation, use_container_width=True, hide_index=True)
-        st.caption("Generalized Neyman allocation gives more observations to higher-variance arms and accounts for the control being reused in every treatment comparison.")
+        st.caption("The selected Neyman allocation method accounts for arm-specific variation and reuses one shared control across comparisons.")
     st.write(f"Primary Metric: {primary.name} through MOB {primary.mob_horizon}")
     st.write(f"Smallest effect: {effect_value_label(primary)} | Detection chance: {percent(design.target_power, 0)} | False-positive rate: {percent(design.alpha, 1)}")
     planning_alpha = adjusted_alpha(design.alpha, max(len(treatments), 1), design.multiplicity_method)
@@ -3689,14 +3745,14 @@ def design_step() -> None:
 
 
 def customer_group_analysis_step() -> None:
-    st.subheader("Analyze")
+    st.subheader("Results")
     strategy: StrategyConfig = st.session_state.strategy_config
     design: DesignConfig = st.session_state.design_config
     population: PopulationConfig = st.session_state.population_config
     if not strategy.group_arms or not design.group_plan_rows:
         st.info("Complete the Plan before analyzing experiment results.")
         return
-    source = st.radio("Experiment Result Data Source", ["Upload File", "Internal Data", "Synthetic Demo"], index=2, horizontal=True, key="group_analysis_source_v1")
+    source = st.radio("Experiment Result Data Source", ["Upload File", "Internal Data", "Synthetic Demo"], index=0, horizontal=True, key="group_analysis_source_v1")
     if source == "Upload File":
         uploaded = st.file_uploader("Upload Experiment Results", type=["csv", "parquet"], key="group_analysis_upload_v1")
         if uploaded is not None:
@@ -3706,6 +3762,9 @@ def customer_group_analysis_step() -> None:
                 st.session_state.results_df = pd.read_parquet(uploaded) if uploaded.name.endswith(".parquet") else load_uploaded_csv(uploaded)
                 st.session_state.group_results_upload_signature = signature
                 st.session_state.group_analysis_results = {}
+        else:
+            st.info("Upload the results for this plan.")
+            return
     elif source == "Synthetic Demo":
         st.session_state.results_df = synthetic_group_results()
     else:
@@ -3739,7 +3798,7 @@ def customer_group_analysis_step() -> None:
     else:
         analysis_df["_analysis_group"] = "All customers"
 
-    numeric_result_columns = [column for column in numeric_columns(analysis_df) if column != assignment_column]
+    numeric_result_columns = [column for column in numeric_columns(analysis_df) if column not in {assignment_column, analysis_config.unit_id_column}]
     result_columns = {}
     used = set()
     for role, metric in st.session_state.metrics_config.items():
@@ -3773,6 +3832,15 @@ def customer_group_analysis_step() -> None:
         else:
             st.warning(message)
     blocking = any(level == "error" for level, _ in validation_messages)
+    if analysis_config.unit_id_column in analysis_df and analysis_df[analysis_config.unit_id_column].duplicated().any():
+        st.error("An account appears more than once across the supplied audiences. Provide one row per randomized account.")
+        blocking = True
+    fingerprint = configuration_fingerprint({"data": data_fingerprint(analysis_df), "columns": result_columns,
+        "assignment": assignment_column, "unit": analysis_config.unit_id_column, "plan": design.group_plan_rows,
+        "arms": strategy.group_arms, "metrics": {role: asdict(metric) for role, metric in st.session_state.metrics_config.items()},
+        "alpha": design.alpha, "method": design.multiplicity_method, "scope": design.audience_decision_scope})
+    st.session_state.customer_analysis_is_current = not blocking and st.session_state.get("customer_analysis_mode") == "Customer records" and st.session_state.get("customer_group_analysis_fingerprint") == fingerprint
+    analysis_alpha = design.alpha / len(group_frames) if design.audience_decision_scope == "One joint decision across audiences" else design.alpha
     if st.button("Run Group Analysis", type="primary", disabled=blocking, key="run_group_analysis_v1"):
         by_group, responses_by_group = {}, {}
         for group, scoped in group_frames.items():
@@ -3782,9 +3850,9 @@ def customer_group_analysis_step() -> None:
             for role, metric in st.session_state.metrics_config.items():
                 column = result_columns[role]
                 result = (
-                    binary_results(scoped, assignment_column, column, control, treatments, design.alpha, design.multiplicity_method)
+                    binary_results(scoped, assignment_column, column, control, treatments, analysis_alpha, design.multiplicity_method)
                     if metric.metric_type == "Binary"
-                    else continuous_results(scoped, assignment_column, column, control, treatments, design.alpha, design.multiplicity_method)
+                    else continuous_results(scoped, assignment_column, column, control, treatments, analysis_alpha, design.multiplicity_method)
                 )
                 by_role[role] = result
                 responses[role] = response_summary(scoped, assignment_column, column, design.alpha, metric.metric_type)
@@ -3794,10 +3862,17 @@ def customer_group_analysis_step() -> None:
         st.session_state.group_response_results = responses_by_group
         st.session_state.analysis_results_by_role = next(iter(by_group.values()), {})
         st.session_state.customer_analysis_is_current = True
+        st.session_state.customer_group_analysis_fingerprint = fingerprint
+        st.session_state.customer_analysis_timestamp = datetime.now().isoformat(timespec="seconds")
+        st.session_state.customer_analysis_mode = "Customer records"
         st.rerun()
     results_by_group = st.session_state.group_analysis_results
     if not results_by_group:
         return
+    if not st.session_state.customer_analysis_is_current:
+        st.warning("Results are out of date. Calculate again with the current data and plan.")
+        return
+    st.session_state.customer_evidence_note = "Review assignment or missing-data warnings" if validation_messages else "Effect estimates; business decision not automated"
     result_tabs = st.tabs(list(results_by_group))
     for group_index, (tab, group) in enumerate(zip(result_tabs, results_by_group)):
         with tab:
@@ -3818,7 +3893,7 @@ def customer_group_analysis_step() -> None:
             view_role = st.selectbox("Result Metric", roles, format_func=lambda role: f"{role}: {st.session_state.metrics_config[role].name}", key=f"group_result_role_{group_index}_v1")
             result = results_by_group[group][view_role]
             metric = st.session_state.metrics_config[view_role]
-            table = format_effect_table(result, metric.metric_type, strategy.strategy_name)
+            table = format_effect_table(result, metric.metric_type, strategy.strategy_name, alpha=analysis_alpha)
             if view_role == "Guardrail":
                 threshold = guardrail_absolute_threshold(metric)
                 table["Guardrail Status"] = result.apply(lambda row: "Control" if row["Is Control"] else guardrail_status(row, threshold, metric.direction), axis=1)
@@ -3832,41 +3907,6 @@ def customer_group_analysis_step() -> None:
                 st.plotly_chart(response_plot(st.session_state.group_response_results[group][view_role], strategy.strategy_name, metric.name), use_container_width=True, key=f"group_response_{group_index}_{view_role}_v1")
 
 
-def customer_group_decision_step() -> None:
-    st.subheader("Decide")
-    results_by_group = st.session_state.group_analysis_results
-    if not results_by_group:
-        st.info("Run the group analysis before generating recommendations.")
-        return
-    primary_metric = st.session_state.metrics_config["Primary"]
-    guardrail_metric = st.session_state.metrics_config.get("Guardrail")
-    guardrail_threshold = guardrail_absolute_threshold(guardrail_metric)
-    tabs = st.tabs(list(results_by_group))
-    for tab, (group, results) in zip(tabs, results_by_group.items()):
-        with tab:
-            scorecard = arm_decision_scorecard(
-                results["Primary"],
-                primary_metric.direction,
-                normalize_metric(primary_metric).effect_absolute,
-                results.get("Guardrail"),
-                guardrail_threshold,
-                guardrail_metric.direction if guardrail_metric else "Lower is Better",
-            )
-            display = scorecard.copy()
-            display["Primary Effect"] = display["Primary Effect"].map(lambda value: number(value, 2))
-            display["Relative Lift"] = display["Relative Lift"].map(lambda value: percent(value, 1) if pd.notna(value) else "")
-            display["Adjusted p-value"] = display["Adjusted p-value"].map(lambda value: p_value(value) if pd.notna(value) else "")
-            display["Meets Planned Effect"] = display["Meets Planned Effect"].map({True: "Yes", False: "No"})
-            st.dataframe(display, use_container_width=True, hide_index=True)
-            recommendation = experiment_recommendation(results["Primary"], results.get("Guardrail"), guardrail_threshold, guardrail_metric.direction if guardrail_metric else "Lower is Better", primary_metric.direction)
-            status = recommendation_status(recommendation)
-            if status == "error":
-                st.error(recommendation)
-            elif status == "warning":
-                st.warning(recommendation)
-            else:
-                st.success(recommendation)
-    st.caption("Recommendations are calculated independently for each configured customer group and only for the randomized strategy arms.")
 
 
 def analysis_step() -> None:
@@ -3903,7 +3943,7 @@ def analysis_step() -> None:
             st.session_state.results_df = demo.dropna(subset=[strategy.assignment_column])
     else:
         st.info("Internal result-data access is modular and will use the future Databricks connector.")
-        st.session_state.results_df = load_results_demo()
+        return
     df = st.session_state.results_df
     if df is None:
         st.info("Load experiment-result data to run Analysis.")
@@ -3941,7 +3981,7 @@ def analysis_step() -> None:
     invalid_mapping = False
     used_result_columns = set()
     for role, metric in st.session_state.metrics_config.items():
-        numeric = [col for col in numeric_columns(df) if col != assignment_col]
+        numeric = [col for col in numeric_columns(df) if col not in {assignment_col, analysis_config.unit_id_column}]
         preferred = None
         role_candidates = {
             "Primary": ["outcome", "conversion", "revolving_balance"],
@@ -3967,6 +4007,16 @@ def analysis_step() -> None:
     selected_arms = [control] + treatments
     planned_sizes = {arm: float(design.arm_sample_sizes.get(str(arm), 0)) for arm in selected_arms}
     expected_shares = planned_sizes if planned_sizes and all(value > 0 for value in planned_sizes.values()) else None
+    allocation_error = False
+    if expected_shares is None:
+        with st.expander("Expected traffic allocation", expanded=False):
+            st.caption("No matching saved allocation was found. Confirm the intended traffic split; the initial values assume equal allocation.")
+            expected_shares = {}
+            for arm in selected_arms:
+                expected_shares[arm] = st.number_input(f"{arm}: expected traffic (%)", min_value=0.1, max_value=100.0, value=100.0 / len(selected_arms), key=f"analysis_share_{len(selected_arms)}_{arm}")
+            if not math.isclose(sum(expected_shares.values()), 100.0, abs_tol=.1):
+                st.error("Expected traffic percentages must total 100%.")
+                allocation_error = True
     validation_errors, validation_warnings = validate_analysis_data(
         df,
         assignment_col,
@@ -3978,6 +4028,8 @@ def analysis_step() -> None:
     )
     for warning in validation_warnings:
         st.warning(warning)
+    if allocation_error:
+        validation_errors.append("Confirm an expected traffic split totaling 100%.")
     for error in validation_errors:
         st.error(error)
     integrity = analysis_integrity_summary(df, assignment_col, outcomes, selected_arms, analysis_config.unit_id_column, expected_shares)
@@ -4024,9 +4076,10 @@ def analysis_step() -> None:
     if analysis_config.unit_id_column:
         signature_columns.append(analysis_config.unit_id_column)
     data_hash = int(pd.util.hash_pandas_object(df[list(dict.fromkeys(signature_columns))], index=True).sum()) if signature_columns else 0
-    metric_decisions = tuple((role, metric.direction, metric.effect_type, metric.guardrail_threshold) for role, metric in st.session_state.metrics_config.items())
-    current_fingerprint = repr((data_hash, assignment_col, control, tuple(treatments), tuple(sorted(outcomes.items())), metric_decisions, design.alpha, design.multiplicity_method))
-    st.session_state.customer_analysis_is_current = st.session_state.customer_analysis_fingerprint == current_fingerprint
+    metric_decisions = tuple((role, metric.direction, metric.effect_type, metric.effect_value, metric.guardrail_threshold) for role, metric in st.session_state.metrics_config.items())
+    current_fingerprint = repr((data_hash, assignment_col, control, tuple(treatments), tuple(sorted(outcomes.items())), metric_decisions, design.alpha, design.multiplicity_method, expected_shares))
+    st.session_state.customer_analysis_is_current = analysis_ready and st.session_state.get("customer_analysis_mode") == "Customer records" and st.session_state.customer_analysis_fingerprint == current_fingerprint
+    st.session_state.customer_evidence_note = "Investigate assignment before interpreting effects" if integrity["srm_status"] == "Review" else "Effect estimates; business decision not automated"
     if st.button("Calculate Results", type="primary", disabled=bool(validation_errors) or invalid_mapping):
         if invalid_mapping or validation_errors:
             st.error("Fix result-column mappings before running Analysis.")
@@ -4044,18 +4097,22 @@ def analysis_step() -> None:
         st.session_state.response_by_role = responses
         st.session_state.customer_analysis_fingerprint = current_fingerprint
         st.session_state.customer_analysis_is_current = True
+        st.session_state.group_analysis_results = {}
+        st.session_state.customer_analysis_timestamp = datetime.now().isoformat(timespec="seconds")
+        st.session_state.customer_analysis_mode = "Customer records"
     if st.session_state.analysis_results_by_role and not st.session_state.customer_analysis_is_current:
         st.warning("Results are out of date because the dataset or analysis configuration changed. Run the configured analysis again.")
         return
     if st.session_state.analysis_results_by_role:
+        st.caption("Results show estimated effects and uncertainty. Business owners make the final decision; no rollout action is selected automatically.")
         if design.multiplicity_method == "Holm" and len(treatments) > 1:
             st.info("Treatment-versus-control p-values are adjusted with the Holm method.")
         view_role = st.selectbox("Result Metric", list(st.session_state.analysis_results_by_role.keys()), format_func=lambda role: f"{role}: {st.session_state.metrics_config[role].name}")
         result = st.session_state.analysis_results_by_role[view_role]
         metric = st.session_state.metrics_config[view_role]
-        table = format_effect_table(result, metric.metric_type)
+        table = format_effect_table(result, metric.metric_type, alpha=design.alpha)
         if design.multiplicity_method == "Holm" and len(treatments) > 1:
-            table = table.rename(columns={"95% CI": "95% Familywise CI"})
+            table = table.rename(columns={f"{100 * (1 - design.alpha):g}% CI": f"{100 * (1 - design.alpha):g}% Familywise CI"})
         if view_role == "Guardrail":
             threshold = guardrail_absolute_threshold(metric)
             table["Guardrail Status"] = result.apply(lambda row: "Control" if row["Is Control"] else guardrail_status(row, threshold, metric.direction), axis=1)
@@ -4069,161 +4126,6 @@ def analysis_step() -> None:
             st.plotly_chart(response_plot(st.session_state.response_by_role[view_role], strategy.strategy_name, metric.name), use_container_width=True)
 
 
-def decision_step() -> None:
-    results = st.session_state.analysis_results_by_role
-    if "Primary" not in results or not st.session_state.customer_analysis_is_current:
-        st.info("Run Analysis before generating the Decision summary.")
-        return
-    guardrail_metric = st.session_state.metrics_config.get("Guardrail")
-    primary_metric = st.session_state.metrics_config["Primary"]
-    meaningful_effect = normalize_metric(primary_metric).effect_absolute
-    guardrail_threshold = guardrail_absolute_threshold(guardrail_metric)
-    scorecard = arm_decision_scorecard(
-        results["Primary"],
-        primary_metric.direction,
-        meaningful_effect,
-        results.get("Guardrail"),
-        guardrail_threshold,
-        guardrail_metric.direction if guardrail_metric else "Lower is Better",
-    )
-    recommendation = experiment_recommendation(results["Primary"], results.get("Guardrail"), guardrail_threshold, guardrail_metric.direction if guardrail_metric else "Lower is Better", primary_metric.direction)
-    if scorecard.empty:
-        st.info("No treatment arm is available for a decision comparison.")
-        return
-    scale_candidates = scorecard[scorecard["Decision"] == "Scale candidate"]
-    promising_candidates = scorecard[scorecard["Decision"] == "Promising; add safety check"]
-    leading_row = scale_candidates.iloc[0] if not scale_candidates.empty else promising_candidates.iloc[0] if not promising_candidates.empty else scorecard.iloc[0]
-    leading_lift = leading_row.get("Relative Lift", float("nan"))
-    decision_status = "Scale candidate" if not scale_candidates.empty else "Promising result" if not promising_candidates.empty else "Review result"
-    render_customer_kpi_panel(
-        "Experiment Decision",
-        "The leading tested treatment based on primary-metric evidence and configured safety checks.",
-        decision_status,
-        [
-            ("Leading Treatment", str(leading_row["Treatment Arm"]), "treatment"),
-            ("Relative Lift", percent(leading_lift, 1) if pd.notna(leading_lift) else "Not available", "analysis" if pd.notna(leading_lift) and leading_lift > 0 else ""),
-            ("Primary Evidence", str(leading_row["Primary Evidence"]), ""),
-            ("Guardrail", str(leading_row["Guardrail"]), ""),
-        ],
-        analysis=True,
-    )
-    if guardrail_metric is None:
-        if decision_status == "Promising result":
-            st.warning("The primary outcome improved, but no safety outcome was configured. Complete operational and risk checks before rollout.")
-        else:
-            st.info("No safety outcome was configured. The result describes primary-outcome performance, but it cannot confirm rollout safety.")
-
-    st.markdown("**Treatment Decision Map**")
-    st.caption("Options farther right deliver more business benefit. Options higher on the chart have stronger evidence.")
-    st.plotly_chart(
-        customer_decision_map(
-            scorecard,
-            results["Primary"],
-            meaningful_effect,
-            primary_metric.direction,
-            primary_metric.name,
-        ),
-        use_container_width=True,
-        key="customer_decision_map_v1",
-    )
-
-    leading_result = results["Primary"][results["Primary"]["Credit Line"] == leading_row["Treatment Arm"]]
-    if not leading_result.empty:
-        st.markdown("**Full-Rollout Impact Simulator**")
-        st.caption("Translate the measured per-customer effect into the total outcome change expected for the population you may roll out to.")
-        analyzed_population = int(results["Primary"]["N"].sum())
-        rollout_population = int(
-            st.number_input(
-                "Customers / Accounts Eligible for Full Rollout",
-                min_value=1,
-                value=max(analyzed_population, 1),
-                step=max(100, int(max(analyzed_population, 1) / 10)),
-                help="Enter the future population that would receive the winning option, not the experiment sample size.",
-                key="customer_rollout_population_v1",
-            )
-        )
-        projection = project_rollout_impact(leading_result.iloc[0], rollout_population, primary_metric.direction)
-        if projection["outcome_impact"] < 0:
-            impact_label = "Expected Outcome Change" if primary_metric.metric_type == "Binary" else "Expected Total Outcome Change"
-        elif primary_metric.metric_type == "Binary":
-            impact_label = "Expected Additional Outcomes" if primary_metric.direction == "Higher is Better" else "Expected Avoided Outcomes"
-        else:
-            impact_label = "Expected Total Outcome Gain" if primary_metric.direction == "Higher is Better" else "Expected Total Outcome Reduction"
-        impact_columns = st.columns(3)
-        impact_columns[0].metric("Full Rollout Population", f"{rollout_population:,.0f}")
-        impact_columns[1].metric(impact_label, f"{projection['outcome_impact']:+,.0f}")
-        impact_columns[2].metric("95% Plausible Range", f"{projection['outcome_lower']:+,.0f} to {projection['outcome_upper']:+,.0f}")
-        pace_left, pace_right = st.columns([1, 1.35])
-        rollout_periods = int(
-            pace_left.select_slider(
-                "Periods to Reach Full Rollout",
-                options=[1, 2, 3, 4, 6, 9, 12, 18, 24],
-                value=6,
-                help="Choose how many operating periods it will take to reach the full eligible population.",
-                key="customer_rollout_periods_v1",
-            )
-        )
-        rollout_pattern = pace_right.selectbox(
-            "Rollout Pattern",
-            ["Even pace", "Pilot, then scale", "Fast start"],
-            help="Pilot, then scale starts cautiously. Fast start reaches more customers earlier.",
-            key="customer_rollout_pattern_v1",
-        )
-        st.plotly_chart(
-            customer_rollout_impact_chart(
-                leading_result.iloc[0],
-                rollout_population,
-                primary_metric.direction,
-                rollout_periods,
-                rollout_pattern,
-            ),
-            use_container_width=True,
-            key="customer_rollout_impact_v1",
-        )
-        with st.expander("Convert outcome impact to business value", expanded=False):
-            value_left, value_right = st.columns(2)
-            value_per_unit = value_left.number_input(
-                "Business Value per Outcome Unit ($)",
-                min_value=0.0,
-                value=1.0,
-                step=1.0,
-                help="For example, enter contribution margin per retained customer or economic value per unit of the primary outcome.",
-                key="customer_value_per_outcome_v1",
-            )
-            implementation_cost = value_right.number_input(
-                "Estimated Rollout Cost ($)",
-                min_value=0.0,
-                value=0.0,
-                step=1000.0,
-                key="customer_rollout_cost_v1",
-            )
-            valued_projection = project_rollout_impact(
-                leading_result.iloc[0],
-                rollout_population,
-                primary_metric.direction,
-                value_per_unit,
-                implementation_cost,
-            )
-            value_metrics = st.columns(2)
-            value_metrics[0].metric("Expected Net Business Value", money(valued_projection["net_value"]))
-            value_metrics[1].metric("95% Value Range", f"{money(valued_projection['net_lower'])} to {money(valued_projection['net_upper'])}")
-        st.caption("Projection assumes the measured per-customer effect continues at full rollout. It does not include market saturation, operational constraints, or unmeasured safety effects.")
-    display = scorecard.copy()
-    display["Primary Effect"] = display["Primary Effect"].apply(lambda value: number(value, 2))
-    display["Relative Lift"] = display["Relative Lift"].apply(lambda value: percent(value, 1) if pd.notna(value) else "")
-    display["Adjusted p-value"] = display["Adjusted p-value"].apply(lambda value: p_value(value) if pd.notna(value) else "")
-    display["Meets Planned Effect"] = display["Meets Planned Effect"].map({True: "Yes", False: "No"})
-    st.markdown("**Treatment Decision Scorecard**")
-    st.dataframe(display, use_container_width=True, hide_index=True)
-    st.markdown("**Recommended Action**")
-    status = recommendation_status(recommendation)
-    if status == "error":
-        st.error(recommendation)
-    elif status == "warning":
-        st.warning(recommendation)
-    else:
-        st.success(recommendation)
-    st.caption("The recommendation applies only to the tested arms, eligible population, observation windows, and configured metrics.")
 
 
 def start_time_series_workflow(intent: str) -> None:
@@ -4272,7 +4174,7 @@ def ts_landing_preview() -> None:
     post_share = post_count / total_count * 100
     period_label = f"{pd.Timestamp(preview['start_date']):%b %Y} – {pd.Timestamp(preview['end_date']):%b %Y}"
     source_label = "your current dataset" if using_workspace else "the built-in campaign demo"
-    launch_label = pd.Timestamp(launch).strftime("%b %-d, %Y") if launch is not None else "Not launched"
+    launch_label = pd.Timestamp(launch).strftime("%b %d, %Y") if launch is not None else "Not launched"
     context_note = (
         f"Campaign launch is visible on {launch_label}. The shaded region is the period available for impact analysis."
         if launch is not None
@@ -4327,7 +4229,7 @@ def ts_landing_preview() -> None:
         roles[flag_col] = "Campaign"
     display_headers = {column: f"{humanize_column_name(column)} [{roles[column]}]" if column in roles else humanize_column_name(column) for column in preview_columns}
     display = raw.loc[:, preview_columns].head(12).copy()
-    display[date_col] = pd.to_datetime(display[date_col], errors="coerce").dt.strftime("%b %-d, %Y")
+    display[date_col] = pd.to_datetime(display[date_col], errors="coerce").dt.strftime("%b %d, %Y")
     display = display.rename(columns=display_headers)
     st.markdown(
         f'<div class="ts-section-heading"><strong>Campaign data preview</strong><span>Showing {min(12, len(raw))} of {len(raw):,} rows · all {len(preview_columns)} source columns.</span></div>',
@@ -4342,6 +4244,9 @@ def ts_data_step() -> None:
         "Output: analysis-ready history",
     )
     cfg: TimeSeriesConfig = st.session_state.ts_config
+    # Later tabs execute in the same rerun: invalid/new inputs must not leave
+    # them holding a previously valid series.
+    st.session_state.ts_prepared_df = pd.DataFrame()
     source = st.radio("Data Source", ["Upload File", "Internal Data", "Synthetic Demo"], index=["Upload File", "Internal Data", "Synthetic Demo"].index(cfg.data_source), horizontal=True)
     cfg.data_source = source
     if source == "Upload File":
@@ -4353,13 +4258,19 @@ def ts_data_step() -> None:
             except Exception as exc:
                 st.error("Data validation issue: We could not read the uploaded file. Confirm it is a valid CSV or Parquet file.")
                 print(f"Time-series upload failed: {exc}")
+                st.session_state.ts_raw_df = pd.DataFrame()
+                return
+        else:
+            st.session_state.ts_raw_df = pd.DataFrame()
+            st.info("Upload a historical time-series dataset to continue.")
+            return
     elif source == "Synthetic Demo":
         st.session_state.ts_raw_df = load_timeseries_planning_demo() if st.session_state.get("ts_intent") == "plan" else load_timeseries_demo()
         cfg.dataset_name = "Synthetic Historical Time Series" if st.session_state.get("ts_intent") == "plan" else "Synthetic Campaign Time Series"
     else:
         st.info("Internal time-series data access is a placeholder until the Databricks connector is added.")
-        st.session_state.ts_raw_df = load_timeseries_demo()
-        cfg.dataset_name = "Synthetic Campaign Time Series"
+        st.session_state.ts_raw_df = pd.DataFrame()
+        return
 
     df = st.session_state.ts_raw_df
     if df.empty:
@@ -4368,6 +4279,9 @@ def ts_data_step() -> None:
     inferred = infer_timeseries_columns(df)
     cfg.date_column = cfg.date_column if cfg.date_column in df.columns else inferred["date"]
     numeric = numeric_columns(df)
+    if not numeric:
+        st.error("No numeric outcome column was found. Provide dates and a numeric business outcome.")
+        return
     cfg.outcome_column = cfg.outcome_column if cfg.outcome_column in numeric else inferred["outcome"]
     cfg.segment_column = cfg.segment_column if cfg.segment_column in ["None"] + list(df.columns) else inferred["segment"]
     cfg.campaign_flag_column = cfg.campaign_flag_column if cfg.campaign_flag_column in df.columns else inferred["campaign_flag"]
@@ -4432,7 +4346,8 @@ def ts_data_step() -> None:
         if preview_mode == "All columns":
             st.caption("Mapped fields are marked in the headers. Original column names are unchanged in the analysis data.")
     except Exception as exc:
-        st.error("Data validation issue: We could not interpret the selected Date and Outcome columns.")
+        st.session_state.ts_prepared_df = pd.DataFrame()
+        st.error(f"Data validation issue: {exc}")
         print(f"Time-series preparation failed: {exc}")
 
 
@@ -4454,7 +4369,7 @@ def ts_setup_step() -> None:
     cfg.intervention_date = launch.isoformat()
     end_enabled = c2.checkbox("The campaign had a fixed end date", value=bool(cfg.campaign_end_date))
     if end_enabled:
-        end_value = pd.Timestamp(cfg.campaign_end_date).date() if cfg.campaign_end_date else max_date
+        end_value = bounded_date(cfg.campaign_end_date, launch, max_date, max_date)
         cfg.campaign_end_date = c2.date_input("End Date", value=end_value, min_value=launch, max_value=max_date).isoformat()
     else:
         cfg.campaign_end_date = ""
@@ -4470,8 +4385,8 @@ def ts_setup_step() -> None:
     pre, post = data[data["_date"] < pd.Timestamp(cfg.intervention_date)], data[data["_date"] >= pd.Timestamp(cfg.intervention_date)]
     st.write(f"Pre period: {pre['_date'].min().date() if not pre.empty else 'None'} – {pre['_date'].max().date() if not pre.empty else 'None'}")
     first_treated = post["_date"].min() if not post.empty else None
-    st.write(f"Intervention Date: {pd.Timestamp(cfg.intervention_date).strftime('%b %-d, %Y')}")
-    st.write(f"First Treated Observation: {first_treated.strftime('%b %-d, %Y') if first_treated is not None else 'None'}")
+    st.write(f"Intervention Date: {pd.Timestamp(cfg.intervention_date).strftime('%b %d, %Y')}")
+    st.write(f"First Treated Observation: {first_treated.strftime('%b %d, %Y') if first_treated is not None else 'None'}")
     st.write(f"Post period: {post['_date'].min().date() if not post.empty else 'None'} – {post['_date'].max().date() if not post.empty else 'None'}")
     st.plotly_chart(time_series_line(data, cfg.intervention_date, humanize_column_name(cfg.outcome_column)), use_container_width=True)
 
@@ -4494,9 +4409,9 @@ def ts_plan_setup_step() -> None:
     detected, _ = detect_frequency(data)
     cfg.frequency = detected
     unit = {"Daily": "day", "Weekly": "week", "Monthly": "month"}.get(cfg.frequency, "period")
-    st.markdown(f"**Historical Data Window**  \n{min_date.strftime('%b %-d, %Y')} – {historical_end.strftime('%b %-d, %Y')}")
+    st.markdown(f"**Historical Data Window**  \n{min_date.strftime('%b %d, %Y')} – {historical_end.strftime('%b %d, %Y')}")
     st.markdown(f"**Data Frequency**  \n{cfg.frequency}")
-    st.caption(f"Planned campaign launch: {launch.strftime('%b %-d, %Y')} · Historical data available for planning: {len(data):,} observations")
+    st.caption(f"Planned campaign launch: {launch.strftime('%b %d, %Y')} · Historical data available for planning: {len(data):,} observations")
     st.info(f"The planner uses only observations before the planned launch. Ramp-up and stable measurement settings are configured in Detectability & Duration.")
     st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date), use_container_width=True)
 
@@ -4553,9 +4468,10 @@ def ts_analysis_step() -> None:
         )
         prepost_fingerprint = f"{method_config_fingerprint(cfg, 'Pre–Post Analysis')}:{data_fingerprint(data)}"
         try:
-            st.session_state.ts_prepost_result = run_pre_post_analysis(data, cfg.intervention_date, cfg.campaign_end_date, cfg.comparison_metric, cfg.pre_window, cfg.post_window, cfg.comparison_window, int(cfg.symmetric_periods), (cfg.custom_pre_start, cfg.custom_pre_end, cfg.custom_post_start, cfg.custom_post_end))
-            st.session_state.ts_prepost_fingerprint = prepost_fingerprint
-            st.session_state.ts_prepost_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            if not st.session_state.ts_prepost_result or st.session_state.ts_prepost_fingerprint != prepost_fingerprint:
+                st.session_state.ts_prepost_result = run_pre_post_analysis(data, cfg.intervention_date, cfg.campaign_end_date, cfg.comparison_metric, cfg.pre_window, cfg.post_window, cfg.comparison_window, int(cfg.symmetric_periods), (cfg.custom_pre_start, cfg.custom_pre_end, cfg.custom_post_start, cfg.custom_post_end))
+                st.session_state.ts_prepost_fingerprint = prepost_fingerprint
+                st.session_state.ts_prepost_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         except Exception as exc:
             st.session_state.ts_prepost_result = None
             st.session_state.ts_prepost_fingerprint = ""
@@ -4602,6 +4518,8 @@ def ts_analysis_step() -> None:
             st.caption(f"Last calculated: {st.session_state.ts_structural_timestamp}")
         elif status == "failed":
             st.warning("Analysis failed\n\nThe model could not complete with the current settings. Review the configuration and try again.")
+            if st.session_state.get("ts_structural_error"):
+                st.caption(st.session_state.ts_structural_error)
         pre_observations = int((data["_date"] < pd.Timestamp(cfg.intervention_date)).sum())
         render_ts_kpi_panel(
             "Adjusted Impact Estimate Ready",
@@ -4647,8 +4565,8 @@ def ts_results_step() -> None:
     with st.expander("What was analyzed", expanded=False):
         d1, d2, d3 = st.columns(3)
         d1.write(f"**Outcome**\n\n{humanize_column_name(cfg.outcome_column)}")
-        d2.write(f"**Intervention**\n\n{pd.Timestamp(cfg.intervention_date).strftime('%b %-d, %Y')}\n\n**First Treated Observation**\n\n{first_treated.strftime('%b %-d, %Y')}")
-        d3.write(f"**Evaluation Period**\n\n{first_treated.strftime('%b %-d, %Y')} – {evaluation_end.strftime('%b %-d, %Y')} · {len(evaluation)} {duration_unit(cfg.frequency)}s\n\n**Method**\n\n{cfg.analysis_method}")
+        d2.write(f"**Intervention**\n\n{pd.Timestamp(cfg.intervention_date).strftime('%b %d, %Y')}\n\n**First Treated Observation**\n\n{first_treated.strftime('%b %d, %Y')}")
+        d3.write(f"**Evaluation Period**\n\n{first_treated.strftime('%b %d, %Y')} – {evaluation_end.strftime('%b %d, %Y')} · {len(evaluation)} {duration_unit(cfg.frequency)}s\n\n**Method**\n\n{cfg.analysis_method}")
     current_fingerprint = f"{method_config_fingerprint(cfg, cfg.analysis_method)}:{data_fingerprint(data)}"
     if cfg.analysis_method == "Pre–Post Analysis":
         prepost = st.session_state.ts_prepost_result if st.session_state.ts_prepost_fingerprint == current_fingerprint else None
@@ -4834,16 +4752,23 @@ def ts_planning_step() -> None:
         calculate_label = "Update Recommendation" if st.session_state.ts_duration_plan and st.session_state.ts_duration_plan_fingerprint != current_plan_fingerprint else "Build Recommendation"
         spinner_text = "Calculating required campaign duration..."
     if st.button(calculate_label, type="primary", key="ts_plan_calculate"):
-        with st.spinner(spinner_text):
-            st.session_state.ts_duration_plan = run_duration_power_simulation(planning_data, cfg.frequency, cfg.selected_covariates, cfg.seasonality, cfg.local_trend, 1 - alpha, planning_effect, effect_type, target_power, int(maximum), int(ramp), simulations=40, seed=int(cfg.simulation_seed), alpha=alpha, effect_pattern="gradual_ramp" if gradual else "constant")
-            st.session_state.ts_duration_plan["effect"] = effect
-            st.session_state.ts_duration_plan["effect_type"] = effect_type
-            st.session_state.ts_duration_plan["planning_objective"] = planning_objective
-            st.session_state.ts_duration_plan["alpha"] = alpha
-            st.session_state.ts_duration_plan["target_power"] = target_power
-            st.session_state.ts_duration_plan["ramp"] = ramp
-            st.session_state.ts_duration_plan["predictors"] = list(cfg.selected_covariates)
-            st.session_state.ts_duration_plan_fingerprint = current_plan_fingerprint
+        try:
+            with st.spinner(spinner_text):
+                st.session_state.ts_duration_plan = run_duration_power_simulation(planning_data, cfg.frequency, cfg.selected_covariates, cfg.seasonality, cfg.local_trend, 1 - alpha, planning_effect, effect_type, target_power, int(maximum), int(ramp), simulations=40, seed=int(cfg.simulation_seed), alpha=alpha, effect_pattern="gradual_ramp" if gradual else "constant")
+                st.session_state.ts_duration_plan["effect"] = effect
+                st.session_state.ts_duration_plan["effect_type"] = effect_type
+                st.session_state.ts_duration_plan["planning_objective"] = planning_objective
+                st.session_state.ts_duration_plan["alpha"] = alpha
+                st.session_state.ts_duration_plan["target_power"] = target_power
+                st.session_state.ts_duration_plan["ramp"] = ramp
+                st.session_state.ts_duration_plan["predictors"] = list(cfg.selected_covariates)
+                st.session_state.ts_duration_plan_fingerprint = current_plan_fingerprint
+        except Exception as exc:
+            st.session_state.ts_duration_plan = None
+            st.session_state.ts_duration_plan_fingerprint = ""
+            st.error(f"Could not calculate a campaign plan: {exc}")
+            st.info("Review the dates, available history, and predictor columns. Try a simpler model if fitting fails.")
+            return
         plan_status = st.session_state.ts_duration_plan
         if planning_objective == "Find detectable effect by duration":
             st.success("Recommendation ready. Detectable impacts are shown for each duration.")
@@ -4879,7 +4804,7 @@ def ts_planning_step() -> None:
                 ("Required Duration", duration_label(recommendation, cfg.frequency), ""),
                 ("Post-Launch Sample", f"{recommendation:,} time points", ""),
                 ("Estimated Detection Chance", f"{selected['power']:.0%}", "positive"),
-                ("Earliest Reliable Decision", end.strftime("%b %-d, %Y"), ""),
+                ("Earliest Reliable Decision", end.strftime("%b %d, %Y"), ""),
             ],
         )
         st.caption(f"Ramp-up: {duration_label(ramp, cfg.frequency)} · Stable measurement: {duration_label(stable, cfg.frequency)} · Historical observations used: {len(planning_data):,}")
@@ -5528,7 +5453,7 @@ def geo_planning_step() -> None:
 def geo_analysis_signature() -> tuple:
     cfg: GeoConfig = st.session_state.geo_config
     assignment = st.session_state.geo_assignment
-    return (cfg.campaign_start_date, cfg.campaign_end_date, cfg.outcome_column, cfg.estimand, tuple(zip(assignment.get("DMA", []), assignment.get("Group", []))))
+    return (cfg.campaign_start_date, cfg.campaign_end_date, cfg.outcome_column, cfg.estimand, cfg.market_size_column, data_fingerprint(st.session_state.geo_panel_df), tuple(zip(assignment.get("DMA", []), assignment.get("Group", []))))
 
 
 def geo_analysis_setup_step() -> None:
@@ -5585,6 +5510,7 @@ def geo_analysis_results_step() -> None:
         if st.button(action_label, type="primary", key="geo_run_analysis"):
             result = run_panel_did(analysis_panel, weighted=weighted)
             result["_signature"] = signature
+            result["_calculated_at"] = datetime.now().isoformat(timespec="seconds")
             st.session_state.geo_analysis = result
             st.rerun()
         elif st.session_state.geo_analysis and st.session_state.geo_analysis.get("_signature") != signature:
@@ -5706,8 +5632,7 @@ def render_geo_shell(intent: str | None) -> None:
         unsafe_allow_html=True,
     )
     if intent and save_col.button("Save", use_container_width=True, key="geo_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
-        saved = save_current_workspace("Geography")
-        st.toast(f'Saved {saved["name"]} · config v{saved["config_version"]}')
+        st.session_state.pending_workspace_save = "Geography"
     exit_col.button("All experiments", use_container_width=True, key="geo_all_experiments", on_click=leave_geographic_workspace)
 
 
@@ -5790,8 +5715,7 @@ def render_ts_shell(intent: str | None) -> None:
         unsafe_allow_html=True,
     )
     if intent and save_col.button("Save", use_container_width=True, key="ts_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
-        saved = save_current_workspace("Time Series")
-        st.toast(f'Saved {saved["name"]} · config v{saved["config_version"]}')
+        st.session_state.pending_workspace_save = "Time Series"
     exit_col.button("All experiments", use_container_width=True, key="ts_all_experiments", on_click=leave_time_series_workspace)
 
 
@@ -5857,6 +5781,7 @@ def start_customer_workflow(intent: str) -> None:
         st.session_state.results_df = load_results_demo()
         st.session_state["customer_analysis_source_v2"] = "Synthetic Demo"
     st.session_state.customer_intent = intent
+    st.session_state.customer_input_mode = "Arm summaries" if intent == "plan" else "Simple results"
 
 
 def customer_landing_preview() -> None:
@@ -5994,7 +5919,7 @@ def customer_landing_preview() -> None:
     account_preview = accounts.head(10).copy()
     account_preview["Average Outcome"] = account_preview["Average Outcome"].round(2)
     if "Customer Start" in account_preview:
-        account_preview["Customer Start"] = pd.to_datetime(account_preview["Customer Start"], errors="coerce").dt.strftime("%b %-d, %Y")
+        account_preview["Customer Start"] = pd.to_datetime(account_preview["Customer Start"], errors="coerce").dt.strftime("%b %d, %Y")
     st.markdown(
         f'<div class="customer-section-heading"><strong>Customer data preview</strong><span>Showing {min(10, len(accounts))} of {len(accounts):,} customer or account summaries.</span></div>',
         unsafe_allow_html=True,
@@ -6034,8 +5959,7 @@ def render_customer_shell(intent: str | None) -> None:
         unsafe_allow_html=True,
     )
     if intent and save_col.button("Save", use_container_width=True, key="customer_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
-        saved = save_current_workspace("Customer")
-        st.toast(f'Saved {saved["name"]} · config v{saved["config_version"]}')
+        st.session_state.pending_workspace_save = "Customer"
     exit_col.button("All experiments", use_container_width=True, key="customer_all_experiments", on_click=leave_customer_workspace)
 
 
@@ -6048,6 +5972,215 @@ def render_customer_kpi_panel(title: str, subtitle: str, status: str, values: li
         f'<section class="customer-kpi-panel{" analysis" if analysis else ""}"><div class="customer-kpi-head"><div><strong>{html.escape(title)}</strong><span>{html.escape(subtitle)}</span></div><div class="customer-status">{html.escape(status)}</div></div><div class="customer-kpis">{cells}</div></section>',
         unsafe_allow_html=True,
     )
+
+
+def render_customer_evidence(result: pd.DataFrame, metric: MetricConfig, key: str) -> None:
+    """Present measured evidence without making a launch decision for the business."""
+    st.markdown(f"**{metric.name}**")
+    st.plotly_chart(forest_plot(result, "Test option"), use_container_width=True, key=key)
+    design = st.session_state.design_config
+    groups = max(len(st.session_state.get("group_analysis_results", {})), 1)
+    alpha = design.alpha / groups if design.audience_decision_scope == "One joint decision across audiences" else design.alpha
+    display = format_effect_table(result, metric.metric_type, "Test option", alpha=alpha)
+    st.dataframe(display.drop(columns=["Adjusted p-value", "Result"]).rename(columns={"N": "Accounts", "Mean / Rate": "Average outcome"}), use_container_width=True, hide_index=True)
+    with st.expander("Statistical details", expanded=False):
+        st.dataframe(display, use_container_width=True, hide_index=True)
+        method = "Independent-proportion comparisons" if metric.metric_type == "Binary" else "Welch unequal-variance comparisons"
+        st.caption(f"{method}. With comparison protection enabled, p-values use Holm adjustment and intervals use a conservative simultaneous correction. The zero line means no difference from control.")
+    if metric.role == "Guardrail":
+        checks = result.loc[~result["Is Control"]].copy()
+        checks["Safety check"] = checks.apply(
+            lambda row: guardrail_status(row, guardrail_absolute_threshold(metric), metric.direction), axis=1,
+        )
+        st.dataframe(checks[["Credit Line", "Safety check"]].rename(columns={"Credit Line": "Test option"}), hide_index=True)
+    st.caption("Estimates describe the tested customers and observation window. Business owners decide whether the benefit, risk, and cost justify a change.")
+
+
+def customer_summary_step(intent: str) -> None:
+    planning = intent == "plan"
+    prefix = f"customer_summary_{intent}"
+    drafts = st.session_state.setdefault("customer_summary_drafts", {})
+    saved = drafts.get(intent, {})
+    st.session_state.customer_analysis_is_current = False
+    st.markdown("**Plan from summary statistics · Partners and test options**" if planning else "**Analyze observed arm summaries**")
+    st.caption("One row per Partner and test option. Provide the historical average (Mean) and sample standard deviation (SD / STDEV.S), or sample variance (Variance / VAR.S). Use the same outcome window. Historical account count (N) is optional for planning; actual observed N is required for summary analysis. This planner supports continuous outcomes.")
+    if planning:
+        st.info("The starting table contains example assumptions, not your business data. Replace them or upload your statistics before using a plan.")
+    left, right = st.columns(2)
+    outcome = left.text_input("Outcome name", value=saved.get("outcome", "Primary outcome"), key=f"{prefix}_outcome")
+    direction = right.selectbox("Better outcome", ["Higher is Better", "Lower is Better"], index=0 if saved.get("direction", "Higher is Better") == "Higher is Better" else 1, key=f"{prefix}_direction")
+    source = st.radio("Summary source", ["Enter manually", "Upload CSV"], horizontal=True, key=f"{prefix}_source")
+    initial = pd.DataFrame(saved.get("rows") or ([
+        {"Group": partner, "Arm": arm, "Mean": mean, "SD": sd, "N": 1000}
+        for partner, mean in [("Partner A", 100.), ("Partner B", 120.)]
+        for arm, sd in [("Control", 30.), ("Option A", 35.), ("Option B", 45.)]
+    ] if planning else [
+        {"Group": "All customers", "Arm": "Control", "Mean": None, "SD": None, "N": None},
+        {"Group": "All customers", "Arm": "Option A", "Mean": None, "SD": None, "N": None},
+    ]))
+    upload_id = "manual"
+    if source == "Upload CSV":
+        st.download_button("Download CSV template", "Partner,Arm,Mean,SD,N\nPartner A,Control,100,30,1000\nPartner A,Option A,100,35,1000\nPartner A,Option B,100,45,1000\nPartner B,Control,120,40,1000\nPartner B,Option A,120,45,1000\nPartner B,Option B,120,55,1000\n", "arm_summary_template.csv", "text/csv", key=f"{prefix}_template")
+        upload = st.file_uploader("Arm summaries", type=["csv"], key=f"{prefix}_upload")
+        if upload is None:
+            st.info("Upload one row per audience and test option. Use the same outcome and observation window in every row.")
+            return
+        try:
+            initial = pd.read_csv(upload)
+            if "Partner" in initial and "Group" not in initial:
+                initial = initial.rename(columns={"Partner": "Group"})
+            if "Group" not in initial:
+                initial.insert(0, "Group", "All customers")
+            upload_id = configuration_fingerprint({"file": upload.getvalue().hex()})[:12]
+        except (ValueError, UnicodeError) as exc:
+            st.error(f"Could not read the summaries: {exc}")
+            return
+    if not {"Group", "Arm", "Mean"}.issubset(initial.columns) or not {"SD", "Variance"}.intersection(initial.columns) or (not planning and "N" not in initial):
+        st.error("Provide Arm, Mean, SD (or Variance), and optional Partner. Analysis also requires N.")
+        return
+    if "N" not in initial:
+        initial["N"] = np.nan
+    for column in [name for name in ["Mean", "SD", "Variance", "N"] if name in initial]:
+        initial[column] = pd.to_numeric(initial[column], errors="coerce")
+    # Keep the editor's source stable: replaying row-deletion deltas on an
+    # already edited dataframe can otherwise remove another Partner on rerun.
+    editor_seed = st.session_state.setdefault(f"{prefix}_seed_{upload_id}", initial.copy())
+    edited = st.data_editor(editor_seed, num_rows="dynamic", hide_index=True, use_container_width=True,
+                            column_config={"Group": st.column_config.TextColumn("Partner / audience"),
+                                           "Mean": st.column_config.NumberColumn("Historical average" if planning else "Observed average"),
+                                           "SD": st.column_config.NumberColumn("Sample SD (STDEV.S)", min_value=0.),
+                                           "Variance": st.column_config.NumberColumn("Sample variance", help="Squared outcome units; use VAR.S or variance with ddof=1."),
+                                           "N": st.column_config.NumberColumn("Historical accounts (optional)" if planning else "Observed accounts", min_value=2, step=1)},
+                            key=f"{prefix}_editor_{upload_id}")
+    drafts[intent] = {**saved, "outcome": outcome, "direction": direction,
+                      "rows": edited.astype(object).where(edited.notna(), None).to_dict("records")}
+    try:
+        data = validate_arm_summaries(edited, planning=planning)
+    except ValueError as exc:
+        st.info(str(exc))
+        return
+    partner_mode, partner_weights = "Separate plans per Partner", {}
+    if planning:
+        partners = data["Group"].drop_duplicates().tolist()
+        selected_partners = st.multiselect("Partners to include", partners,
+                                          default=[p for p in saved.get("selected_partners", partners) if p in partners], key=f"{prefix}_partners")
+        if not selected_partners:
+            st.info("Select at least one Partner.")
+            return
+        data = data[data["Group"].isin(selected_partners)].copy()
+        data["N"] = data["N"].replace(0, np.nan)
+        partner_mode = st.radio("How should these Partners be planned?", ["Separate plans per Partner", "One combined plan · same Partner mix in every arm"],
+                                index=0 if saved.get("partner_mode", "Separate plans per Partner") == "Separate plans per Partner" else 1, key=f"{prefix}_partner_mode")
+        st.caption("Separate plans answer each Partner's question. A combined plan answers one overall question and does not guarantee enough accounts for separate Partner decisions.")
+        drafts[intent].update(selected_partners=selected_partners, partner_mode=partner_mode)
+    design = st.session_state.design_config
+    metric = MetricConfig(outcome, "", "Primary", direction=direction)
+    controls, flows = {}, {}
+    plan_rows = design.group_plan_rows
+    for index, (group, scoped) in enumerate(data.groupby("Group", sort=False)):
+        a, b = st.columns(2)
+        group_key = configuration_fingerprint({"group": group})[:12]
+        arms = scoped["Arm"].tolist()
+        planned_control = next((str(row["Arm"]) for row in plan_rows if str(row["Group"]) == group and row["Role"] == "Control"), None)
+        preferred = saved.get("controls", {}).get(group, planned_control or arms[0])
+        controls[group] = a.selectbox(f"{group}: current / control option", arms, index=arms.index(preferred) if preferred in arms else 0, key=f"{prefix}_control_{group_key}")
+        if planning:
+            flows[group] = b.number_input(f"{group}: eligible accounts per period", min_value=1.0, value=float(saved.get("flows", {}).get(group, 300)), key=f"{prefix}_flow_{group_key}")
+    with st.expander("Advanced settings", expanded=False):
+        a, b = st.columns(2)
+        design.alpha = a.number_input("False-positive rate", min_value=0.001, max_value=0.2, value=float(design.alpha), key=f"{prefix}_alpha")
+        design.multiplicity_method = b.selectbox("Comparison protection", ["Holm", "None"], index=0 if design.multiplicity_method == "Holm" else 1, key=f"{prefix}_multiplicity")
+        design.audience_decision_scope = st.selectbox("Audience comparisons", ["Separate decision per audience", "One joint decision across audiences"], index=0 if design.audience_decision_scope == "Separate decision per audience" else 1, key=f"{prefix}_scope")
+        if planning:
+            design.target_power = st.number_input("Detection chance", min_value=0.5, max_value=0.99, value=float(design.target_power), key=f"{prefix}_power")
+            design.attrition_rate = st.number_input("Expected missing-outcome fraction", min_value=0.0, max_value=0.9, value=float(design.attrition_rate), key=f"{prefix}_attrition")
+            methods = ["Pairwise Neyman with shared control", "Generalized Neyman fixed ratios"]
+            design.allocation_method = st.selectbox("Sample allocation method", methods, index=methods.index(getattr(design, "allocation_method", methods[0])), key=f"{prefix}_allocation")
+            st.caption("Default: size every arm against control using Neyman allocation, keep the largest control, then recalculate each arm with that shared control. Multi-arm protection is on by default; planning uses conservative adjusted thresholds and analysis uses Holm.")
+            if partner_mode != "Separate plans per Partner":
+                st.markdown("**Planned Partner mix (relative weights)**")
+                st.caption("Use your expected future customer mix, not historical differences between arms. The same mix must be maintained in every arm. Defaults use the eligible traffic entered above.")
+                for index, group in enumerate(controls):
+                    group_key = configuration_fingerprint({"group": group})[:12]
+                    partner_weights[group] = st.number_input(f"{group}: mix weight", min_value=0.001, value=float(saved.get("partner_weights", {}).get(group, flows[group])), key=f"{prefix}_weight_{group_key}")
+    if planning:
+        a, b, c = st.columns(3)
+        metric.effect_type = a.selectbox("Effect scale", ["Relative %", "Absolute"], index=0 if saved.get("effect_type", "Relative %") == "Relative %" else 1, key=f"{prefix}_scale")
+        effect = b.number_input("Smallest change worth detecting (%)" if metric.effect_type == "Relative %" else "Smallest change worth detecting", min_value=0.001, value=float(saved.get("effect", 15)), help="A planning threshold, not a prediction. 15% means a difference equal to 15% of the control mean.", key=f"{prefix}_effect")
+        metric.effect_value = effect / 100 if metric.effect_type == "Relative %" else effect
+        design.traffic_frequency = c.selectbox("Traffic period", ["Monthly", "Weekly", "Daily"], index=["Monthly", "Weekly", "Daily"].index(design.traffic_frequency), key=f"{prefix}_frequency")
+        design.max_enrollment_periods = max(design.max_enrollment_periods, 12)
+        drafts[intent].update(effect_type=metric.effect_type, effect=effect)
+    drafts[intent].update(controls=controls, flows=flows, partner_weights=partner_weights)
+    planning_data, planning_controls, planning_flows = data, controls, flows
+    if planning and partner_mode != "Separate plans per Partner":
+        try:
+            if len(set(controls.values())) != 1:
+                raise ValueError("Choose the same control label for every Partner when combining them.")
+            planning_data = combine_partner_summaries(data, partner_weights)
+            planning_controls = {"Combined partners": next(iter(controls.values()))}
+            planning_flows = {"Combined partners": sum(flows.values())}
+            st.dataframe(pd.DataFrame({"Partner": list(partner_weights), "Planned mix (%)": [100 * value / sum(partner_weights.values()) for value in partner_weights.values()]}), hide_index=True)
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+    fingerprint = configuration_fingerprint({"draft": drafts[intent], "alpha": design.alpha, "power": design.target_power,
+                                             "multiplicity": design.multiplicity_method, "scope": design.audience_decision_scope,
+                                             "attrition": design.attrition_rate, "frequency": design.traffic_frequency,
+                                             "allocation_method": getattr(design, "allocation_method", "Pairwise Neyman with shared control")})
+    current = st.session_state.get(f"{prefix}_fingerprint") == fingerprint
+    if st.button("Calculate Plan" if planning else "Calculate Results", type="primary", key=f"{prefix}_run"):
+        try:
+            if planning:
+                rows, detail = plan_from_arm_summaries(planning_data, planning_controls, planning_flows, metric, design)
+                st.session_state[f"{prefix}_plan"] = (rows, detail)
+                st.session_state.strategy_config.strategy_type = "Categorical Strategy"
+                st.session_state.strategy_config.group_arms = {group: {"control": planning_controls[group], "treatments": [arm for arm in scoped["Arm"] if arm != planning_controls[group]]} for group, scoped in planning_data.groupby("Group", sort=False)}
+                design.eligible_customers = int(sum(flows.values()))
+            else:
+                alpha = design.alpha / data["Group"].nunique() if design.audience_decision_scope == "One joint decision across audiences" else design.alpha
+                results = {group: {"Primary": continuous_summary_results(scoped, controls[group], alpha, design.multiplicity_method)} for group, scoped in data.groupby("Group", sort=False)}
+                st.session_state[f"{prefix}_results"] = results
+                st.session_state.group_analysis_results = results
+                st.session_state.analysis_results_by_role = next(iter(results.values()))
+                st.session_state.customer_analysis_fingerprint = ""
+                st.session_state.customer_group_analysis_fingerprint = ""
+                st.session_state.customer_analysis_timestamp = datetime.now().isoformat(timespec="seconds")
+                st.session_state[f"{prefix}_timestamp"] = st.session_state.customer_analysis_timestamp
+                st.session_state.customer_analysis_mode = "Arm summaries"
+            st.session_state.metrics_config = {"Primary": metric}
+            st.session_state[f"{prefix}_fingerprint"] = fingerprint
+            current = True
+        except ValueError as exc:
+            st.error(str(exc))
+            return
+    if not current:
+        if st.session_state.get(f"{prefix}_fingerprint"):
+            st.warning("Inputs changed. Calculate again to update the result.")
+        return
+    if planning:
+        rows, detail = st.session_state[f"{prefix}_plan"]
+        render_customer_plan(rows, detail, [outcome], list(planning_controls), "Pairwise Neyman planning: compare each option with control; keep the largest pairwise control requirement; fix that control and solve each treatment requirement again. Every final comparison is checked for the target detection chance. The generalized fixed-ratio alternative is available in advanced settings. Historical mean differences are not treatment effects.")
+        if partner_weights:
+            st.markdown("**Accounts to recruit from each Partner**")
+            split = split_partner_targets(rows, partner_weights)
+            st.dataframe(split, hide_index=True, use_container_width=True)
+            st.download_button("Download Partner recruitment targets", split.to_csv(index=False), "partner_recruitment_targets.csv", "text/csv", key=f"{prefix}_targets")
+            st.info("Keep this Partner mix in every arm. For Partner-specific conclusions, choose separate plans. Three-column results cannot check Partner balance; add an optional Partner column for separate analyses.")
+        st.download_button("Download sample size plan", pd.DataFrame(rows).to_csv(index=False), "sample_size_plan.csv", "text/csv", key=f"{prefix}_download")
+    else:
+        results = st.session_state[f"{prefix}_results"]
+        st.session_state.group_analysis_results = results
+        st.session_state.analysis_results_by_role = next(iter(results.values()))
+        st.session_state.customer_analysis_timestamp = st.session_state[f"{prefix}_timestamp"]
+        st.session_state.customer_analysis_mode = "Arm summaries"
+        st.session_state.customer_evidence_note = "Summary-only analysis: customer-level data quality and assignment integrity are unverified"
+        st.session_state.metrics_config = {"Primary": metric}
+        st.session_state.customer_analysis_is_current = True
+        st.warning("Summary data cannot verify duplicate accounts, missing outcomes, assignment integrity, or customer-level outliers. Counts are non-missing outcome counts, not necessarily randomized counts. Confirm these checks with the data owner.")
+        for group, results in st.session_state.group_analysis_results.items():
+            st.markdown(f"### {group}")
+            render_customer_evidence(results["Primary"], metric, f"{prefix}_chart_{group}")
 
 
 def customer_page() -> None:
@@ -6064,6 +6197,17 @@ def customer_page() -> None:
     if nav_right.button("Switch workflow", key="customer_switch_workflow"):
         st.session_state.customer_intent = None
         st.rerun()
+    modes = ["Arm summaries", "Customer records"] if intent == "plan" else ["Simple results", "Customer records", "Arm summaries"]
+    if st.session_state.get("customer_input_mode") not in modes:
+        st.session_state.customer_input_mode = modes[0]
+    mode = st.radio("Work with", modes, format_func=lambda value: {"Arm summaries": "Summary statistics / Partners" if intent == "plan" else "Observed group summaries", "Customer records": "Detailed customer workflow", "Simple results": "3-column results (recommended)"}[value], horizontal=True, key="customer_input_mode")
+    st.session_state.customer_analysis_is_current = False
+    if mode == "Simple results":
+        simple_customer_analysis(render_customer_evidence)
+        return
+    if mode == "Arm summaries":
+        customer_summary_step(intent)
+        return
     if intent == "plan":
         tab_data, tab_groups, tab_metrics, tab_strategy, tab_plan = st.tabs(["1 · Bring Data", "2 · Choose Audience", "3 · Pick Outcome", "4 · Define Options", "5 · Get Plan"])
         with tab_data:
@@ -6077,11 +6221,11 @@ def customer_page() -> None:
         with tab_plan:
             customer_plan_step()
         return
-    tab_analysis, tab_decision = st.tabs(["1 · Upload Results", "2 · Recommendation"])
-    with tab_analysis:
+    if st.session_state.design_config.group_plan_rows and st.session_state.strategy_config.group_arms:
+        st.info("Using the saved plan's audiences, test options, outcomes, and traffic allocation.")
+        customer_group_analysis_step()
+    else:
         analysis_step()
-    with tab_decision:
-        decision_step()
 
 
 init_state()
@@ -6103,3 +6247,11 @@ elif page == "Geography":
     geographic_page()
 else:
     time_series_page()
+
+if st.session_state.get("pending_workspace_save"):
+    workspace = st.session_state.pop("pending_workspace_save")
+    try:
+        saved = save_current_workspace(workspace)
+        st.toast(f'Saved {saved["name"]} - config v{saved["config_version"]}')
+    except (ValueError, OSError) as exc:
+        st.error(f"Could not save the experiment: {exc}")

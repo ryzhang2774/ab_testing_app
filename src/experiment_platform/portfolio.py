@@ -171,7 +171,7 @@ def normalize_experiment(experiment: dict[str, Any]) -> dict[str, Any]:
         "allocation": [],
         "primary_direction": "No result yet",
         "missing_data_rate": 0.0,
-        "data_updated_at": record.get("updated_at", now),
+        "data_updated_at": "",
         "updated_at": now,
     }
     for key, value in {**defaults, **pulse}.items():
@@ -376,14 +376,14 @@ def seed_experiments() -> list[dict[str, Any]]:
 def load_experiments(path: Path | str = DEFAULT_PORTFOLIO_PATH) -> list[dict[str, Any]]:
     target = Path(path)
     if not target.exists():
-        experiments = seed_experiments()
-        save_experiments(experiments, target)
-        return [normalize_experiment(item) for item in experiments]
+        return []
     try:
         payload = json.loads(target.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return [normalize_experiment(item) for item in seed_experiments()]
-    records = payload if isinstance(payload, list) else seed_experiments()
+    except (json.JSONDecodeError, OSError) as exc:
+        raise ValueError("Saved experiment records could not be read. Restore the portfolio file from a backup; no records have been replaced.") from exc
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        raise ValueError("Saved experiment records have an invalid format. No records have been replaced.")
+    records = payload
     return [normalize_experiment(item) for item in records]
 
 
@@ -514,7 +514,7 @@ def pulse_summary(experiment: dict[str, Any], today: date | None = None) -> dict
         "allocation": allocation,
         "allocation_p_value": allocation_p_value,
         "primary_direction": record.get("primary_direction", "No result yet"),
-        "data_updated_at": record.get("data_updated_at", record.get("updated_at", "")),
+        "data_updated_at": record.get("data_updated_at") or "Not provided",
         "alerts": list(dict.fromkeys(alerts)),
     }
 

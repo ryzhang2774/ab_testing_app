@@ -1,4 +1,5 @@
 from datetime import date
+import pytest
 
 from src.experiment_platform.portfolio import (
     PORTFOLIO_STATUSES,
@@ -22,6 +23,22 @@ def test_seed_portfolio_covers_the_full_lifecycle():
     statuses = {item["status"] for item in experiments}
     assert set(PORTFOLIO_STATUSES).issubset(statuses)
     assert {item["type"] for item in experiments} == {"Customer", "Geography", "Time Series"}
+
+
+def test_missing_portfolio_is_empty_not_demo(tmp_path):
+    target = tmp_path / "missing.json"
+    assert load_experiments(target) == []
+    assert not target.exists()
+
+
+def test_corrupt_portfolio_never_falls_back_to_demo_or_overwrites(tmp_path):
+    target = tmp_path / "broken.json"
+    target.write_text("not json")
+    with pytest.raises(ValueError, match="could not be read"):
+        load_experiments(target)
+    with pytest.raises(ValueError):
+        upsert_experiment({"name": "test"}, target)
+    assert target.read_text() == "not json"
 
 
 def test_portfolio_persists_and_updates_records(tmp_path):

@@ -1,9 +1,11 @@
 import numpy as np
 import pandas as pd
+import pytest
 
 from src.experiment_platform.customer import automatic_matching_distance, assign_group_labels, build_customer_preview, calculate_group_design, calculate_variant_group_design, default_numeric_groups, planning_comparison_count, suggest_group_designs
 from src.experiment_platform.core import load_customer_demo
 from src.experiment_platform.core import DesignConfig, MetricConfig
+from src.experiment_platform.customer import continuous_summary_results, continuous_results, plan_from_arm_summaries, validate_arm_summaries
 
 
 def planning_history(seed: int = 8) -> pd.DataFrame:
@@ -192,3 +194,76 @@ def test_joint_audience_scope_protects_all_treatment_comparisons():
         family_comparisons=6,
     )
     assert sum(row["Required Accounts"] for row in joint) > sum(row["Required Accounts"] for row in separate)
+
+
+def summary_fixture():
+    return pd.DataFrame({"Group": ["All customers"] * 3, "Arm": ["Control", "A", "B"],
+                         "Mean": [100., 106., 110.], "Variance": [400., 900., 1600.], "N": [100, 80, 120]})
+
+
+def test_summary_analysis_matches_raw_welch_results():
+    rng = np.random.default_rng(123)
+    raw = pd.DataFrame({"arm": ["Control"] * 90 + ["A"] * 110 + ["B"] * 70,
+                        "outcome": np.r_[rng.normal(100, 20, 90), rng.normal(107, 30, 110), rng.normal(112, 40, 70)]})
+    summaries = raw.groupby("arm")["outcome"].agg(Mean="mean", Variance="var", N="count").reset_index().rename(columns={"arm": "Arm"})
+    summaries["Group"] = "All customers"
+    expected = continuous_results(raw, "arm", "outcome", "Control", ["A", "B"], .05, "Holm").set_index("Credit Line").sort_index()
+    actual = continuous_summary_results(summaries, "Control", .05, "Holm").set_index("Credit Line").sort_index()
+    for column in ["Mean / Rate", "Effect vs Control", "Relative Lift", "CI Lower", "CI Upper", "p-value", "Adjusted p-value"]:
+        np.testing.assert_allclose(actual[column], expected[column], equal_nan=True, rtol=1e-10, atol=1e-10)
+
+
+@pytest.mark.parametrize("column,value", [("Variance", -1), ("Mean", np.inf), ("N", 1), ("N", 2.5), ("Arm", ""), ("Group", None)])
+def test_summary_validation_rejects_invalid_values(column, value):
+    frame = summary_fixture().astype(object)
+    frame.loc[0, column] = value
+    with pytest.raises(ValueError):
+        validate_arm_summaries(frame)
+
+
+def test_summary_validation_rejects_duplicates_and_missing_arms():
+    frame = summary_fixture()
+    with pytest.raises(ValueError):
+        validate_arm_summaries(pd.concat([frame, frame.iloc[:1]]))
+    with pytest.raises(ValueError):
+        validate_arm_summaries(frame.iloc[:1])
+
+
+def test_summary_plan_uses_arm_specific_sd_and_finishes_together():
+    metric = MetricConfig("Revenue", "", "Primary", effect_value=.15)
+    design = DesignConfig()
+    rows, comparisons = plan_from_arm_summaries(summary_fixture(), {"All customers": "Control"}, {"All customers": 300}, metric, design)
+    assert {row["Historical SD"] for row in rows} == {20, 30, 40}
+    assert len({row["Required Accounts"] for row in rows}) > 1
+    assert sum(row["Traffic Allocation"] for row in rows) == pytest.approx(1)
+    assert sum(row["Flow per Period"] for row in rows) == pytest.approx(300)
+    assert len({round(row["Test Duration"], 8) for row in rows}) == 1
+    assert min(row["Planned Power"] for row in comparisons) >= .8
+
+
+def test_summary_plan_supports_separate_audiences_and_zero_baseline():
+    frame = summary_fixture()
+    second = frame.assign(Group="Prime")
+    metric = MetricConfig("Revenue", "", "Primary", effect_value=.15)
+    rows, _ = plan_from_arm_summaries(pd.concat([frame, second]), {"All customers": "Control", "Prime": "Control"}, {"All customers": 300, "Prime": 150}, metric, DesignConfig())
+    assert len(rows) == 6
+    assert rows[-1]["Test Duration"] == pytest.approx(2 * rows[0]["Test Duration"])
+    frame.loc[0, "Mean"] = 0
+    with pytest.raises(ValueError, match="absolute effect"):
+        plan_from_arm_summaries(frame, {"All customers": "Control"}, {"All customers": 300}, metric, DesignConfig())
+
+
+def test_summary_analysis_handles_zero_control_mean_without_infinite_lift():
+    frame = summary_fixture()
+    frame.loc[0, "Mean"] = 0
+    result = continuous_summary_results(frame, "Control")
+    assert result.loc[~result["Is Control"], "Relative Lift"].isna().all()
+
+
+def test_summary_planning_accepts_assumed_variance_without_historical_counts():
+    frame = summary_fixture().drop(columns="N")
+    rows, detail = plan_from_arm_summaries(frame, {"All customers": "Control"}, {"All customers": 300}, MetricConfig("Revenue", "", "Primary", effect_value=.15), DesignConfig())
+    assert all(row["Historical N"] == 0 for row in rows)
+    assert min(row["Planned Power"] for row in detail) >= .8
+    with pytest.raises(ValueError):
+        continuous_summary_results(frame, "Control")

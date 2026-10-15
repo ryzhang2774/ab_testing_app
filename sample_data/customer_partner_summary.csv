@@ -1,0 +1,7 @@
+Partner,Arm,Mean,SD,N
+Partner A,Control,100,30,1000
+Partner A,Option A,100,35,1000
+Partner A,Option B,100,45,1000
+Partner B,Control,120,40,1000
+Partner B,Option A,120,45,1000
+Partner B,Option B,120,55,1000

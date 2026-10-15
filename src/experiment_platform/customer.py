@@ -18,11 +18,254 @@ from copy import deepcopy
 from typing import Any
 from .core import StrategyConfig
 from scipy import stats
-from statsmodels.stats.proportion import proportions_ztest
+from statsmodels.stats.proportion import proportions_ztest, confint_proportions_2indep
 from statsmodels.stats.multitest import multipletests
 
 
 # --- Power ---
+
+def validate_arm_summaries(frame: pd.DataFrame, planning: bool = False) -> pd.DataFrame:
+    """Validate independent-unit, continuous-outcome summaries without fabricating records."""
+    frame = frame.copy()
+    if "Partner" in frame and "Group" in frame and not frame["Partner"].astype(str).str.strip().equals(frame["Group"].astype(str).str.strip()):
+        raise ValueError("Partner and Group disagree. Supply one audience column, or use identical values in both.")
+    if "Partner" in frame and "Group" not in frame:
+        frame = frame.rename(columns={"Partner": "Group"})
+    if "Group" not in frame:
+        frame["Group"] = "All customers"
+    if "SD" in frame:
+        sd = pd.to_numeric(frame["SD"], errors="coerce")
+        if not np.isfinite(sd).all() or (sd < 0).any():
+            raise ValueError("SD must be a finite, non-negative sample standard deviation.")
+        if "Variance" in frame and not np.allclose(pd.to_numeric(frame["Variance"], errors="coerce"), sd ** 2):
+            raise ValueError("SD and Variance disagree. Provide either SD or sample variance (SD squared).")
+        frame["Variance"] = sd ** 2
+    required = ["Group", "Arm", "Mean", "Variance"] + ([] if planning else ["N"])
+    if any(column not in frame for column in required):
+        raise ValueError("Provide Arm, Mean, and SD (or Variance). Partner is optional; N is required for analysis.")
+    data = frame[required].copy()
+    if planning:
+        data["N"] = frame["N"] if "N" in frame else np.nan
+    if data.empty:
+        raise ValueError("Enter at least a control and one test option.")
+    for column in ["Group", "Arm"]:
+        if data[column].isna().any() or data[column].astype(str).str.strip().eq("").any():
+            raise ValueError(f"Every row needs a {column.lower()} name.")
+        data[column] = data[column].astype(str).str.strip()
+    if data.duplicated(["Group", "Arm"]).any():
+        raise ValueError("Each group and arm must appear exactly once per outcome.")
+    for column in ["Mean", "Variance"]:
+        data[column] = pd.to_numeric(data[column], errors="coerce")
+        if not np.isfinite(data[column]).all():
+            raise ValueError(f"{column} must contain finite numbers on every row.")
+    supplied_n = data["N"].notna() & data["N"].astype(str).str.strip().ne("")
+    data["N"] = pd.to_numeric(data["N"], errors="coerce")
+    counts = data.loc[supplied_n, "N"] if planning else data["N"]
+    if not np.isfinite(counts).all() or (counts < 2).any() or (counts % 1 != 0).any():
+        raise ValueError("N must be a whole number of independent accounts, at least 2 per arm.")
+    if (data["Variance"] < 0).any() or (planning and (data["Variance"] == 0).any()):
+        raise ValueError("Variance must be positive for planning and non-negative for analysis.")
+    if (data.groupby("Group").size() < 2).any():
+        raise ValueError("Every group needs a control and at least one test option.")
+    data["N"] = data["N"].fillna(0).astype(int)
+    return data
+
+
+def combine_partner_summaries(frame: pd.DataFrame, weights: dict[str, float]) -> pd.DataFrame:
+    """Planning moments for one fixed partner mix, identical in every arm."""
+    data = validate_arm_summaries(frame, planning=True)
+    partners = data["Group"].unique().tolist()
+    shares = np.array([float(weights.get(partner, 0)) for partner in partners])
+    if not np.isfinite(shares).all() or (shares <= 0).any():
+        raise ValueError("Every selected Partner needs a positive planned mix weight.")
+    shares /= shares.sum()
+    arms = data["Arm"].unique().tolist()
+    if any(set(scoped["Arm"]) != set(arms) for _, scoped in data.groupby("Group")):
+        raise ValueError("Combined planning needs the same arms, including control, in every Partner. Use separate plans otherwise.")
+    rows = []
+    for arm in arms:
+        scoped = data[data["Arm"] == arm].set_index("Group").loc[partners]
+        means = scoped["Mean"].to_numpy(dtype=float)
+        mean = float(shares @ means)
+        # Include between-partner variation; historical arm means are not effects.
+        variance = float(shares @ (scoped["Variance"].to_numpy(dtype=float) + (means - mean) ** 2))
+        rows.append({"Group": "Combined partners", "Arm": arm, "Mean": mean,
+                     "Variance": variance, "N": int(scoped["N"].sum()) or np.nan})
+    return pd.DataFrame(rows)
+
+
+def split_partner_targets(rows: list[dict], weights: dict[str, float]) -> pd.DataFrame:
+    """Largest-remainder targets preserve each arm total without losing accounts."""
+    partners = list(weights)
+    shares = np.array([float(weights[p]) for p in partners])
+    if not len(shares) or not np.isfinite(shares).all() or (shares <= 0).any():
+        raise ValueError("Partner mix weights must be positive finite numbers.")
+    shares /= shares.sum()
+    output = []
+    for row in rows:
+        raw = shares * row["Required Accounts"]
+        counts = np.floor(raw).astype(int)
+        for index in np.argsort(-(raw - counts), kind="stable")[:int(row["Required Accounts"] - counts.sum())]:
+            counts[index] += 1
+        output.extend({"Partner": partner, "Arm": row["Arm"], "Required Accounts": int(count),
+                       "Target Partner Mix": float(share)} for partner, count, share in zip(partners, counts, shares))
+    return pd.DataFrame(output)
+
+
+def continuous_summary_results(
+    frame: pd.DataFrame, control_arm: str, alpha: float = 0.05,
+    multiplicity_method: str = "Holm",
+) -> pd.DataFrame:
+    """Welch comparisons from N, mean and unbiased sample variance (ddof=1)."""
+    data = validate_arm_summaries(frame)
+    if data["Group"].nunique() != 1 or control_arm not in data["Arm"].values:
+        raise ValueError("Analyze one group at a time with a control present in that group.")
+    if not 0 < alpha < 1:
+        raise ValueError("Alpha must be between zero and one.")
+    control = data.set_index("Arm").loc[control_arm]
+    comparisons = len(data) - 1
+    interval_alpha = alpha / comparisons if multiplicity_method != "None" else alpha
+    rows = []
+    for _, arm in data.iterrows():
+        is_control = arm["Arm"] == control_arm
+        row = {"Credit Line": arm["Arm"], "Is Control": is_control, "N": int(arm["N"]),
+               "Mean / Rate": float(arm["Mean"]), "Effect vs Control": 0.0,
+               "Relative Lift": 0.0, "CI Lower": np.nan, "CI Upper": np.nan,
+               "Statistic": np.nan, "Raw p-value": np.nan, "p-value": np.nan,
+               "Adjusted p-value": np.nan, "Significant": False, "Result": "Control"}
+        if not is_control:
+            vc, vt = control["Variance"] / control["N"], arm["Variance"] / arm["N"]
+            se = math.sqrt(vc + vt)
+            if se == 0:
+                raise ValueError("Both arms have zero variance; uncertainty cannot be estimated reliably.")
+            dfree = (vc + vt) ** 2 / (vc ** 2 / (control["N"] - 1) + vt ** 2 / (arm["N"] - 1))
+            effect = float(arm["Mean"] - control["Mean"])
+            statistic = effect / se
+            pvalue = float(2 * stats.t.sf(abs(statistic), dfree))
+            margin = stats.t.ppf(1 - interval_alpha / 2, dfree) * se
+            row.update({"Effect vs Control": effect,
+                        "Relative Lift": effect / control["Mean"] if control["Mean"] != 0 else np.nan,
+                        "CI Lower": effect - margin, "CI Upper": effect + margin,
+                        "Statistic": statistic, "Raw p-value": pvalue, "p-value": pvalue})
+        rows.append(row)
+    _apply_multiplicity(rows, alpha, multiplicity_method)
+    return pd.DataFrame(rows).sort_values("Is Control", ascending=False, kind="stable").reset_index(drop=True)
+
+
+def plan_from_arm_summaries(
+    frame: pd.DataFrame, controls: dict[str, str], flows: dict[str, float],
+    metric: MetricConfig, design: DesignConfig,
+) -> tuple[list[dict], list[dict]]:
+    """Reuse the shared-control planning engine with each arm's own variance."""
+    data = validate_arm_summaries(frame, planning=True)
+    if metric.metric_type != "Continuous":
+        raise ValueError("Mean/variance summary planning currently supports continuous outcomes only.")
+    if not 0 < design.alpha < 1 or not 0.5 <= design.target_power < 1 or not 0 <= design.attrition_rate < 1:
+        raise ValueError("Check the false-positive rate, detection chance, and missing-outcome allowance.")
+    if not math.isfinite(metric.effect_value) or metric.effect_value <= 0:
+        raise ValueError("Enter a positive smallest change worth detecting.")
+    rows, comparisons = [], []
+    total_comparisons = len(data) - data["Group"].nunique()
+    for group, scoped in data.groupby("Group", sort=False):
+        arms = scoped["Arm"].tolist()
+        control = controls.get(group)
+        if control not in arms:
+            raise ValueError(f"Choose a control for {group}.")
+        flow = float(flows.get(group, 0))
+        if not math.isfinite(flow) or flow <= 0:
+            raise ValueError(f"Enter positive eligible traffic for {group}.")
+        ids = {arm: float(index) for index, arm in enumerate(arms)}
+        stats_frame = pd.DataFrame({
+            "Strategy Point": scoped["Arm"].map(ids), "Historical Mean": scoped["Mean"],
+            "Historical SD": np.sqrt(scoped["Variance"]), "Historical N": scoped["N"],
+            "Mapping": "Provided arm summaries", "Support": "Provided estimates",
+            "Provided assumption": True,
+        })
+        baseline = float(scoped.loc[scoped["Arm"] == control, "Mean"].iloc[0])
+        if metric.effect_type == "Relative %" and baseline == 0:
+            raise ValueError(f"{group}: use an absolute effect when the control mean is zero.")
+        copied_design = deepcopy(design)
+        copied_design.sample_size_basis = "Primary Metric Only"
+        family = total_comparisons if design.audience_decision_scope == "One joint decision across audiences" else len(arms) - 1
+        _, _, detail, allocation = design_neyman_allocation(
+            {"Primary": metric}, copied_design, {"Primary": stats_frame}, ids[control],
+            [ids[arm] for arm in arms if arm != control], family_comparisons=family,
+        )
+        targets = [math.ceil(item["Analyzable N"] / (1 - design.attrition_rate)) for item in allocation]
+        total = sum(targets)
+        for item, target in zip(allocation, targets):
+            rows.append({"Group": group, "Arm": arms[int(item["Strategy Point"])], "Role": item["Role"],
+                         "Required Accounts": target, "Traffic Allocation": target / total,
+                         "Flow per Period": flow * target / total, "Test Duration": total / flow,
+                         "Historical N": item["Historical N"], "Historical Mean": item["Historical Mean"],
+                         "Historical SD": item["Historical SD"], "Support": item["Support"]})
+        names = {value: arm for arm, value in ids.items()}
+        comparisons.extend({**item, "Group": group,
+                            "Comparison": f"{names[item['Treatment Point']]} vs {control}"} for item in detail)
+    return rows, comparisons
+
+
+def analyze_customer_records(
+    frame: pd.DataFrame, id_column: str, arm_column: str, outcome_column: str,
+    control: str, alpha: float = .05, metric_type: str = "Auto",
+    multiplicity_method: str = "Holm", partner_column: str | None = None,
+    joint_decision: bool = True, expected_shares: dict[str, float] | None = None,
+) -> tuple[dict[str, pd.DataFrame], dict]:
+    """Strict three-column input; optional Partner gives separate comparisons.
+
+    Missing outcomes are blocked rather than silently discarded. A traffic
+    mismatch test is only meaningful when planned allocation is supplied.
+    """
+    columns = [id_column, arm_column, outcome_column] + ([partner_column] if partner_column else [])
+    if len(set(columns)) != len(columns) or any(col not in frame for col in columns):
+        raise ValueError("Choose distinct ID, arm label, outcome, and optional Partner columns.")
+    data = frame[columns].copy()
+    for col in [id_column, arm_column] + ([partner_column] if partner_column else []):
+        if data[col].isna().any() or data[col].astype(str).str.strip().eq("").any():
+            raise ValueError(f"{col}: blank values are not allowed.")
+        data[col] = data[col].astype(str).str.strip()
+    if data[id_column].duplicated().any():
+        raise ValueError("IDs must be unique: use one row per randomized customer/account, with one outcome over the same observation window.")
+    data[outcome_column] = pd.to_numeric(data[outcome_column], errors="coerce")
+    if not np.isfinite(data[outcome_column]).all():
+        raise ValueError("Every outcome must be a finite number. Resolve missing or invalid results with the data owner; they are not silently dropped.")
+    if metric_type == "Auto":
+        metric_type = "Binary" if set(data[outcome_column].unique()).issubset({0, 1}) else "Continuous"
+    if metric_type not in {"Binary", "Continuous"}:
+        raise ValueError("Choose Continuous or Binary outcomes.")
+    if metric_type == "Binary" and not set(data[outcome_column].unique()).issubset({0, 1}):
+        raise ValueError("Binary outcomes must be coded 0/1 (for example, converted or did not convert).")
+    if not 0 < alpha < 1:
+        raise ValueError("The false-positive rate must be between zero and one.")
+    groups = list(data.groupby(partner_column, sort=False)) if partner_column else [("All customers", data)]
+    group_alpha = alpha / len(groups) if joint_decision else alpha
+    results, health = {}, []
+    for group, scoped in groups:
+        arms = scoped[arm_column].drop_duplicates().tolist()
+        if control not in arms or len(arms) < 2:
+            raise ValueError(f"{group}: provide control and at least one test option.")
+        counts = scoped.groupby(arm_column).size()
+        if (counts < 2).any():
+            raise ValueError(f"{group}: every option needs at least two independent accounts.")
+        if expected_shares is not None and (set(expected_shares) != set(arms) or
+                any(not math.isfinite(float(x)) or float(x) <= 0 for x in expected_shares.values())):
+            raise ValueError("Planned traffic shares must cover exactly the observed options with positive finite values.")
+        treatments = [arm for arm in arms if arm != control]
+        if metric_type == "Continuous":
+            summaries = scoped.groupby(arm_column, sort=False)[outcome_column].agg(Mean="mean", Variance="var", N="size").reset_index().rename(columns={arm_column: "Arm"})
+            summaries["Group"] = str(group)
+            result = continuous_summary_results(summaries, control, group_alpha, multiplicity_method)
+        else:
+            result = binary_results(scoped, arm_column, outcome_column, control, treatments, group_alpha, multiplicity_method)
+        results[str(group)] = result
+        audit = analysis_integrity_summary(scoped, arm_column, {"Primary": (outcome_column, metric_type)}, arms, id_column, expected_shares)
+        if expected_shares is None:
+            audit.update(srm_status="Not checked — planned allocation not supplied", srm_pvalue=np.nan,
+                         expected_counts={}, expected_shares={})
+        health.append({"Partner": str(group), "Accounts": len(scoped), "Options": len(arms),
+                       "Allocation check": audit["srm_status"], "SRM p-value": audit["srm_pvalue"]})
+    return results, {"metric_type": metric_type, "accounts": len(data), "health": health,
+                     "partner_checked": bool(partner_column)}
 
 def adjusted_alpha(alpha: float, comparisons: int, method: str = "Holm") -> float:
     """Return the conservative per-comparison alpha used for design planning."""
@@ -302,8 +545,14 @@ def design_neyman_allocation(
     treatments: list[float],
     family_comparisons: int | None = None,
 ) -> tuple[int, str, list[dict], list[dict]]:
-    """Solve a generalized Neyman allocation for a shared-control multi-arm design."""
+    """Plan pairwise Neyman targets, then reuse the largest shared control.
+
+    The generalized fixed-ratio method remains an advanced alternative. Both
+    methods check the final design against every configured metric comparison.
+    """
     arms = [float(control)] + [float(value) for value in treatments]
+    if not treatments or len(set(arms)) != len(arms):
+        raise ValueError("Choose distinct test arms and one separate control.")
     primary_stats = arm_stats_by_role.get("Primary", pd.DataFrame())
     primary_rows = {arm: _arm_stat_row(primary_stats, arm) for arm in arms}
     missing = [arm for arm, row in primary_rows.items() if row is None]
@@ -380,6 +629,8 @@ def design_neyman_allocation(
                         "Metric": metric.name,
                         "Role": role,
                         "Comparison": f"{control:,.0f} vs {treatment:,.0f}",
+                        "Control Point": float(control),
+                        "Treatment Point": float(treatment),
                         "Control N": counts[float(control)],
                         "Treatment N": counts[float(treatment)],
                         "Control Mean": baseline,
@@ -393,21 +644,66 @@ def design_neyman_allocation(
                 )
         return rows
 
-    low = 2 * len(arms)
-    high = max(32, low)
-    while min(row["Planned Power"] for row in comparison_rows(counts_for_total(high))) < design.target_power:
-        high *= 2
-        if high > 20_000_000:
-            raise ValueError("Required sample size exceeds the supported planning range.")
-    while low < high:
-        middle = (low + high) // 2
-        if min(row["Planned Power"] for row in comparison_rows(counts_for_total(middle))) >= design.target_power:
-            high = middle
-        else:
-            low = middle + 1
+    def minimum_count(satisfies, start: int = 4) -> int:
+        low, high = 2, max(start, 4)
+        while not satisfies(high):
+            high *= 2
+            if high > 20_000_000:
+                raise ValueError("Required sample size exceeds the supported planning range.")
+        while low < high:
+            middle = (low + high) // 2
+            if satisfies(middle):
+                high = middle
+            else:
+                low = middle + 1
+        return low
 
-    final_counts = counts_for_total(low)
+    pairwise_targets = {}
+    if getattr(design, "allocation_method", "Pairwise Neyman with shared control") == "Pairwise Neyman with shared control":
+        # Index each metric once: solving many partner/arm designs otherwise
+        # repeatedly filters dataframes during every power evaluation.
+        specs = {}
+        for treatment in treatments:
+            specs[float(treatment)] = [row for row in comparison_rows({arm: 2 for arm in arms})
+                                      if row["Treatment Point"] == float(treatment)]
+
+        def meets(treatment: float, nc: int, nt: int) -> bool:
+            for spec in specs[treatment]:
+                metric = metrics[spec["Role"]]
+                if metric.metric_type == "Binary":
+                    achieved = power_binary_unequal(planning_alpha, spec["Control Mean"], spec["Smallest Effect"], nc, nt, metric.direction)
+                else:
+                    achieved = power_continuous_unequal(planning_alpha, spec["Smallest Effect"], spec["Control SD"], spec["Treatment SD"], nc, nt)
+                if not math.isfinite(achieved) or achieved < design.target_power:
+                    return False
+            return True
+
+        for treatment in map(float, treatments):
+            control_share = float(primary_rows[float(control)]["Historical SD"]) / (
+                float(primary_rows[float(control)]["Historical SD"]) + float(primary_rows[treatment]["Historical SD"]))
+
+            def pair_counts(total: int) -> tuple[int, int]:
+                nc = max(2, min(total - 2, int(round(total * control_share))))
+                return nc, max(2, total - nc)
+
+            total = minimum_count(lambda n: meets(treatment, *pair_counts(max(n, 4))))
+            pairwise_targets[treatment] = pair_counts(max(total, 4))
+        shared_control = max(nc for nc, _ in pairwise_targets.values())
+        final_counts = {float(control): shared_control}
+        for treatment, (_, nt) in pairwise_targets.items():
+            final_counts[treatment] = minimum_count(lambda n: meets(treatment, shared_control, n), nt)
+        low = sum(final_counts.values())
+    else:
+        low = minimum_count(lambda n: min(row["Planned Power"] for row in comparison_rows(counts_for_total(n))) >= design.target_power,
+                            2 * len(arms))
+        final_counts = counts_for_total(low)
+    low = sum(final_counts.values())
     comparisons = comparison_rows(final_counts)
+    for row in comparisons:
+        if pairwise_targets:
+            treatment = row["Treatment Point"]
+            row["Pairwise Control N"], row["Pairwise Treatment N"] = pairwise_targets[treatment]
+            row["Allocation Method"] = "Pairwise Neyman with shared control"
     binding = min(comparisons, key=lambda row: row["Planned Power"])
     allocation_rows = []
     for arm in arms:
@@ -433,7 +729,7 @@ def _arm_stat_row(stats: pd.DataFrame, point: float):
     if stats.empty or "Strategy Point" not in stats.columns:
         return None
     match = stats[(stats["Strategy Point"].astype(float) - float(point)).abs() < 1e-9]
-    if match.empty or int(match.iloc[0].get("Historical N", 0)) < 2:
+    if match.empty or (int(match.iloc[0].get("Historical N", 0)) < 2 and not bool(match.iloc[0].get("Provided assumption", False))):
         return None
     return match.iloc[0]
 
@@ -1688,6 +1984,8 @@ def validate_analysis_data(
     if not unit_id_col or unit_id_col not in df.columns:
         errors.append("Select the experimental unit ID. Customer-level analysis requires one row per randomized unit.")
     else:
+        if df[unit_id_col].isna().any():
+            errors.append("Experimental unit IDs cannot be missing.")
         assignments_per_unit = df.groupby(unit_id_col)[assignment_col].nunique(dropna=True)
         if (assignments_per_unit > 1).any():
             errors.append("Some experimental units appear in more than one assignment arm.")
@@ -1795,11 +2093,20 @@ def binary_results(
         treatment = pd.to_numeric(df.loc[df[arm_col] == arm, metric_col], errors="coerce").dropna()
         counts = np.array([treatment.sum(), control.sum()])
         nobs = np.array([len(treatment), len(control)])
-        stat, pvalue = proportions_ztest(counts, nobs)
+        pooled_rate = counts.sum() / nobs.sum()
+        expected = np.concatenate([nobs * pooled_rate, nobs * (1 - pooled_rate)])
+        if (expected < 5).any():
+            table = np.column_stack([counts, nobs - counts])
+            stat, pvalue = stats.fisher_exact(table)
+        else:
+            stat, pvalue = proportions_ztest(counts, nobs)
         effect = treatment.mean() - control.mean()
         se = np.sqrt(treatment.mean() * (1 - treatment.mean()) / len(treatment) + control.mean() * (1 - control.mean()) / len(control))
         critical = stats.norm.ppf(1 - interval_alpha / 2)
-        rows.append(_effect_row(arm, treatment, effect, effect / control.mean(), se, critical, stat, pvalue, alpha))
+        row = _effect_row(arm, treatment, effect, effect / control.mean() if control.mean() != 0 else np.nan, se, critical, stat, pvalue, alpha)
+        row["CI Lower"], row["CI Upper"] = confint_proportions_2indep(
+            counts[0], nobs[0], counts[1], nobs[1], method="newcomb", compare="diff", alpha=interval_alpha)
+        rows.append(row)
     _apply_multiplicity(rows, alpha, multiplicity_method)
     return pd.DataFrame(rows)
 
@@ -1900,6 +2207,8 @@ def guardrail_status(row: pd.Series, threshold: float | None, direction: str) ->
     if threshold is None:
         return "REVIEW"
     effect = row["Effect vs Control"]
+    if not all(pd.notna(value) and math.isfinite(float(value)) for value in [threshold, effect, row.get("CI Lower"), row.get("CI Upper")]):
+        return "REVIEW"
     if direction == "Lower is Better":
         if effect > threshold:
             return "FAIL"

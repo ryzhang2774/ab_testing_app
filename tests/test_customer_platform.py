@@ -26,6 +26,11 @@ from src.experiment_platform.core import column_schema, suggest_metric_type, val
 from src.experiment_platform.customer import detectable_effect_binary, detectable_effect_continuous, power_binary, power_continuous, sample_size_binary, sample_size_continuous
 
 
+def test_guardrail_missing_interval_requires_review():
+    row = pd.Series({"Effect vs Control": 0.0, "CI Lower": float("nan"), "CI Upper": float("nan")})
+    assert guardrail_status(row, 1.0, "Lower is Better") == "REVIEW"
+
+
 def test_schema_and_metric_type_inference():
     df = historical_portfolio(rows=200)
     schema = column_schema(df)
@@ -205,7 +210,7 @@ def test_guardrail_status_and_decision_logic():
     )
     guardrail = pd.DataFrame(
         [
-            {"Credit Line": 8000, "Is Control": False, "Effect vs Control": 0.001, "Significant": False, "CI Lower": -0.001},
+            {"Credit Line": 8000, "Is Control": False, "Effect vs Control": 0.001, "Significant": False, "CI Lower": -0.001, "CI Upper": 0.003},
         ]
     )
     assert guardrail_status(guardrail.iloc[0], 0.005, "Lower is Better") == "PASS"

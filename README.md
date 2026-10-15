@@ -43,9 +43,9 @@ The planning flow is:
 4. **Define Options**: create named variants or ordered numeric strategy values.
 5. **Get Plan**: receive required accounts, traffic allocation, flow per option, and expected test duration.
 
-Customer planning supports longitudinal unit-period data and cross-sectional one-row-per-unit data. Numeric strategies can estimate arm-specific historical means and standard deviations using closest-test-value assignment, business-defined bins, or exact values. The recommended design uses generalized Neyman allocation so higher-variance options receive the sample they need while traffic is allocated toward a common completion time.
+Customer planning supports longitudinal unit-period data and cross-sectional one-row-per-unit data. Numeric strategies can estimate arm-specific historical means and standard deviations using closest-test-value assignment, business-defined bins, or exact values. The default design sizes each treatment against control using pairwise Neyman allocation, keeps the largest pairwise control requirement, and then recalculates each treatment with that fixed shared control. Every final comparison is checked for target power. Generalized Neyman fixed ratios remain an advanced alternative. Traffic is allocated toward a common completion time.
 
-The analysis flow accepts completed randomized-test results, checks one-row-per-unit integrity, missing outcomes, assignment balance, and sample-ratio mismatch, then produces arm-level lift, uncertainty, guardrail status, and a business recommendation.
+The analysis flow accepts completed randomized-test results, checks one-row-per-unit integrity, missing outcomes, assignment balance, and sample-ratio mismatch, then presents arm-level lift, uncertainty, and guardrail status. The business team makes the decision; the customer workflow no longer has an automated Decision page. A second input path accepts continuous-outcome arm summaries without customer-level records.
 
 ### Geographic Tests
 
@@ -137,6 +137,105 @@ Required fields depend on the workflow, but typically include:
 - Optional unaffected comparison signals, campaign flag, spend, and operational exposure
 
 Internal Databricks controls are UI placeholders in this MVP; Unity Catalog loading is not connected yet.
+
+## Customer: Summary Planning and Simple Results
+
+The default planning path is **Summary statistics / Partners**. It accepts one
+row per Partner and arm, entered in the table or uploaded as CSV:
+
+```csv
+Partner,Arm,Mean,SD,N
+Partner A,Control,100,30,1000
+Partner A,Option A,100,35,1000
+Partner A,Option B,100,45,1000
+```
+
+- `Arm`: control or test option label.
+- `Mean`: historical average of the continuous outcome over a common window.
+- `SD`: sample standard deviation (`STDEV.S` / `ddof=1`). Alternatively supply
+  `Variance` (`VAR.S`), equal to SD squared. Conflicting SD/variance values fail
+  validation. Future treatment effects are **not** inferred from historical means.
+- `Partner`: optional; legacy `Group` is also accepted. Omitted means one audience.
+- `N`: optional historical independent-account count for planning (at least two
+  when supplied). Observed N is required for summary analysis. Repeated account
+  periods must first be aggregated to one outcome per account.
+
+The example table and downloadable template contain synthetic assumptions.
+Replace them before using the plan. Primary outcome, worthwhile effect, eligible
+accounts per traffic period, and control are business inputs. Advanced defaults
+are 5% false-positive rate, 80% detection chance, Holm comparison protection,
+0% expected missing outcomes, and pairwise Neyman allocation.
+
+The default multi-arm algorithm is:
+
+1. Size each treatment/control pair at the Neyman ratio `n_t / n_c = SD_t / SD_c`.
+2. Use the largest pairwise control requirement as the one shared control.
+3. Fix that control and solve the minimum integer treatment count for every arm.
+4. Verify target power for every final comparison, then inflate for expected
+   missing outcomes and derive traffic shares. Planning uses conservative
+   per-comparison alpha; analysis uses Holm-adjusted p-values and conservative
+   simultaneous intervals. This transparent construction is not claimed to be
+   a globally minimum-total-sample optimizer.
+
+Choose **Separate plans per Partner** for Partner-specific decisions. Choose
+**One combined plan** for a single overall decision across selected Partners.
+The combined planner uses the same planned Partner mix in every arm and includes
+both within-Partner and between-Partner variability. Mix defaults follow eligible
+traffic and can be edited in advanced settings. Every Partner must supply the
+same arm labels and control. Recruitment targets by Partner use integer rounding
+that preserves each arm total. Combined targets do not power individual Partner
+claims; small targets only approximate the requested mix after rounding.
+
+The default analysis path is **3-column results**:
+
+```csv
+ID,Arm,Outcome
+C001,Control,100
+C002,Control,110
+C003,Option A,115
+C004,Option A,120
+```
+
+Upload one row per randomized account, choose control, then calculate. Column
+names can be remapped in advanced settings. Duplicate/blank IDs, missing labels,
+non-finite outcomes, and arms with fewer than two observations are blocked.
+Continuous outcomes use Welch unequal-variance comparisons; 0/1 outcomes are
+automatically recognized and use independent-proportion tests (Fisher's exact
+when expected cell counts are small) with Newcombe intervals. Zero control rates
+show undefined relative lift rather than infinity. Each option is compared only
+with control; results do not rank a definitive winner among treatments.
+
+Optional `Partner` gives separate Partner results, with joint decision protection
+on by default. Three columns alone cannot establish randomized assignment,
+outcome maturity, or equal Partner mix. Allocation mismatch is checked only with
+an explicitly supplied split or matching saved plan, never an assumed equal split.
+Results show effect, uncertainty, data checks, and plain-language interpretation.
+Changes to data/settings invalidate results; Save retains the calculation time.
+
+Detailed customer workflows and observed group-summary analysis remain available.
+Summary planning currently supports continuous outcomes; use the detailed records
+workflow to plan binary outcomes or additional metrics. Business owners record
+final decisions in the Command Center.
+
+Examples: `sample_data/customer_partner_summary.csv` and
+`sample_data/customer_three_column_results.csv` (synthetic values).
+
+## Windows Setup and Time-Series Troubleshooting
+
+Use **Python 3.11**, and recreate the virtual environment on each computer. Do not
+copy a macOS `.venv` to Windows. In Windows Command Prompt, from this project:
+
+```bat
+py -3.11 -m venv .venv
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+.venv\Scripts\python.exe -m streamlit run app.py
+```
+
+All app dates now use portable `%b %d, %Y` formatting instead of Unix-only `%-d`.
+Streamlit is pinned to 1.39.0, which fixes a dataframe-width React maximum-update-depth crash present in 1.37.1. Parquet support is explicitly included through `pyarrow`. Invalid uploads clear
+prepared time-series data so later tabs cannot analyze stale input. Missing model
+outcomes fail with an actionable message. Campaign planning exceptions display
+an error without terminating the page, and planner fit caching is bounded.
 
 ## Monthly Planning Sample
 
