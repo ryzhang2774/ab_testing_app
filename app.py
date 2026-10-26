@@ -70,6 +70,7 @@ from src.experiment_platform.core import (
     data_quality_warnings,
     date_like_columns,
     first_series,
+    format_business_date,
     infer_column,
     infer_mob_column,
     load_customer_demo,
@@ -4172,9 +4173,9 @@ def ts_landing_preview() -> None:
     total_count = max(pre_count + post_count, 1)
     pre_share = pre_count / total_count * 100
     post_share = post_count / total_count * 100
-    period_label = f"{pd.Timestamp(preview['start_date']):%b %Y} – {pd.Timestamp(preview['end_date']):%b %Y}"
+    period_label = f"{format_business_date(preview['start_date'], False)} – {format_business_date(preview['end_date'], False)}"
     source_label = "your current dataset" if using_workspace else "the built-in campaign demo"
-    launch_label = pd.Timestamp(launch).strftime("%b %d, %Y") if launch is not None else "Not launched"
+    launch_label = format_business_date(launch) if launch is not None else "Not launched"
     context_note = (
         f"Campaign launch is visible on {launch_label}. The shaded region is the period available for impact analysis."
         if launch is not None
@@ -4200,6 +4201,7 @@ def ts_landing_preview() -> None:
                 time_series_line(prepared, pd.Timestamp(launch).date().isoformat() if launch is not None else "", humanize_column_name(outcome_col)),
                 use_container_width=True,
                 config={"displayModeBar": False},
+                key="ts_landing_history",
             )
     with summary_col:
         st.markdown(
@@ -4229,7 +4231,7 @@ def ts_landing_preview() -> None:
         roles[flag_col] = "Campaign"
     display_headers = {column: f"{humanize_column_name(column)} [{roles[column]}]" if column in roles else humanize_column_name(column) for column in preview_columns}
     display = raw.loc[:, preview_columns].head(12).copy()
-    display[date_col] = pd.to_datetime(display[date_col], errors="coerce").dt.strftime("%b %d, %Y")
+    display[date_col] = pd.to_datetime(display[date_col], errors="coerce").map(format_business_date)
     display = display.rename(columns=display_headers)
     st.markdown(
         f'<div class="ts-section-heading"><strong>Campaign data preview</strong><span>Showing {min(12, len(raw))} of {len(raw):,} rows · all {len(preview_columns)} source columns.</span></div>',
@@ -4331,6 +4333,7 @@ def ts_data_step() -> None:
             time_series_line(prepared, preview_launch, humanize_column_name(cfg.outcome_column)),
             use_container_width=True,
             config={"displayModeBar": False},
+            key="ts_data_history",
         )
         st.markdown("**Data Preview**")
         preview_mode = st.radio("Preview", ["All columns", "Mapped columns only"], horizontal=True, key="ts_preview_mode", label_visibility="collapsed")
@@ -4385,10 +4388,10 @@ def ts_setup_step() -> None:
     pre, post = data[data["_date"] < pd.Timestamp(cfg.intervention_date)], data[data["_date"] >= pd.Timestamp(cfg.intervention_date)]
     st.write(f"Pre period: {pre['_date'].min().date() if not pre.empty else 'None'} – {pre['_date'].max().date() if not pre.empty else 'None'}")
     first_treated = post["_date"].min() if not post.empty else None
-    st.write(f"Intervention Date: {pd.Timestamp(cfg.intervention_date).strftime('%b %d, %Y')}")
-    st.write(f"First Treated Observation: {first_treated.strftime('%b %d, %Y') if first_treated is not None else 'None'}")
+    st.write(f"Intervention Date: {format_business_date(cfg.intervention_date)}")
+    st.write(f"First Treated Observation: {format_business_date(first_treated) if first_treated is not None else 'None'}")
     st.write(f"Post period: {post['_date'].min().date() if not post.empty else 'None'} – {post['_date'].max().date() if not post.empty else 'None'}")
-    st.plotly_chart(time_series_line(data, cfg.intervention_date, humanize_column_name(cfg.outcome_column)), use_container_width=True)
+    st.plotly_chart(time_series_line(data, cfg.intervention_date, humanize_column_name(cfg.outcome_column)), use_container_width=True, key="ts_setup_history")
 
 
 def ts_plan_setup_step() -> None:
@@ -4409,11 +4412,11 @@ def ts_plan_setup_step() -> None:
     detected, _ = detect_frequency(data)
     cfg.frequency = detected
     unit = {"Daily": "day", "Weekly": "week", "Monthly": "month"}.get(cfg.frequency, "period")
-    st.markdown(f"**Historical Data Window**  \n{min_date.strftime('%b %d, %Y')} – {historical_end.strftime('%b %d, %Y')}")
+    st.markdown(f"**Historical Data Window**  \n{format_business_date(min_date)} – {format_business_date(historical_end)}")
     st.markdown(f"**Data Frequency**  \n{cfg.frequency}")
-    st.caption(f"Planned campaign launch: {launch.strftime('%b %d, %Y')} · Historical data available for planning: {len(data):,} observations")
+    st.caption(f"Planned campaign launch: {format_business_date(launch)} · Historical data available for planning: {len(data):,} observations")
     st.info(f"The planner uses only observations before the planned launch. Ramp-up and stable measurement settings are configured in Detectability & Duration.")
-    st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date), use_container_width=True)
+    st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date), use_container_width=True, key="ts_plan_launch_history")
 
 
 def ts_analysis_step() -> None:
@@ -4471,7 +4474,7 @@ def ts_analysis_step() -> None:
             if not st.session_state.ts_prepost_result or st.session_state.ts_prepost_fingerprint != prepost_fingerprint:
                 st.session_state.ts_prepost_result = run_pre_post_analysis(data, cfg.intervention_date, cfg.campaign_end_date, cfg.comparison_metric, cfg.pre_window, cfg.post_window, cfg.comparison_window, int(cfg.symmetric_periods), (cfg.custom_pre_start, cfg.custom_pre_end, cfg.custom_post_start, cfg.custom_post_end))
                 st.session_state.ts_prepost_fingerprint = prepost_fingerprint
-                st.session_state.ts_prepost_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                st.session_state.ts_prepost_timestamp = datetime.now().isoformat(sep=" ", timespec="seconds")
         except Exception as exc:
             st.session_state.ts_prepost_result = None
             st.session_state.ts_prepost_fingerprint = ""
@@ -4536,7 +4539,7 @@ def ts_analysis_step() -> None:
         button_disabled = status == "running"
         if st.button("Running Analysis..." if button_disabled else action_label, type="primary", key="ts_run_structural", disabled=button_disabled):
             st.session_state.ts_structural_status = "running"
-            st.session_state.ts_structural_started_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            st.session_state.ts_structural_started_at = datetime.now().isoformat(sep=" ", timespec="seconds")
             st.session_state.ts_structural_error = ""
             with st.spinner("Fitting counterfactual model..."):
                 try:
@@ -4544,7 +4547,7 @@ def ts_analysis_step() -> None:
                     result["config_fingerprint"] = current_fingerprint
                     st.session_state.ts_bsts_result = result
                     st.session_state.ts_structural_fingerprint = result["config_fingerprint"]
-                    st.session_state.ts_structural_timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    st.session_state.ts_structural_timestamp = datetime.now().isoformat(sep=" ", timespec="seconds")
                     st.session_state.ts_structural_status = "completed"
                 except Exception as exc:
                     st.session_state.ts_structural_status = "failed"
@@ -4565,8 +4568,8 @@ def ts_results_step() -> None:
     with st.expander("What was analyzed", expanded=False):
         d1, d2, d3 = st.columns(3)
         d1.write(f"**Outcome**\n\n{humanize_column_name(cfg.outcome_column)}")
-        d2.write(f"**Intervention**\n\n{pd.Timestamp(cfg.intervention_date).strftime('%b %d, %Y')}\n\n**First Treated Observation**\n\n{first_treated.strftime('%b %d, %Y')}")
-        d3.write(f"**Evaluation Period**\n\n{first_treated.strftime('%b %d, %Y')} – {evaluation_end.strftime('%b %d, %Y')} · {len(evaluation)} {duration_unit(cfg.frequency)}s\n\n**Method**\n\n{cfg.analysis_method}")
+        d2.write(f"**Intervention**\n\n{format_business_date(cfg.intervention_date)}\n\n**First Treated Observation**\n\n{format_business_date(first_treated)}")
+        d3.write(f"**Evaluation Period**\n\n{format_business_date(first_treated)} – {format_business_date(evaluation_end)} · {len(evaluation)} {duration_unit(cfg.frequency)}s\n\n**Method**\n\n{cfg.analysis_method}")
     current_fingerprint = f"{method_config_fingerprint(cfg, cfg.analysis_method)}:{data_fingerprint(data)}"
     if cfg.analysis_method == "Pre–Post Analysis":
         prepost = st.session_state.ts_prepost_result if st.session_state.ts_prepost_fingerprint == current_fingerprint else None
@@ -4584,8 +4587,8 @@ def ts_results_step() -> None:
                 analysis=True,
             )
             st.markdown('<div class="ts-panel-title">Outcome Through Time</div>', unsafe_allow_html=True)
-            st.plotly_chart(time_series_line(data, cfg.intervention_date, humanize_column_name(cfg.outcome_column)), use_container_width=True)
-            st.plotly_chart(pre_post_bar(prepost["pre_value"], prepost["post_value"], humanize_column_name(cfg.outcome_column)), use_container_width=True)
+            st.plotly_chart(time_series_line(data, cfg.intervention_date, humanize_column_name(cfg.outcome_column)), use_container_width=True, key="ts_results_prepost_history")
+            st.plotly_chart(pre_post_bar(prepost["pre_value"], prepost["post_value"], humanize_column_name(cfg.outcome_column)), use_container_width=True, key="ts_results_prepost_comparison")
             st.info("Pre–Post comparison does not adjust for trend, seasonality, or concurrent changes.")
         else:
             st.warning("Pre–Post analysis is not available for the current settings.")
@@ -4622,10 +4625,10 @@ def ts_results_step() -> None:
         st.write(f"During the {len(bsts['result'])}-week evaluation period, actual {label} were approximately {abs(bsts['relative_impact']) * 100:.1f}% {'higher' if bsts['cumulative_impact'] >= 0 else 'lower'} than the estimated trajectory without the intervention. This corresponds to approximately {abs(bsts['cumulative_impact']):,.0f} incremental {label.lower()}.")
         st.markdown("**Actual vs Expected**")
         chart_context = timeseries_chart_context(data, cfg.intervention_date, cfg.campaign_end_date)
-        st.plotly_chart(bsts_counterfactual_chart(data, bsts["result"], cfg.intervention_date, label, chart_context), use_container_width=True)
+        st.plotly_chart(bsts_counterfactual_chart(data, bsts["result"], cfg.intervention_date, label, chart_context), use_container_width=True, key="ts_results_counterfactual")
         st.markdown("**Cumulative Estimated Impact**")
         st.caption(f"Running total of estimated incremental {label.lower()} since campaign launch. Positive values mean cumulative outcomes were above the estimated no-campaign trajectory; negative values mean they were below it.")
-        st.plotly_chart(cumulative_impact_chart(bsts["result"], label, chart_context, bsts["cumulative_impact"]), use_container_width=True)
+        st.plotly_chart(cumulative_impact_chart(bsts["result"], label, chart_context, bsts["cumulative_impact"]), use_container_width=True, key="ts_results_cumulative")
         st.markdown("**Can This Estimate Be Trusted?**")
         backtest = bsts.get("backtest", {})
         details = bsts.get("reliability_details", {})
@@ -4656,7 +4659,7 @@ def ts_results_step() -> None:
             for reason in reasons:
                 st.write(reason)
         with st.expander("Diagnostics", expanded=False):
-            st.plotly_chart(impact_chart(bsts["result"]), use_container_width=True)
+            st.plotly_chart(impact_chart(bsts["result"]), use_container_width=True, key="ts_results_impact_diagnostic")
             st.write("Residual autocorrelation detected" if bsts.get("residual_autocorrelation") else "No material residual autocorrelation detected")
             st.caption("Forecast errors still follow a time pattern, which suggests that some trend, seasonality, or recurring behavior has not been fully captured by the model.")
             st.write(f"MAE: {backtest.get('mae', float('nan')):,.2f} | RMSE: {backtest.get('rmse', float('nan')):,.2f} | Bias: {backtest.get('bias', float('nan')):,.2f}")
@@ -4670,7 +4673,7 @@ def ts_results_step() -> None:
         with st.expander("Simple Before-and-After Comparison", expanded=False):
             st.metric("Before-and-After Change", percent(prepost["percent_change"], 1))
             st.caption("Pre–Post comparison does not adjust for trend, seasonality, or concurrent changes.")
-            st.plotly_chart(pre_post_bar(prepost["pre_value"], prepost["post_value"], humanize_column_name(cfg.outcome_column)), use_container_width=True)
+            st.plotly_chart(pre_post_bar(prepost["pre_value"], prepost["post_value"], humanize_column_name(cfg.outcome_column)), use_container_width=True, key="ts_results_prepost_reference")
     if st.session_state.ts_structural_timestamp:
         st.caption(f"Last calculated: {st.session_state.ts_structural_timestamp}")
 
@@ -4804,7 +4807,7 @@ def ts_planning_step() -> None:
                 ("Required Duration", duration_label(recommendation, cfg.frequency), ""),
                 ("Post-Launch Sample", f"{recommendation:,} time points", ""),
                 ("Estimated Detection Chance", f"{selected['power']:.0%}", "positive"),
-                ("Earliest Reliable Decision", end.strftime("%b %d, %Y"), ""),
+                ("Earliest Reliable Decision", format_business_date(end), ""),
             ],
         )
         st.caption(f"Ramp-up: {duration_label(ramp, cfg.frequency)} · Stable measurement: {duration_label(stable, cfg.frequency)} · Historical observations used: {len(planning_data):,}")
@@ -4812,7 +4815,7 @@ def ts_planning_step() -> None:
         if operational_exposure is not None:
             st.metric("Expected Operational Exposure", f"{operational_exposure:,.0f}", help="Operational projection: median historical exposure per period multiplied by the recommended duration. This is not a statistical customer sample size.")
         st.markdown('<div class="ts-panel-title">Historical Series and Planned Campaign Window</div>', unsafe_allow_html=True)
-        st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date, recommended_end_date=end.isoformat()), use_container_width=True)
+        st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date, recommended_end_date=end.isoformat()), use_container_width=True, key="ts_plan_recommended_history")
     elif effect is not None:
         render_ts_kpi_panel(
             "More Time or a Larger Effect Is Needed",

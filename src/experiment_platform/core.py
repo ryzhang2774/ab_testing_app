@@ -132,6 +132,19 @@ class AnalysisConfig:
 
 # --- Formatting ---
 
+def format_business_date(value: Any, include_day: bool = True) -> str:
+    """Format UI dates without the platform/locale-dependent strftime API."""
+    try:
+        timestamp = pd.Timestamp(value)
+    except (ValueError, TypeError, OverflowError):
+        return "Not available"
+    if pd.isna(timestamp):
+        return "Not available"
+    months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+    month = months[timestamp.month - 1]
+    return f"{month} {timestamp.day:02d}, {timestamp.year:04d}" if include_day else f"{month} {timestamp.year:04d}"
+
+
 def money(value: float) -> str:
     return f"${value:,.0f}"
 

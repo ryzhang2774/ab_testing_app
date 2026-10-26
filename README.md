@@ -222,6 +222,22 @@ Examples: `sample_data/customer_partner_summary.csv` and
 
 ## Windows Setup and Time-Series Troubleshooting
 
+For a transferable ZIP, run `python scripts/build_portable.py` on the source
+computer. It creates a dated package in `dist/` and refreshes
+`dist/ab_testing_app_portable.zip`; ZIPs from older runs do not update when source
+code or GitHub changes. The package includes `BUILD_INFO.json` with file hashes
+so copied or mixed versions can be identified. Local environments, experiment
+records, credentials, and Git metadata are excluded.
+
+On Windows, extract the whole package into a **new folder**, open its
+`ab_testing_app` directory, and double-click `start_windows.bat`. It builds a
+separate `.venv-windows`, installs the pinned dependencies, checks package
+integrity, and tests opening Home -> Time Series before starting the server.
+The check detects Python exceptions; it does not test the browser renderer.
+If a step fails, the console remains open with the error text. Install 64-bit
+Python 3.11 with the Python launcher first. Do not run the app inside the ZIP or
+reuse a server still running from another checkout.
+
 Use **Python 3.11**, and recreate the virtual environment on each computer. Do not
 copy a macOS `.venv` to Windows. In Windows Command Prompt, from this project:
 
@@ -231,7 +247,20 @@ py -3.11 -m venv .venv
 .venv\Scripts\python.exe -m streamlit run app.py
 ```
 
-All app dates now use portable `%b %d, %Y` formatting instead of Unix-only `%-d`.
+For troubleshooting, use the same interpreter that starts Streamlit:
+
+```bat
+.venv-windows\Scripts\python.exe scripts\check_installation.py --smoke-test
+```
+
+If you used the manual `.venv` setup instead, substitute `.venv` for
+`.venv-windows`. Copy the diagnostic output and full error, not only the last
+line. A successful check does not establish that a browser-side error is fixed.
+
+Time Series date labels use an explicit English month/day/year formatter without
+calling `Timestamp.strftime`, `date.strftime`, or locale-dependent formatting.
+This also covers the landing-page period label and data preview, not only the
+planning and analysis screens.
 Streamlit is pinned to 1.39.0, which fixes a dataframe-width React maximum-update-depth crash present in 1.37.1. Parquet support is explicitly included through `pyarrow`. Invalid uploads clear
 prepared time-series data so later tabs cannot analyze stale input. Missing model
 outcomes fail with an actionable message. Campaign planning exceptions display

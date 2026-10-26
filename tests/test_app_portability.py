@@ -1,4 +1,5 @@
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import pandas as pd
@@ -6,6 +7,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from src.experiment_platform.timeseries import fit_bsts_model, run_duration_power_simulation
+from src.experiment_platform.core import format_business_date
 
 
 def test_app_uses_portable_date_directives():
@@ -13,6 +15,26 @@ def test_app_uses_portable_date_directives():
     source = Path("app.py").read_text()
     assert "%-d" not in source
     assert "%#d" not in source
+
+
+def test_business_dates_do_not_call_platform_strftime():
+    with patch.object(pd.Timestamp, "strftime", side_effect=ValueError("Invalid format string")):
+        assert format_business_date("2025-07-06") == "Jul 06, 2025"
+        assert format_business_date("2025-07-06", False) == "Jul 2025"
+        assert format_business_date(pd.NaT) == "Not available"
+
+
+def test_timeseries_landing_and_workflows_survive_timestamp_strftime_failure():
+    app = AppTest.from_file("app.py", default_timeout=45).run()
+    with patch.object(pd.Timestamp, "strftime", side_effect=ValueError("Invalid format string")):
+        app.button(key="home_choose_timeseries").click().run()
+        assert not app.exception
+        assert app.button(key="ts_demo_plan")
+        app.button(key="ts_demo_plan").click().run()
+        assert not app.exception
+        app.button(key="ts_switch_workflow").click().run()
+        app.button(key="ts_demo_analyze").click().run()
+        assert not app.exception
 
 
 def test_timeseries_plan_failure_is_actionable_not_an_app_exception():
