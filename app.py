@@ -8,7 +8,7 @@ import streamlit as st
 from dataclasses import asdict, fields
 from datetime import datetime
 from src.experiment_platform.customer_ui import simple_customer_analysis
-from src.experiment_platform.business_ui import render_business_workspace
+from src.experiment_platform.customer_plan_ui import render_customer_plan as render_unified_customer_plan
 
 from src.experiment_platform.customer import (
     adjusted_alpha,
@@ -1341,6 +1341,12 @@ def save_current_workspace(experiment_type: str) -> dict:
 
 def restore_portfolio_experiment(experiment: dict) -> None:
     payload = experiment.get("config_payload") or {}
+    if experiment["type"] == "Customer" and payload.get("customer_plan"):
+        st.session_state.customer_plan_result = payload["customer_plan"]
+        st.session_state.customer_plan_result_view = True
+        st.session_state.customer_intent = "plan"
+        st.session_state.main_page = "Customer"
+        return
     if experiment["type"] == "Customer":
         st.session_state.customer_workspace_interface = "Classic workspace"
     if experiment["type"] == "Customer" and payload:
@@ -1551,12 +1557,14 @@ def render_experiment_detail(experiment: dict) -> None:
                 owner_col, status_col = st.columns(2)
                 owner = owner_col.text_input("Owner", value=experiment.get("owner", ""))
                 status = status_col.selectbox("Status", PORTFOLIO_STATUSES, index=PORTFOLIO_STATUSES.index(experiment["status"]) if experiment["status"] in PORTFOLIO_STATUSES else 0)
+                collected = st.number_input("Customers collected (manual update)", min_value=0, value=max(0, int(experiment.get("sample_collected", 0))), step=1)
                 launch_col, readout_col = st.columns(2)
                 launch = launch_col.date_input("Planned launch", value=launch_default)
                 readout = readout_col.date_input("Expected result", value=readout_default)
                 save_record = st.form_submit_button("Save record", type="primary")
             if save_record:
-                updated = {**experiment, "owner": owner.strip() or "Unassigned", "status": status, "planned_launch_date": launch.isoformat(), "readout_date": readout.isoformat()}
+                target = max(int(experiment.get("sample_target", 0)), 0)
+                updated = {**experiment, "owner": owner.strip() or "Unassigned", "status": status, "planned_launch_date": launch.isoformat(), "readout_date": readout.isoformat(), "sample_collected": collected, "progress": min(int(100 * collected / target), 100) if target else 0, "data_updated_at": datetime.now().isoformat(timespec="seconds")}
                 upsert_experiment(updated)
                 st.rerun()
             meta_left, meta_right = st.columns(2)
@@ -5788,6 +5796,8 @@ def start_customer_workflow(intent: str) -> None:
         st.session_state.results_df = load_results_demo()
         st.session_state["customer_analysis_source_v2"] = "Synthetic Demo"
     st.session_state.customer_intent = intent
+    if intent == "plan":
+        st.session_state.customer_plan_result_view = False
     st.session_state.customer_input_mode = "Arm summaries" if intent == "plan" else "Simple results"
 
 
@@ -5936,7 +5946,7 @@ def customer_landing_preview() -> None:
 
 def leave_customer_workspace() -> None:
     st.session_state.customer_intent = None
-    st.session_state.overview_mode = "Command Center"
+    st.session_state.overview_mode = "Overview"
     st.session_state.main_page = "Overview"
 
 
@@ -5957,7 +5967,7 @@ def render_customer_shell(intent: str | None) -> None:
         """,
         unsafe_allow_html=True,
     )
-    if intent:
+    if intent and intent != "plan":
         brand, save_col, exit_col = st.columns([4.2, .8, 1])
     else:
         brand, exit_col = st.columns([5, 1])
@@ -5965,7 +5975,7 @@ def render_customer_shell(intent: str | None) -> None:
         '<div class="customer-product-bar"><div class="customer-product-mark">CUST</div><div><div class="customer-product-name">Experiment Platform</div><div class="customer-product-context">Customer experimentation workspace</div></div></div>',
         unsafe_allow_html=True,
     )
-    if intent and save_col.button("Save", use_container_width=True, key="customer_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
+    if intent and intent != "plan" and save_col.button("Save", use_container_width=True, key="customer_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
         st.session_state.pending_workspace_save = "Customer"
     exit_col.button("All experiments", use_container_width=True, key="customer_all_experiments", on_click=leave_customer_workspace)
 
@@ -6198,12 +6208,26 @@ def classic_customer_page() -> None:
         unsafe_allow_html=True,
     )
     if not intent:
-        customer_landing_preview()
+        st.markdown("Randomize customers or accounts across different options, plan the sample you need, and compare the results.")
+        plan_col, analysis_col = st.columns(2)
+        with plan_col:
+            with st.container(border=True):
+                st.subheader("Plan an experiment")
+                st.write("Use historical customer statistics to choose options and calculate the sample needed in each group.")
+                st.button("Plan an experiment", type="primary", use_container_width=True, key="customer_demo_plan", on_click=start_customer_workflow, args=("plan",))
+        with analysis_col:
+            with st.container(border=True):
+                st.subheader("Analyze results")
+                st.write("Compare the outcomes of your Control and Test groups after customers have been assigned.")
+                st.button("Analyze results", use_container_width=True, key="customer_demo_analyze", on_click=start_customer_workflow, args=("analyze",))
         return
     _, nav_right = st.columns([5, 1])
     if nav_right.button("Switch workflow", key="customer_switch_workflow"):
         st.session_state.customer_intent = None
         st.rerun()
+    if intent == "plan":
+        render_unified_customer_plan()
+        return
     modes = ["Arm summaries", "Customer records"] if intent == "plan" else ["Simple results", "Customer records", "Arm summaries"]
     if st.session_state.get("customer_input_mode") not in modes:
         st.session_state.customer_input_mode = modes[0]
@@ -6236,14 +6260,7 @@ def classic_customer_page() -> None:
 
 
 def customer_page() -> None:
-    # Existing saved classic workspaces retain their route; fresh entry opens V2.
-    default = "Classic workspace" if st.session_state.get("customer_intent") and "business_v2" not in st.session_state else "Business workspace"
-    interface = st.sidebar.selectbox("Customer workspace", ["Business workspace", "Classic workspace"],
-                                    index=["Business workspace", "Classic workspace"].index(default), key="customer_workspace_interface")
-    if interface == "Business workspace":
-        render_business_workspace()
-    else:
-        classic_customer_page()
+    classic_customer_page()
 
 
 init_state()
