@@ -1,0 +1,1601 @@
+id,partner,segment,arm,revenue,cancellation,baseline_age,baseline_channel,outcome_window_complete,snapshot_date
+DEMO-A-New-l-0,Partner A,New,Control,72.16,0,67,Online,True,2026-10-20
+DEMO-A-New-l-1,Partner A,New,Control,44.32,0,70,Branch,True,2026-10-20
+DEMO-A-New-l-2,Partner A,New,Control,97.52,1,47,Branch,True,2026-10-20
+DEMO-A-New-l-3,Partner A,New,Control,105.08,0,50,Branch,True,2026-10-20
+DEMO-A-New-l-4,Partner A,New,Control,105.9,0,61,Online,True,2026-10-20
+DEMO-A-New-l-5,Partner A,New,Control,98.43,1,59,Branch,True,2026-10-20
+DEMO-A-New-l-6,Partner A,New,Control,157.74,0,70,Online,True,2026-10-20
+DEMO-A-New-l-7,Partner A,New,Control,12.43,0,30,Online,True,2026-10-20
+DEMO-A-New-l-8,Partner A,New,Control,100.27,1,40,Branch,True,2026-10-20
+DEMO-A-New-l-9,Partner A,New,Control,75.51,0,61,Online,True,2026-10-20
+DEMO-A-New-l-10,Partner A,New,Control,123.82,0,45,Online,True,2026-10-20
+DEMO-A-New-l-11,Partner A,New,Control,67.89,0,31,Branch,True,2026-10-20
+DEMO-A-New-l-12,Partner A,New,Control,102.01,0,24,Online,True,2026-10-20
+DEMO-A-New-l-13,Partner A,New,Control,43.81,0,33,Online,True,2026-10-20
+DEMO-A-New-l-14,Partner A,New,Control,79.0,0,65,Online,True,2026-10-20
+DEMO-A-New-l-15,Partner A,New,Control,93.15,0,66,Branch,True,2026-10-20
+DEMO-A-New-l-16,Partner A,New,Control,64.01,0,38,Online,True,2026-10-20
+DEMO-A-New-l-17,Partner A,New,Control,60.16,0,27,Branch,True,2026-10-20
+DEMO-A-New-l-18,Partner A,New,Control,79.87,0,40,Online,True,2026-10-20
+DEMO-A-New-l-19,Partner A,New,Control,133.96,1,60,Branch,True,2026-10-20
+DEMO-A-New-l-20,Partner A,New,Control,67.26,0,31,Branch,True,2026-10-20
+DEMO-A-New-l-21,Partner A,New,Control,133.79,1,33,Online,True,2026-10-20
+DEMO-A-New-l-22,Partner A,New,Control,79.15,0,46,Branch,True,2026-10-20
+DEMO-A-New-l-23,Partner A,New,Control,78.3,0,34,Online,True,2026-10-20
+DEMO-A-New-l-24,Partner A,New,Control,139.08,1,37,Branch,True,2026-10-20
+DEMO-A-New-l-25,Partner A,New,Control,127.89,0,61,Online,True,2026-10-20
+DEMO-A-New-l-26,Partner A,New,Control,139.8,0,40,Online,True,2026-10-20
+DEMO-A-New-l-27,Partner A,New,Control,96.78,0,27,Branch,True,2026-10-20
+DEMO-A-New-l-28,Partner A,New,Control,162.0,0,64,Branch,True,2026-10-20
+DEMO-A-New-l-29,Partner A,New,Control,136.88,0,49,Branch,True,2026-10-20
+DEMO-A-New-l-30,Partner A,New,Control,58.27,0,71,Branch,True,2026-10-20
+DEMO-A-New-l-31,Partner A,New,Control,36.46,0,59,Branch,True,2026-10-20
+DEMO-A-New-l-32,Partner A,New,Control,144.85,0,68,Branch,True,2026-10-20
+DEMO-A-New-l-33,Partner A,New,Control,136.06,0,60,Branch,True,2026-10-20
+DEMO-A-New-l-34,Partner A,New,Control,53.91,0,57,Branch,True,2026-10-20
+DEMO-A-New-l-35,Partner A,New,Control,73.38,0,68,Online,True,2026-10-20
+DEMO-A-New-l-36,Partner A,New,Control,98.8,1,49,Branch,True,2026-10-20
+DEMO-A-New-l-37,Partner A,New,Control,84.61,0,36,Online,True,2026-10-20
+DEMO-A-New-l-38,Partner A,New,Control,48.77,0,73,Online,True,2026-10-20
+DEMO-A-New-l-39,Partner A,New,Control,75.85,0,56,Online,True,2026-10-20
+DEMO-A-New-l-40,Partner A,New,Control,104.94,0,56,Branch,True,2026-10-20
+DEMO-A-New-l-41,Partner A,New,Control,111.58,0,47,Branch,True,2026-10-20
+DEMO-A-New-l-42,Partner A,New,Control,110.1,1,48,Branch,True,2026-10-20
+DEMO-A-New-l-43,Partner A,New,Control,88.64,0,47,Online,True,2026-10-20
+DEMO-A-New-l-44,Partner A,New,Control,92.74,0,54,Online,True,2026-10-20
+DEMO-A-New-l-45,Partner A,New,Control,127.68,0,70,Online,True,2026-10-20
+DEMO-A-New-l-46,Partner A,New,Control,11.99,0,47,Branch,True,2026-10-20
+DEMO-A-New-l-47,Partner A,New,Control,84.96,0,22,Online,True,2026-10-20
+DEMO-A-New-l-48,Partner A,New,Control,131.71,1,62,Branch,True,2026-10-20
+DEMO-A-New-l-49,Partner A,New,Control,163.05,0,27,Online,True,2026-10-20
+DEMO-A-New-l-50,Partner A,New,Control,119.9,0,42,Branch,True,2026-10-20
+DEMO-A-New-l-51,Partner A,New,Control,86.56,0,64,Online,True,2026-10-20
+DEMO-A-New-l-52,Partner A,New,Control,143.16,0,64,Branch,True,2026-10-20
+DEMO-A-New-l-53,Partner A,New,Control,79.42,0,72,Branch,True,2026-10-20
+DEMO-A-New-l-54,Partner A,New,Control,73.82,0,74,Branch,True,2026-10-20
+DEMO-A-New-l-55,Partner A,New,Control,99.88,0,52,Online,True,2026-10-20
+DEMO-A-New-l-56,Partner A,New,Control,107.52,0,52,Branch,True,2026-10-20
+DEMO-A-New-l-57,Partner A,New,Control,48.94,0,32,Online,True,2026-10-20
+DEMO-A-New-l-58,Partner A,New,Control,97.8,0,63,Online,True,2026-10-20
+DEMO-A-New-l-59,Partner A,New,Control,80.51,0,62,Branch,True,2026-10-20
+DEMO-A-New-l-60,Partner A,New,Control,135.2,0,60,Online,True,2026-10-20
+DEMO-A-New-l-61,Partner A,New,Control,132.47,0,46,Branch,True,2026-10-20
+DEMO-A-New-l-62,Partner A,New,Control,79.98,1,43,Online,True,2026-10-20
+DEMO-A-New-l-63,Partner A,New,Control,93.71,0,25,Branch,True,2026-10-20
+DEMO-A-New-l-64,Partner A,New,Control,54.11,0,31,Online,True,2026-10-20
+DEMO-A-New-l-65,Partner A,New,Control,107.6,0,25,Online,True,2026-10-20
+DEMO-A-New-l-66,Partner A,New,Control,127.23,0,50,Branch,True,2026-10-20
+DEMO-A-New-l-67,Partner A,New,Control,90.85,0,29,Online,True,2026-10-20
+DEMO-A-New-l-68,Partner A,New,Control,76.71,0,34,Online,True,2026-10-20
+DEMO-A-New-l-69,Partner A,New,Control,83.92,0,23,Branch,True,2026-10-20
+DEMO-A-New-l-70,Partner A,New,Control,119.55,0,54,Online,True,2026-10-20
+DEMO-A-New-l-71,Partner A,New,Control,111.96,0,49,Online,True,2026-10-20
+DEMO-A-New-l-72,Partner A,New,Control,49.98,0,46,Branch,True,2026-10-20
+DEMO-A-New-l-73,Partner A,New,Control,81.38,1,39,Branch,True,2026-10-20
+DEMO-A-New-l-74,Partner A,New,Control,74.41,0,65,Online,True,2026-10-20
+DEMO-A-New-l-75,Partner A,New,Control,104.02,0,69,Branch,True,2026-10-20
+DEMO-A-New-l-76,Partner A,New,Control,95.46,0,34,Online,True,2026-10-20
+DEMO-A-New-l-77,Partner A,New,Control,69.82,0,29,Online,True,2026-10-20
+DEMO-A-New-l-78,Partner A,New,Control,105.27,0,52,Online,True,2026-10-20
+DEMO-A-New-l-79,Partner A,New,Control,48.53,0,36,Online,True,2026-10-20
+DEMO-A-New-l-80,Partner A,New,Control,118.64,0,51,Online,True,2026-10-20
+DEMO-A-New-l-81,Partner A,New,Control,100.36,0,55,Online,True,2026-10-20
+DEMO-A-New-l-82,Partner A,New,Control,87.22,0,49,Online,True,2026-10-20
+DEMO-A-New-l-83,Partner A,New,Control,99.41,0,32,Online,True,2026-10-20
+DEMO-A-New-l-84,Partner A,New,Control,96.48,0,55,Online,True,2026-10-20
+DEMO-A-New-l-85,Partner A,New,Control,99.56,1,44,Online,True,2026-10-20
+DEMO-A-New-l-86,Partner A,New,Control,130.76,0,72,Online,True,2026-10-20
+DEMO-A-New-l-87,Partner A,New,Control,126.92,0,48,Branch,True,2026-10-20
+DEMO-A-New-l-88,Partner A,New,Control,71.89,0,25,Online,True,2026-10-20
+DEMO-A-New-l-89,Partner A,New,Control,56.67,0,26,Online,True,2026-10-20
+DEMO-A-New-l-90,Partner A,New,Control,168.69,0,21,Online,True,2026-10-20
+DEMO-A-New-l-91,Partner A,New,Control,77.17,1,37,Branch,True,2026-10-20
+DEMO-A-New-l-92,Partner A,New,Control,147.54,0,39,Branch,True,2026-10-20
+DEMO-A-New-l-93,Partner A,New,Control,145.47,0,50,Online,True,2026-10-20
+DEMO-A-New-l-94,Partner A,New,Control,39.85,0,70,Branch,True,2026-10-20
+DEMO-A-New-l-95,Partner A,New,Control,59.97,0,24,Branch,True,2026-10-20
+DEMO-A-New-l-96,Partner A,New,Control,104.28,0,52,Online,True,2026-10-20
+DEMO-A-New-l-97,Partner A,New,Control,66.48,0,44,Branch,True,2026-10-20
+DEMO-A-New-l-98,Partner A,New,Control,90.22,0,23,Branch,True,2026-10-20
+DEMO-A-New-l-99,Partner A,New,Control,91.86,0,28,Online,True,2026-10-20
+DEMO-A-New-l-100,Partner A,New,Control,87.96,0,33,Online,True,2026-10-20
+DEMO-A-New-l-101,Partner A,New,Control,53.89,0,51,Branch,True,2026-10-20
+DEMO-A-New-l-102,Partner A,New,Control,74.55,0,41,Branch,True,2026-10-20
+DEMO-A-New-l-103,Partner A,New,Control,106.76,0,46,Branch,True,2026-10-20
+DEMO-A-New-l-104,Partner A,New,Control,73.27,0,40,Branch,True,2026-10-20
+DEMO-A-New-l-105,Partner A,New,Control,87.79,0,31,Branch,True,2026-10-20
+DEMO-A-New-l-106,Partner A,New,Control,61.7,0,51,Online,True,2026-10-20
+DEMO-A-New-l-107,Partner A,New,Control,65.22,1,61,Branch,True,2026-10-20
+DEMO-A-New-l-108,Partner A,New,Control,112.11,0,47,Online,True,2026-10-20
+DEMO-A-New-l-109,Partner A,New,Control,106.87,0,69,Branch,True,2026-10-20
+DEMO-A-New-l-110,Partner A,New,Control,119.53,0,59,Online,True,2026-10-20
+DEMO-A-New-l-111,Partner A,New,Control,90.37,0,69,Branch,True,2026-10-20
+DEMO-A-New-l-112,Partner A,New,Control,150.58,0,54,Branch,True,2026-10-20
+DEMO-A-New-l-113,Partner A,New,Control,114.44,0,49,Online,True,2026-10-20
+DEMO-A-New-l-114,Partner A,New,Control,101.75,0,26,Branch,True,2026-10-20
+DEMO-A-New-l-115,Partner A,New,Control,121.66,0,62,Branch,True,2026-10-20
+DEMO-A-New-l-116,Partner A,New,Control,94.3,0,53,Branch,True,2026-10-20
+DEMO-A-New-l-117,Partner A,New,Control,153.31,0,30,Online,True,2026-10-20
+DEMO-A-New-l-118,Partner A,New,Control,101.45,0,40,Branch,True,2026-10-20
+DEMO-A-New-l-119,Partner A,New,Control,112.76,0,48,Online,True,2026-10-20
+DEMO-A-New-l-120,Partner A,New,Control,102.18,0,38,Online,True,2026-10-20
+DEMO-A-New-l-121,Partner A,New,Control,122.36,1,44,Branch,True,2026-10-20
+DEMO-A-New-l-122,Partner A,New,Control,78.17,0,58,Online,True,2026-10-20
+DEMO-A-New-l-123,Partner A,New,Control,125.33,0,30,Online,True,2026-10-20
+DEMO-A-New-l-124,Partner A,New,Control,114.16,0,58,Online,True,2026-10-20
+DEMO-A-New-l-125,Partner A,New,Control,147.7,0,56,Online,True,2026-10-20
+DEMO-A-New-l-126,Partner A,New,Control,91.15,0,69,Branch,True,2026-10-20
+DEMO-A-New-l-127,Partner A,New,Control,77.0,0,24,Online,True,2026-10-20
+DEMO-A-New-l-128,Partner A,New,Control,78.61,0,72,Branch,True,2026-10-20
+DEMO-A-New-l-129,Partner A,New,Control,46.99,0,21,Online,True,2026-10-20
+DEMO-A-New-l-130,Partner A,New,Control,108.1,1,48,Branch,True,2026-10-20
+DEMO-A-New-l-131,Partner A,New,Control,66.46,0,72,Online,True,2026-10-20
+DEMO-A-New-l-132,Partner A,New,Control,113.32,0,34,Online,True,2026-10-20
+DEMO-A-New-l-133,Partner A,New,Control,90.17,0,70,Branch,True,2026-10-20
+DEMO-A-New-l-134,Partner A,New,Control,129.15,1,51,Online,True,2026-10-20
+DEMO-A-New-l-135,Partner A,New,Control,93.45,0,32,Online,True,2026-10-20
+DEMO-A-New-l-136,Partner A,New,Control,114.67,0,68,Branch,True,2026-10-20
+DEMO-A-New-l-137,Partner A,New,Control,91.81,0,48,Online,True,2026-10-20
+DEMO-A-New-l-138,Partner A,New,Control,72.82,0,66,Branch,True,2026-10-20
+DEMO-A-New-l-139,Partner A,New,Control,74.19,0,31,Online,True,2026-10-20
+DEMO-A-New-A-0,Partner A,New,Test A,125.09,0,26,Branch,True,2026-10-20
+DEMO-A-New-A-1,Partner A,New,Test A,56.24,0,48,Online,True,2026-10-20
+DEMO-A-New-A-2,Partner A,New,Test A,81.62,0,33,Branch,True,2026-10-20
+DEMO-A-New-A-3,Partner A,New,Test A,106.95,0,25,Branch,True,2026-10-20
+DEMO-A-New-A-4,Partner A,New,Test A,98.81,0,46,Branch,True,2026-10-20
+DEMO-A-New-A-5,Partner A,New,Test A,93.11,0,58,Branch,True,2026-10-20
+DEMO-A-New-A-6,Partner A,New,Test A,140.94,0,27,Online,True,2026-10-20
+DEMO-A-New-A-7,Partner A,New,Test A,120.76,0,69,Online,True,2026-10-20
+DEMO-A-New-A-8,Partner A,New,Test A,82.51,0,45,Online,True,2026-10-20
+DEMO-A-New-A-9,Partner A,New,Test A,122.49,0,47,Online,True,2026-10-20
+DEMO-A-New-A-10,Partner A,New,Test A,180.08,0,62,Branch,True,2026-10-20
+DEMO-A-New-A-11,Partner A,New,Test A,102.8,0,61,Online,True,2026-10-20
+DEMO-A-New-A-12,Partner A,New,Test A,95.88,0,66,Branch,True,2026-10-20
+DEMO-A-New-A-13,Partner A,New,Test A,150.33,0,41,Branch,True,2026-10-20
+DEMO-A-New-A-14,Partner A,New,Test A,99.04,0,40,Branch,True,2026-10-20
+DEMO-A-New-A-15,Partner A,New,Test A,102.61,0,21,Branch,True,2026-10-20
+DEMO-A-New-A-16,Partner A,New,Test A,104.19,0,58,Branch,True,2026-10-20
+DEMO-A-New-A-17,Partner A,New,Test A,116.82,0,40,Branch,True,2026-10-20
+DEMO-A-New-A-18,Partner A,New,Test A,90.9,0,55,Online,True,2026-10-20
+DEMO-A-New-A-19,Partner A,New,Test A,118.45,0,64,Branch,True,2026-10-20
+DEMO-A-New-A-20,Partner A,New,Test A,89.01,0,27,Online,True,2026-10-20
+DEMO-A-New-A-21,Partner A,New,Test A,109.16,0,29,Online,True,2026-10-20
+DEMO-A-New-A-22,Partner A,New,Test A,109.5,1,36,Branch,True,2026-10-20
+DEMO-A-New-A-23,Partner A,New,Test A,103.04,0,28,Online,True,2026-10-20
+DEMO-A-New-A-24,Partner A,New,Test A,115.28,1,45,Branch,True,2026-10-20
+DEMO-A-New-A-25,Partner A,New,Test A,51.55,0,39,Branch,True,2026-10-20
+DEMO-A-New-A-26,Partner A,New,Test A,75.25,0,59,Branch,True,2026-10-20
+DEMO-A-New-A-27,Partner A,New,Test A,84.19,0,71,Branch,True,2026-10-20
+DEMO-A-New-A-28,Partner A,New,Test A,142.15,0,33,Branch,True,2026-10-20
+DEMO-A-New-A-29,Partner A,New,Test A,119.44,0,32,Branch,True,2026-10-20
+DEMO-A-New-A-30,Partner A,New,Test A,37.15,0,63,Online,True,2026-10-20
+DEMO-A-New-A-31,Partner A,New,Test A,105.37,0,61,Branch,True,2026-10-20
+DEMO-A-New-A-32,Partner A,New,Test A,132.08,0,29,Online,True,2026-10-20
+DEMO-A-New-A-33,Partner A,New,Test A,121.23,0,43,Online,True,2026-10-20
+DEMO-A-New-A-34,Partner A,New,Test A,159.12,0,31,Online,True,2026-10-20
+DEMO-A-New-A-35,Partner A,New,Test A,110.74,0,25,Branch,True,2026-10-20
+DEMO-A-New-A-36,Partner A,New,Test A,124.47,0,31,Online,True,2026-10-20
+DEMO-A-New-A-37,Partner A,New,Test A,88.82,0,51,Online,True,2026-10-20
+DEMO-A-New-A-38,Partner A,New,Test A,130.49,0,33,Online,True,2026-10-20
+DEMO-A-New-A-39,Partner A,New,Test A,155.1,0,42,Branch,True,2026-10-20
+DEMO-A-New-A-40,Partner A,New,Test A,139.42,0,64,Branch,True,2026-10-20
+DEMO-A-New-A-41,Partner A,New,Test A,80.86,1,56,Branch,True,2026-10-20
+DEMO-A-New-A-42,Partner A,New,Test A,132.6,0,38,Online,True,2026-10-20
+DEMO-A-New-A-43,Partner A,New,Test A,49.0,1,59,Online,True,2026-10-20
+DEMO-A-New-A-44,Partner A,New,Test A,131.02,0,36,Branch,True,2026-10-20
+DEMO-A-New-A-45,Partner A,New,Test A,84.27,0,48,Branch,True,2026-10-20
+DEMO-A-New-A-46,Partner A,New,Test A,108.64,0,56,Branch,True,2026-10-20
+DEMO-A-New-A-47,Partner A,New,Test A,149.94,0,32,Online,True,2026-10-20
+DEMO-A-New-A-48,Partner A,New,Test A,151.56,0,73,Branch,True,2026-10-20
+DEMO-A-New-A-49,Partner A,New,Test A,65.83,0,25,Online,True,2026-10-20
+DEMO-A-New-A-50,Partner A,New,Test A,56.83,1,67,Online,True,2026-10-20
+DEMO-A-New-A-51,Partner A,New,Test A,147.25,1,34,Branch,True,2026-10-20
+DEMO-A-New-A-52,Partner A,New,Test A,114.9,0,45,Branch,True,2026-10-20
+DEMO-A-New-A-53,Partner A,New,Test A,94.99,0,72,Online,True,2026-10-20
+DEMO-A-New-A-54,Partner A,New,Test A,95.56,0,22,Branch,True,2026-10-20
+DEMO-A-New-A-55,Partner A,New,Test A,67.58,0,64,Branch,True,2026-10-20
+DEMO-A-New-A-56,Partner A,New,Test A,121.8,1,49,Online,True,2026-10-20
+DEMO-A-New-A-57,Partner A,New,Test A,78.07,0,30,Online,True,2026-10-20
+DEMO-A-New-A-58,Partner A,New,Test A,115.85,0,22,Online,True,2026-10-20
+DEMO-A-New-A-59,Partner A,New,Test A,163.82,0,66,Online,True,2026-10-20
+DEMO-A-New-A-60,Partner A,New,Test A,90.78,0,24,Branch,True,2026-10-20
+DEMO-A-New-A-61,Partner A,New,Test A,119.13,0,35,Online,True,2026-10-20
+DEMO-A-New-A-62,Partner A,New,Test A,95.01,0,67,Branch,True,2026-10-20
+DEMO-A-New-A-63,Partner A,New,Test A,101.7,0,61,Branch,True,2026-10-20
+DEMO-A-New-A-64,Partner A,New,Test A,112.18,0,36,Branch,True,2026-10-20
+DEMO-A-New-A-65,Partner A,New,Test A,100.05,0,35,Online,True,2026-10-20
+DEMO-A-New-A-66,Partner A,New,Test A,126.13,0,28,Online,True,2026-10-20
+DEMO-A-New-A-67,Partner A,New,Test A,51.89,0,40,Branch,True,2026-10-20
+DEMO-A-New-A-68,Partner A,New,Test A,77.55,0,48,Branch,True,2026-10-20
+DEMO-A-New-A-69,Partner A,New,Test A,55.44,0,73,Online,True,2026-10-20
+DEMO-A-New-A-70,Partner A,New,Test A,140.47,0,30,Online,True,2026-10-20
+DEMO-A-New-A-71,Partner A,New,Test A,72.51,0,35,Branch,True,2026-10-20
+DEMO-A-New-A-72,Partner A,New,Test A,132.86,0,52,Online,True,2026-10-20
+DEMO-A-New-A-73,Partner A,New,Test A,166.97,0,57,Branch,True,2026-10-20
+DEMO-A-New-A-74,Partner A,New,Test A,117.6,0,40,Branch,True,2026-10-20
+DEMO-A-New-A-75,Partner A,New,Test A,135.4,0,43,Branch,True,2026-10-20
+DEMO-A-New-A-76,Partner A,New,Test A,102.31,0,67,Online,True,2026-10-20
+DEMO-A-New-A-77,Partner A,New,Test A,68.63,0,63,Online,True,2026-10-20
+DEMO-A-New-A-78,Partner A,New,Test A,128.81,0,55,Online,True,2026-10-20
+DEMO-A-New-A-79,Partner A,New,Test A,62.83,0,67,Branch,True,2026-10-20
+DEMO-A-New-A-80,Partner A,New,Test A,93.42,0,58,Online,True,2026-10-20
+DEMO-A-New-A-81,Partner A,New,Test A,117.23,0,55,Online,True,2026-10-20
+DEMO-A-New-A-82,Partner A,New,Test A,118.64,0,28,Online,True,2026-10-20
+DEMO-A-New-A-83,Partner A,New,Test A,79.08,0,67,Branch,True,2026-10-20
+DEMO-A-New-A-84,Partner A,New,Test A,103.52,0,57,Online,True,2026-10-20
+DEMO-A-New-A-85,Partner A,New,Test A,99.55,0,35,Branch,True,2026-10-20
+DEMO-A-New-A-86,Partner A,New,Test A,91.57,0,34,Branch,True,2026-10-20
+DEMO-A-New-A-87,Partner A,New,Test A,78.23,0,21,Branch,True,2026-10-20
+DEMO-A-New-A-88,Partner A,New,Test A,143.31,0,34,Online,True,2026-10-20
+DEMO-A-New-A-89,Partner A,New,Test A,123.53,0,36,Online,True,2026-10-20
+DEMO-A-New-A-90,Partner A,New,Test A,127.0,1,30,Branch,True,2026-10-20
+DEMO-A-New-A-91,Partner A,New,Test A,96.49,0,27,Online,True,2026-10-20
+DEMO-A-New-A-92,Partner A,New,Test A,108.3,0,24,Online,True,2026-10-20
+DEMO-A-New-A-93,Partner A,New,Test A,48.36,0,60,Branch,True,2026-10-20
+DEMO-A-New-A-94,Partner A,New,Test A,83.7,0,27,Online,True,2026-10-20
+DEMO-A-New-A-95,Partner A,New,Test A,165.26,0,27,Online,True,2026-10-20
+DEMO-A-New-A-96,Partner A,New,Test A,128.12,0,74,Branch,True,2026-10-20
+DEMO-A-New-A-97,Partner A,New,Test A,109.52,0,54,Branch,True,2026-10-20
+DEMO-A-New-A-98,Partner A,New,Test A,89.07,0,66,Branch,True,2026-10-20
+DEMO-A-New-A-99,Partner A,New,Test A,66.83,0,63,Online,True,2026-10-20
+DEMO-A-New-A-100,Partner A,New,Test A,54.51,0,65,Online,True,2026-10-20
+DEMO-A-New-A-101,Partner A,New,Test A,114.16,1,42,Online,True,2026-10-20
+DEMO-A-New-A-102,Partner A,New,Test A,58.47,1,25,Branch,True,2026-10-20
+DEMO-A-New-A-103,Partner A,New,Test A,98.51,0,53,Online,True,2026-10-20
+DEMO-A-New-A-104,Partner A,New,Test A,89.65,1,66,Online,True,2026-10-20
+DEMO-A-New-A-105,Partner A,New,Test A,46.77,0,50,Branch,True,2026-10-20
+DEMO-A-New-A-106,Partner A,New,Test A,133.79,0,23,Online,True,2026-10-20
+DEMO-A-New-A-107,Partner A,New,Test A,74.75,0,68,Online,True,2026-10-20
+DEMO-A-New-A-108,Partner A,New,Test A,65.93,0,43,Branch,True,2026-10-20
+DEMO-A-New-A-109,Partner A,New,Test A,89.91,0,35,Branch,True,2026-10-20
+DEMO-A-New-A-110,Partner A,New,Test A,98.93,0,43,Branch,True,2026-10-20
+DEMO-A-New-A-111,Partner A,New,Test A,92.62,0,50,Branch,True,2026-10-20
+DEMO-A-New-A-112,Partner A,New,Test A,115.18,0,47,Branch,True,2026-10-20
+DEMO-A-New-A-113,Partner A,New,Test A,132.74,0,35,Online,True,2026-10-20
+DEMO-A-New-A-114,Partner A,New,Test A,129.42,0,46,Online,True,2026-10-20
+DEMO-A-New-A-115,Partner A,New,Test A,106.8,0,58,Online,True,2026-10-20
+DEMO-A-New-A-116,Partner A,New,Test A,90.27,0,21,Branch,True,2026-10-20
+DEMO-A-New-A-117,Partner A,New,Test A,68.25,0,74,Branch,True,2026-10-20
+DEMO-A-New-A-118,Partner A,New,Test A,76.31,0,45,Branch,True,2026-10-20
+DEMO-A-New-A-119,Partner A,New,Test A,185.32,0,40,Branch,True,2026-10-20
+DEMO-A-New-A-120,Partner A,New,Test A,94.62,0,23,Branch,True,2026-10-20
+DEMO-A-New-A-121,Partner A,New,Test A,103.57,0,73,Branch,True,2026-10-20
+DEMO-A-New-A-122,Partner A,New,Test A,123.26,0,37,Branch,True,2026-10-20
+DEMO-A-New-A-123,Partner A,New,Test A,117.64,0,47,Online,True,2026-10-20
+DEMO-A-New-A-124,Partner A,New,Test A,106.87,1,34,Branch,True,2026-10-20
+DEMO-A-New-A-125,Partner A,New,Test A,128.24,0,32,Online,True,2026-10-20
+DEMO-A-New-A-126,Partner A,New,Test A,117.18,0,64,Branch,True,2026-10-20
+DEMO-A-New-A-127,Partner A,New,Test A,157.04,0,70,Branch,True,2026-10-20
+DEMO-A-New-A-128,Partner A,New,Test A,85.71,0,68,Branch,True,2026-10-20
+DEMO-A-New-A-129,Partner A,New,Test A,157.52,0,63,Branch,True,2026-10-20
+DEMO-A-New-B-0,Partner A,New,Test B,136.29,0,57,Online,True,2026-10-20
+DEMO-A-New-B-1,Partner A,New,Test B,96.32,0,21,Branch,True,2026-10-20
+DEMO-A-New-B-2,Partner A,New,Test B,111.12,0,54,Branch,True,2026-10-20
+DEMO-A-New-B-3,Partner A,New,Test B,144.23,0,73,Branch,True,2026-10-20
+DEMO-A-New-B-4,Partner A,New,Test B,114.12,0,52,Branch,True,2026-10-20
+DEMO-A-New-B-5,Partner A,New,Test B,104.64,0,25,Online,True,2026-10-20
+DEMO-A-New-B-6,Partner A,New,Test B,122.29,1,47,Online,True,2026-10-20
+DEMO-A-New-B-7,Partner A,New,Test B,118.75,0,39,Branch,True,2026-10-20
+DEMO-A-New-B-8,Partner A,New,Test B,96.83,0,69,Online,True,2026-10-20
+DEMO-A-New-B-9,Partner A,New,Test B,100.03,0,27,Branch,True,2026-10-20
+DEMO-A-New-B-10,Partner A,New,Test B,96.49,0,35,Online,True,2026-10-20
+DEMO-A-New-B-11,Partner A,New,Test B,70.37,0,41,Online,True,2026-10-20
+DEMO-A-New-B-12,Partner A,New,Test B,166.35,0,27,Branch,True,2026-10-20
+DEMO-A-New-B-13,Partner A,New,Test B,118.63,0,46,Online,True,2026-10-20
+DEMO-A-New-B-14,Partner A,New,Test B,85.4,0,29,Online,True,2026-10-20
+DEMO-A-New-B-15,Partner A,New,Test B,139.04,1,35,Branch,True,2026-10-20
+DEMO-A-New-B-16,Partner A,New,Test B,98.52,1,54,Online,True,2026-10-20
+DEMO-A-New-B-17,Partner A,New,Test B,132.58,0,38,Branch,True,2026-10-20
+DEMO-A-New-B-18,Partner A,New,Test B,163.51,1,26,Online,True,2026-10-20
+DEMO-A-New-B-19,Partner A,New,Test B,158.66,0,52,Branch,True,2026-10-20
+DEMO-A-New-B-20,Partner A,New,Test B,110.62,0,29,Online,True,2026-10-20
+DEMO-A-New-B-21,Partner A,New,Test B,93.0,0,29,Branch,True,2026-10-20
+DEMO-A-New-B-22,Partner A,New,Test B,104.47,0,62,Online,True,2026-10-20
+DEMO-A-New-B-23,Partner A,New,Test B,96.45,0,31,Branch,True,2026-10-20
+DEMO-A-New-B-24,Partner A,New,Test B,167.44,0,36,Branch,True,2026-10-20
+DEMO-A-New-B-25,Partner A,New,Test B,101.84,0,60,Online,True,2026-10-20
+DEMO-A-New-B-26,Partner A,New,Test B,119.58,0,27,Online,True,2026-10-20
+DEMO-A-New-B-27,Partner A,New,Test B,131.67,1,66,Branch,True,2026-10-20
+DEMO-A-New-B-28,Partner A,New,Test B,160.68,0,25,Online,True,2026-10-20
+DEMO-A-New-B-29,Partner A,New,Test B,89.11,0,24,Branch,True,2026-10-20
+DEMO-A-New-B-30,Partner A,New,Test B,176.78,0,30,Online,True,2026-10-20
+DEMO-A-New-B-31,Partner A,New,Test B,107.2,1,64,Online,True,2026-10-20
+DEMO-A-New-B-32,Partner A,New,Test B,75.49,0,70,Online,True,2026-10-20
+DEMO-A-New-B-33,Partner A,New,Test B,91.23,0,50,Online,True,2026-10-20
+DEMO-A-New-B-34,Partner A,New,Test B,100.96,0,66,Online,True,2026-10-20
+DEMO-A-New-B-35,Partner A,New,Test B,71.46,0,56,Branch,True,2026-10-20
+DEMO-A-New-B-36,Partner A,New,Test B,139.8,0,69,Branch,True,2026-10-20
+DEMO-A-New-B-37,Partner A,New,Test B,72.08,0,60,Branch,True,2026-10-20
+DEMO-A-New-B-38,Partner A,New,Test B,78.9,0,63,Online,True,2026-10-20
+DEMO-A-New-B-39,Partner A,New,Test B,105.89,0,29,Branch,True,2026-10-20
+DEMO-A-New-B-40,Partner A,New,Test B,107.02,0,71,Branch,True,2026-10-20
+DEMO-A-New-B-41,Partner A,New,Test B,93.54,0,58,Branch,True,2026-10-20
+DEMO-A-New-B-42,Partner A,New,Test B,63.28,0,26,Online,True,2026-10-20
+DEMO-A-New-B-43,Partner A,New,Test B,98.88,1,24,Branch,True,2026-10-20
+DEMO-A-New-B-44,Partner A,New,Test B,76.19,0,48,Online,True,2026-10-20
+DEMO-A-New-B-45,Partner A,New,Test B,90.37,0,74,Branch,True,2026-10-20
+DEMO-A-New-B-46,Partner A,New,Test B,124.85,0,27,Branch,True,2026-10-20
+DEMO-A-New-B-47,Partner A,New,Test B,132.58,1,48,Branch,True,2026-10-20
+DEMO-A-New-B-48,Partner A,New,Test B,148.56,0,64,Online,True,2026-10-20
+DEMO-A-New-B-49,Partner A,New,Test B,99.08,1,33,Branch,True,2026-10-20
+DEMO-A-New-B-50,Partner A,New,Test B,119.84,0,21,Branch,True,2026-10-20
+DEMO-A-New-B-51,Partner A,New,Test B,126.19,0,47,Online,True,2026-10-20
+DEMO-A-New-B-52,Partner A,New,Test B,53.91,0,31,Online,True,2026-10-20
+DEMO-A-New-B-53,Partner A,New,Test B,8.71,1,71,Online,True,2026-10-20
+DEMO-A-New-B-54,Partner A,New,Test B,140.37,0,54,Branch,True,2026-10-20
+DEMO-A-New-B-55,Partner A,New,Test B,72.99,0,63,Online,True,2026-10-20
+DEMO-A-New-B-56,Partner A,New,Test B,84.86,0,37,Online,True,2026-10-20
+DEMO-A-New-B-57,Partner A,New,Test B,68.42,0,49,Branch,True,2026-10-20
+DEMO-A-New-B-58,Partner A,New,Test B,148.34,1,56,Online,True,2026-10-20
+DEMO-A-New-B-59,Partner A,New,Test B,95.02,0,48,Online,True,2026-10-20
+DEMO-A-New-B-60,Partner A,New,Test B,54.57,0,50,Online,True,2026-10-20
+DEMO-A-New-B-61,Partner A,New,Test B,122.61,0,57,Online,True,2026-10-20
+DEMO-A-New-B-62,Partner A,New,Test B,132.55,0,58,Branch,True,2026-10-20
+DEMO-A-New-B-63,Partner A,New,Test B,59.63,0,67,Branch,True,2026-10-20
+DEMO-A-New-B-64,Partner A,New,Test B,97.08,0,57,Branch,True,2026-10-20
+DEMO-A-New-B-65,Partner A,New,Test B,98.67,0,59,Online,True,2026-10-20
+DEMO-A-New-B-66,Partner A,New,Test B,151.62,0,45,Branch,True,2026-10-20
+DEMO-A-New-B-67,Partner A,New,Test B,112.75,0,31,Online,True,2026-10-20
+DEMO-A-New-B-68,Partner A,New,Test B,73.15,0,51,Online,True,2026-10-20
+DEMO-A-New-B-69,Partner A,New,Test B,122.68,0,31,Online,True,2026-10-20
+DEMO-A-New-B-70,Partner A,New,Test B,118.73,0,41,Online,True,2026-10-20
+DEMO-A-New-B-71,Partner A,New,Test B,101.62,0,50,Online,True,2026-10-20
+DEMO-A-New-B-72,Partner A,New,Test B,91.8,0,43,Branch,True,2026-10-20
+DEMO-A-New-B-73,Partner A,New,Test B,103.43,0,29,Online,True,2026-10-20
+DEMO-A-New-B-74,Partner A,New,Test B,78.85,0,36,Online,True,2026-10-20
+DEMO-A-New-B-75,Partner A,New,Test B,42.27,0,23,Branch,True,2026-10-20
+DEMO-A-New-B-76,Partner A,New,Test B,91.2,0,26,Online,True,2026-10-20
+DEMO-A-New-B-77,Partner A,New,Test B,104.66,0,32,Branch,True,2026-10-20
+DEMO-A-New-B-78,Partner A,New,Test B,61.32,1,72,Online,True,2026-10-20
+DEMO-A-New-B-79,Partner A,New,Test B,136.92,0,56,Branch,True,2026-10-20
+DEMO-A-New-B-80,Partner A,New,Test B,69.58,1,56,Online,True,2026-10-20
+DEMO-A-New-B-81,Partner A,New,Test B,110.8,0,44,Branch,True,2026-10-20
+DEMO-A-New-B-82,Partner A,New,Test B,122.49,0,32,Online,True,2026-10-20
+DEMO-A-New-B-83,Partner A,New,Test B,82.35,0,36,Branch,True,2026-10-20
+DEMO-A-New-B-84,Partner A,New,Test B,62.33,1,40,Branch,True,2026-10-20
+DEMO-A-New-B-85,Partner A,New,Test B,108.35,0,61,Online,True,2026-10-20
+DEMO-A-New-B-86,Partner A,New,Test B,118.41,0,59,Branch,True,2026-10-20
+DEMO-A-New-B-87,Partner A,New,Test B,80.54,0,55,Branch,True,2026-10-20
+DEMO-A-New-B-88,Partner A,New,Test B,121.49,0,46,Branch,True,2026-10-20
+DEMO-A-New-B-89,Partner A,New,Test B,118.13,1,39,Branch,True,2026-10-20
+DEMO-A-New-B-90,Partner A,New,Test B,92.5,0,24,Online,True,2026-10-20
+DEMO-A-New-B-91,Partner A,New,Test B,134.22,1,35,Branch,True,2026-10-20
+DEMO-A-New-B-92,Partner A,New,Test B,66.17,0,33,Branch,True,2026-10-20
+DEMO-A-New-B-93,Partner A,New,Test B,119.17,1,40,Online,True,2026-10-20
+DEMO-A-New-B-94,Partner A,New,Test B,89.0,0,25,Online,True,2026-10-20
+DEMO-A-New-B-95,Partner A,New,Test B,127.04,0,29,Branch,True,2026-10-20
+DEMO-A-New-B-96,Partner A,New,Test B,101.75,0,23,Branch,True,2026-10-20
+DEMO-A-New-B-97,Partner A,New,Test B,94.85,0,23,Branch,True,2026-10-20
+DEMO-A-New-B-98,Partner A,New,Test B,103.02,0,26,Online,True,2026-10-20
+DEMO-A-New-B-99,Partner A,New,Test B,131.11,0,72,Branch,True,2026-10-20
+DEMO-A-New-B-100,Partner A,New,Test B,128.01,0,58,Online,True,2026-10-20
+DEMO-A-New-B-101,Partner A,New,Test B,93.96,1,60,Branch,True,2026-10-20
+DEMO-A-New-B-102,Partner A,New,Test B,144.31,0,63,Online,True,2026-10-20
+DEMO-A-New-B-103,Partner A,New,Test B,82.94,0,40,Online,True,2026-10-20
+DEMO-A-New-B-104,Partner A,New,Test B,134.24,0,35,Online,True,2026-10-20
+DEMO-A-New-B-105,Partner A,New,Test B,98.47,0,32,Branch,True,2026-10-20
+DEMO-A-New-B-106,Partner A,New,Test B,149.95,0,58,Online,True,2026-10-20
+DEMO-A-New-B-107,Partner A,New,Test B,104.49,0,50,Branch,True,2026-10-20
+DEMO-A-New-B-108,Partner A,New,Test B,135.11,0,61,Branch,True,2026-10-20
+DEMO-A-New-B-109,Partner A,New,Test B,98.05,0,38,Online,True,2026-10-20
+DEMO-A-New-B-110,Partner A,New,Test B,101.59,0,21,Branch,True,2026-10-20
+DEMO-A-New-B-111,Partner A,New,Test B,115.22,0,49,Online,True,2026-10-20
+DEMO-A-New-B-112,Partner A,New,Test B,117.9,0,28,Online,True,2026-10-20
+DEMO-A-New-B-113,Partner A,New,Test B,101.74,1,69,Online,True,2026-10-20
+DEMO-A-New-B-114,Partner A,New,Test B,188.9,0,46,Branch,True,2026-10-20
+DEMO-A-New-B-115,Partner A,New,Test B,110.72,0,42,Online,True,2026-10-20
+DEMO-A-New-B-116,Partner A,New,Test B,117.51,0,25,Branch,True,2026-10-20
+DEMO-A-New-B-117,Partner A,New,Test B,120.43,0,67,Online,True,2026-10-20
+DEMO-A-New-B-118,Partner A,New,Test B,108.27,0,24,Online,True,2026-10-20
+DEMO-A-New-B-119,Partner A,New,Test B,105.39,0,73,Branch,True,2026-10-20
+DEMO-A-New-B-120,Partner A,New,Test B,76.95,0,55,Branch,True,2026-10-20
+DEMO-A-New-B-121,Partner A,New,Test B,108.46,1,41,Online,True,2026-10-20
+DEMO-A-New-B-122,Partner A,New,Test B,64.2,1,41,Branch,True,2026-10-20
+DEMO-A-New-B-123,Partner A,New,Test B,68.08,0,35,Online,True,2026-10-20
+DEMO-A-New-B-124,Partner A,New,Test B,42.42,0,21,Branch,True,2026-10-20
+DEMO-A-New-B-125,Partner A,New,Test B,164.62,0,57,Branch,True,2026-10-20
+DEMO-A-New-B-126,Partner A,New,Test B,100.65,0,34,Online,True,2026-10-20
+DEMO-A-New-B-127,Partner A,New,Test B,95.04,0,38,Branch,True,2026-10-20
+DEMO-A-New-B-128,Partner A,New,Test B,101.06,0,35,Online,True,2026-10-20
+DEMO-A-New-B-129,Partner A,New,Test B,137.22,0,70,Branch,True,2026-10-20
+DEMO-A-Existing-l-0,Partner A,Existing,Control,103.39,0,22,Branch,True,2026-10-20
+DEMO-A-Existing-l-1,Partner A,Existing,Control,129.76,1,39,Branch,True,2026-10-20
+DEMO-A-Existing-l-2,Partner A,Existing,Control,71.79,1,33,Branch,True,2026-10-20
+DEMO-A-Existing-l-3,Partner A,Existing,Control,74.14,0,58,Online,True,2026-10-20
+DEMO-A-Existing-l-4,Partner A,Existing,Control,83.26,0,71,Branch,True,2026-10-20
+DEMO-A-Existing-l-5,Partner A,Existing,Control,85.33,0,28,Branch,True,2026-10-20
+DEMO-A-Existing-l-6,Partner A,Existing,Control,63.97,0,34,Online,True,2026-10-20
+DEMO-A-Existing-l-7,Partner A,Existing,Control,105.18,0,69,Online,True,2026-10-20
+DEMO-A-Existing-l-8,Partner A,Existing,Control,104.56,0,32,Branch,True,2026-10-20
+DEMO-A-Existing-l-9,Partner A,Existing,Control,95.66,0,70,Online,True,2026-10-20
+DEMO-A-Existing-l-10,Partner A,Existing,Control,138.83,0,70,Online,True,2026-10-20
+DEMO-A-Existing-l-11,Partner A,Existing,Control,148.78,0,21,Branch,True,2026-10-20
+DEMO-A-Existing-l-12,Partner A,Existing,Control,186.25,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-l-13,Partner A,Existing,Control,129.0,0,41,Online,True,2026-10-20
+DEMO-A-Existing-l-14,Partner A,Existing,Control,160.66,0,58,Online,True,2026-10-20
+DEMO-A-Existing-l-15,Partner A,Existing,Control,116.86,0,58,Branch,True,2026-10-20
+DEMO-A-Existing-l-16,Partner A,Existing,Control,123.22,0,27,Online,True,2026-10-20
+DEMO-A-Existing-l-17,Partner A,Existing,Control,23.51,0,72,Online,True,2026-10-20
+DEMO-A-Existing-l-18,Partner A,Existing,Control,126.41,0,62,Branch,True,2026-10-20
+DEMO-A-Existing-l-19,Partner A,Existing,Control,106.37,0,30,Branch,True,2026-10-20
+DEMO-A-Existing-l-20,Partner A,Existing,Control,128.32,0,58,Online,True,2026-10-20
+DEMO-A-Existing-l-21,Partner A,Existing,Control,147.29,0,41,Branch,True,2026-10-20
+DEMO-A-Existing-l-22,Partner A,Existing,Control,174.35,0,23,Branch,True,2026-10-20
+DEMO-A-Existing-l-23,Partner A,Existing,Control,35.76,1,61,Online,True,2026-10-20
+DEMO-A-Existing-l-24,Partner A,Existing,Control,157.82,0,41,Branch,True,2026-10-20
+DEMO-A-Existing-l-25,Partner A,Existing,Control,95.04,0,41,Branch,True,2026-10-20
+DEMO-A-Existing-l-26,Partner A,Existing,Control,71.13,0,43,Branch,True,2026-10-20
+DEMO-A-Existing-l-27,Partner A,Existing,Control,107.91,0,24,Online,True,2026-10-20
+DEMO-A-Existing-l-28,Partner A,Existing,Control,84.79,0,23,Online,True,2026-10-20
+DEMO-A-Existing-l-29,Partner A,Existing,Control,140.41,0,57,Branch,True,2026-10-20
+DEMO-A-Existing-l-30,Partner A,Existing,Control,62.12,1,70,Branch,True,2026-10-20
+DEMO-A-Existing-l-31,Partner A,Existing,Control,113.58,1,33,Online,True,2026-10-20
+DEMO-A-Existing-l-32,Partner A,Existing,Control,118.67,0,52,Online,True,2026-10-20
+DEMO-A-Existing-l-33,Partner A,Existing,Control,99.31,0,40,Branch,True,2026-10-20
+DEMO-A-Existing-l-34,Partner A,Existing,Control,62.71,0,21,Online,True,2026-10-20
+DEMO-A-Existing-l-35,Partner A,Existing,Control,132.63,0,72,Online,True,2026-10-20
+DEMO-A-Existing-l-36,Partner A,Existing,Control,95.36,0,52,Branch,True,2026-10-20
+DEMO-A-Existing-l-37,Partner A,Existing,Control,166.73,1,50,Branch,True,2026-10-20
+DEMO-A-Existing-l-38,Partner A,Existing,Control,112.11,0,46,Branch,True,2026-10-20
+DEMO-A-Existing-l-39,Partner A,Existing,Control,110.86,1,40,Branch,True,2026-10-20
+DEMO-A-Existing-l-40,Partner A,Existing,Control,180.3,1,71,Online,True,2026-10-20
+DEMO-A-Existing-l-41,Partner A,Existing,Control,125.32,0,61,Online,True,2026-10-20
+DEMO-A-Existing-l-42,Partner A,Existing,Control,41.41,0,36,Online,True,2026-10-20
+DEMO-A-Existing-l-43,Partner A,Existing,Control,125.97,0,49,Branch,True,2026-10-20
+DEMO-A-Existing-l-44,Partner A,Existing,Control,114.95,0,61,Online,True,2026-10-20
+DEMO-A-Existing-l-45,Partner A,Existing,Control,202.24,0,25,Online,True,2026-10-20
+DEMO-A-Existing-l-46,Partner A,Existing,Control,83.48,0,28,Online,True,2026-10-20
+DEMO-A-Existing-l-47,Partner A,Existing,Control,139.11,0,24,Branch,True,2026-10-20
+DEMO-A-Existing-l-48,Partner A,Existing,Control,138.35,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-l-49,Partner A,Existing,Control,171.67,0,26,Online,True,2026-10-20
+DEMO-A-Existing-l-50,Partner A,Existing,Control,56.27,0,42,Online,True,2026-10-20
+DEMO-A-Existing-l-51,Partner A,Existing,Control,90.81,0,59,Online,True,2026-10-20
+DEMO-A-Existing-l-52,Partner A,Existing,Control,54.22,0,67,Branch,True,2026-10-20
+DEMO-A-Existing-l-53,Partner A,Existing,Control,79.76,0,40,Branch,True,2026-10-20
+DEMO-A-Existing-l-54,Partner A,Existing,Control,97.25,0,72,Branch,True,2026-10-20
+DEMO-A-Existing-l-55,Partner A,Existing,Control,125.2,0,63,Online,True,2026-10-20
+DEMO-A-Existing-l-56,Partner A,Existing,Control,111.73,0,62,Online,True,2026-10-20
+DEMO-A-Existing-l-57,Partner A,Existing,Control,140.71,0,58,Online,True,2026-10-20
+DEMO-A-Existing-l-58,Partner A,Existing,Control,135.53,0,34,Online,True,2026-10-20
+DEMO-A-Existing-l-59,Partner A,Existing,Control,73.33,0,36,Branch,True,2026-10-20
+DEMO-A-Existing-l-60,Partner A,Existing,Control,107.24,0,21,Online,True,2026-10-20
+DEMO-A-Existing-l-61,Partner A,Existing,Control,64.25,1,56,Online,True,2026-10-20
+DEMO-A-Existing-l-62,Partner A,Existing,Control,101.53,0,33,Online,True,2026-10-20
+DEMO-A-Existing-l-63,Partner A,Existing,Control,175.48,0,55,Online,True,2026-10-20
+DEMO-A-Existing-l-64,Partner A,Existing,Control,127.23,0,39,Branch,True,2026-10-20
+DEMO-A-Existing-l-65,Partner A,Existing,Control,59.66,0,22,Branch,True,2026-10-20
+DEMO-A-Existing-l-66,Partner A,Existing,Control,114.51,0,46,Online,True,2026-10-20
+DEMO-A-Existing-l-67,Partner A,Existing,Control,146.22,0,44,Branch,True,2026-10-20
+DEMO-A-Existing-l-68,Partner A,Existing,Control,91.02,0,54,Online,True,2026-10-20
+DEMO-A-Existing-l-69,Partner A,Existing,Control,100.53,0,64,Online,True,2026-10-20
+DEMO-A-Existing-l-70,Partner A,Existing,Control,137.95,0,60,Branch,True,2026-10-20
+DEMO-A-Existing-l-71,Partner A,Existing,Control,127.07,0,22,Branch,True,2026-10-20
+DEMO-A-Existing-l-72,Partner A,Existing,Control,165.7,1,28,Online,True,2026-10-20
+DEMO-A-Existing-l-73,Partner A,Existing,Control,52.96,0,63,Branch,True,2026-10-20
+DEMO-A-Existing-l-74,Partner A,Existing,Control,116.2,0,37,Online,True,2026-10-20
+DEMO-A-Existing-l-75,Partner A,Existing,Control,102.45,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-l-76,Partner A,Existing,Control,165.84,0,46,Branch,True,2026-10-20
+DEMO-A-Existing-l-77,Partner A,Existing,Control,115.53,0,40,Online,True,2026-10-20
+DEMO-A-Existing-l-78,Partner A,Existing,Control,75.41,0,40,Branch,True,2026-10-20
+DEMO-A-Existing-l-79,Partner A,Existing,Control,64.27,0,52,Online,True,2026-10-20
+DEMO-A-Existing-l-80,Partner A,Existing,Control,149.99,0,54,Online,True,2026-10-20
+DEMO-A-Existing-l-81,Partner A,Existing,Control,111.7,0,52,Online,True,2026-10-20
+DEMO-A-Existing-l-82,Partner A,Existing,Control,180.81,0,49,Branch,True,2026-10-20
+DEMO-A-Existing-l-83,Partner A,Existing,Control,151.01,0,32,Online,True,2026-10-20
+DEMO-A-Existing-l-84,Partner A,Existing,Control,158.07,0,62,Branch,True,2026-10-20
+DEMO-A-Existing-l-85,Partner A,Existing,Control,57.95,0,67,Branch,True,2026-10-20
+DEMO-A-Existing-l-86,Partner A,Existing,Control,108.12,0,57,Online,True,2026-10-20
+DEMO-A-Existing-l-87,Partner A,Existing,Control,156.08,0,35,Online,True,2026-10-20
+DEMO-A-Existing-l-88,Partner A,Existing,Control,143.91,0,35,Branch,True,2026-10-20
+DEMO-A-Existing-l-89,Partner A,Existing,Control,75.2,0,64,Online,True,2026-10-20
+DEMO-A-Existing-l-90,Partner A,Existing,Control,146.27,0,35,Branch,True,2026-10-20
+DEMO-A-Existing-l-91,Partner A,Existing,Control,90.82,0,71,Online,True,2026-10-20
+DEMO-A-Existing-l-92,Partner A,Existing,Control,85.9,0,44,Online,True,2026-10-20
+DEMO-A-Existing-l-93,Partner A,Existing,Control,156.67,0,59,Branch,True,2026-10-20
+DEMO-A-Existing-l-94,Partner A,Existing,Control,133.96,0,38,Branch,True,2026-10-20
+DEMO-A-Existing-l-95,Partner A,Existing,Control,50.31,0,37,Branch,True,2026-10-20
+DEMO-A-Existing-l-96,Partner A,Existing,Control,162.91,0,37,Branch,True,2026-10-20
+DEMO-A-Existing-l-97,Partner A,Existing,Control,153.35,0,28,Online,True,2026-10-20
+DEMO-A-Existing-l-98,Partner A,Existing,Control,162.36,0,47,Online,True,2026-10-20
+DEMO-A-Existing-l-99,Partner A,Existing,Control,132.73,0,27,Online,True,2026-10-20
+DEMO-A-Existing-l-100,Partner A,Existing,Control,156.31,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-l-101,Partner A,Existing,Control,147.25,0,28,Online,True,2026-10-20
+DEMO-A-Existing-l-102,Partner A,Existing,Control,144.5,0,71,Online,True,2026-10-20
+DEMO-A-Existing-l-103,Partner A,Existing,Control,103.01,0,22,Online,True,2026-10-20
+DEMO-A-Existing-l-104,Partner A,Existing,Control,140.84,0,56,Online,True,2026-10-20
+DEMO-A-Existing-l-105,Partner A,Existing,Control,146.99,0,41,Online,True,2026-10-20
+DEMO-A-Existing-l-106,Partner A,Existing,Control,141.81,0,23,Branch,True,2026-10-20
+DEMO-A-Existing-l-107,Partner A,Existing,Control,147.68,0,69,Branch,True,2026-10-20
+DEMO-A-Existing-l-108,Partner A,Existing,Control,155.61,0,66,Online,True,2026-10-20
+DEMO-A-Existing-l-109,Partner A,Existing,Control,109.61,0,28,Branch,True,2026-10-20
+DEMO-A-Existing-l-110,Partner A,Existing,Control,72.31,1,24,Branch,True,2026-10-20
+DEMO-A-Existing-l-111,Partner A,Existing,Control,64.77,0,26,Branch,True,2026-10-20
+DEMO-A-Existing-l-112,Partner A,Existing,Control,145.88,1,33,Branch,True,2026-10-20
+DEMO-A-Existing-l-113,Partner A,Existing,Control,168.48,1,40,Branch,True,2026-10-20
+DEMO-A-Existing-l-114,Partner A,Existing,Control,126.81,1,51,Branch,True,2026-10-20
+DEMO-A-Existing-l-115,Partner A,Existing,Control,127.05,0,30,Branch,True,2026-10-20
+DEMO-A-Existing-l-116,Partner A,Existing,Control,167.13,1,62,Online,True,2026-10-20
+DEMO-A-Existing-l-117,Partner A,Existing,Control,94.16,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-l-118,Partner A,Existing,Control,131.33,0,24,Online,True,2026-10-20
+DEMO-A-Existing-l-119,Partner A,Existing,Control,142.35,0,28,Branch,True,2026-10-20
+DEMO-A-Existing-l-120,Partner A,Existing,Control,121.39,0,48,Branch,True,2026-10-20
+DEMO-A-Existing-l-121,Partner A,Existing,Control,105.13,0,46,Branch,True,2026-10-20
+DEMO-A-Existing-l-122,Partner A,Existing,Control,110.94,0,33,Online,True,2026-10-20
+DEMO-A-Existing-l-123,Partner A,Existing,Control,148.0,0,64,Branch,True,2026-10-20
+DEMO-A-Existing-l-124,Partner A,Existing,Control,181.0,0,26,Branch,True,2026-10-20
+DEMO-A-Existing-l-125,Partner A,Existing,Control,177.63,0,66,Online,True,2026-10-20
+DEMO-A-Existing-l-126,Partner A,Existing,Control,186.65,0,41,Online,True,2026-10-20
+DEMO-A-Existing-l-127,Partner A,Existing,Control,97.07,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-l-128,Partner A,Existing,Control,124.99,0,23,Online,True,2026-10-20
+DEMO-A-Existing-l-129,Partner A,Existing,Control,54.62,0,48,Online,True,2026-10-20
+DEMO-A-Existing-l-130,Partner A,Existing,Control,199.98,0,30,Branch,True,2026-10-20
+DEMO-A-Existing-l-131,Partner A,Existing,Control,139.56,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-l-132,Partner A,Existing,Control,146.73,0,21,Online,True,2026-10-20
+DEMO-A-Existing-l-133,Partner A,Existing,Control,127.46,0,32,Branch,True,2026-10-20
+DEMO-A-Existing-l-134,Partner A,Existing,Control,151.22,0,72,Online,True,2026-10-20
+DEMO-A-Existing-l-135,Partner A,Existing,Control,139.63,0,34,Online,True,2026-10-20
+DEMO-A-Existing-l-136,Partner A,Existing,Control,187.58,0,24,Online,True,2026-10-20
+DEMO-A-Existing-l-137,Partner A,Existing,Control,115.9,0,66,Branch,True,2026-10-20
+DEMO-A-Existing-l-138,Partner A,Existing,Control,151.2,0,35,Branch,True,2026-10-20
+DEMO-A-Existing-l-139,Partner A,Existing,Control,146.1,0,37,Branch,True,2026-10-20
+DEMO-A-Existing-A-0,Partner A,Existing,Test A,72.01,0,73,Online,True,2026-10-20
+DEMO-A-Existing-A-1,Partner A,Existing,Test A,134.51,0,36,Branch,True,2026-10-20
+DEMO-A-Existing-A-2,Partner A,Existing,Test A,119.77,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-A-3,Partner A,Existing,Test A,123.14,0,32,Online,True,2026-10-20
+DEMO-A-Existing-A-4,Partner A,Existing,Test A,189.95,0,26,Online,True,2026-10-20
+DEMO-A-Existing-A-5,Partner A,Existing,Test A,103.69,0,72,Online,True,2026-10-20
+DEMO-A-Existing-A-6,Partner A,Existing,Test A,177.25,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-A-7,Partner A,Existing,Test A,125.95,0,44,Branch,True,2026-10-20
+DEMO-A-Existing-A-8,Partner A,Existing,Test A,112.62,0,33,Online,True,2026-10-20
+DEMO-A-Existing-A-9,Partner A,Existing,Test A,105.69,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-A-10,Partner A,Existing,Test A,40.44,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-A-11,Partner A,Existing,Test A,196.96,0,47,Branch,True,2026-10-20
+DEMO-A-Existing-A-12,Partner A,Existing,Test A,135.46,0,67,Online,True,2026-10-20
+DEMO-A-Existing-A-13,Partner A,Existing,Test A,132.8,0,35,Branch,True,2026-10-20
+DEMO-A-Existing-A-14,Partner A,Existing,Test A,112.56,0,42,Online,True,2026-10-20
+DEMO-A-Existing-A-15,Partner A,Existing,Test A,168.28,0,66,Online,True,2026-10-20
+DEMO-A-Existing-A-16,Partner A,Existing,Test A,129.99,1,34,Online,True,2026-10-20
+DEMO-A-Existing-A-17,Partner A,Existing,Test A,133.1,0,48,Branch,True,2026-10-20
+DEMO-A-Existing-A-18,Partner A,Existing,Test A,97.23,0,68,Online,True,2026-10-20
+DEMO-A-Existing-A-19,Partner A,Existing,Test A,83.99,0,32,Online,True,2026-10-20
+DEMO-A-Existing-A-20,Partner A,Existing,Test A,94.8,0,63,Online,True,2026-10-20
+DEMO-A-Existing-A-21,Partner A,Existing,Test A,110.14,0,50,Branch,True,2026-10-20
+DEMO-A-Existing-A-22,Partner A,Existing,Test A,118.15,0,67,Branch,True,2026-10-20
+DEMO-A-Existing-A-23,Partner A,Existing,Test A,88.77,0,74,Online,True,2026-10-20
+DEMO-A-Existing-A-24,Partner A,Existing,Test A,165.55,0,32,Branch,True,2026-10-20
+DEMO-A-Existing-A-25,Partner A,Existing,Test A,97.11,1,27,Online,True,2026-10-20
+DEMO-A-Existing-A-26,Partner A,Existing,Test A,119.3,0,32,Online,True,2026-10-20
+DEMO-A-Existing-A-27,Partner A,Existing,Test A,67.99,0,62,Branch,True,2026-10-20
+DEMO-A-Existing-A-28,Partner A,Existing,Test A,139.63,0,35,Branch,True,2026-10-20
+DEMO-A-Existing-A-29,Partner A,Existing,Test A,130.09,0,57,Online,True,2026-10-20
+DEMO-A-Existing-A-30,Partner A,Existing,Test A,131.58,0,71,Online,True,2026-10-20
+DEMO-A-Existing-A-31,Partner A,Existing,Test A,128.44,0,34,Branch,True,2026-10-20
+DEMO-A-Existing-A-32,Partner A,Existing,Test A,194.43,0,30,Online,True,2026-10-20
+DEMO-A-Existing-A-33,Partner A,Existing,Test A,158.2,0,74,Online,True,2026-10-20
+DEMO-A-Existing-A-34,Partner A,Existing,Test A,131.49,0,68,Online,True,2026-10-20
+DEMO-A-Existing-A-35,Partner A,Existing,Test A,103.8,0,28,Branch,True,2026-10-20
+DEMO-A-Existing-A-36,Partner A,Existing,Test A,83.79,0,62,Online,True,2026-10-20
+DEMO-A-Existing-A-37,Partner A,Existing,Test A,159.75,0,69,Online,True,2026-10-20
+DEMO-A-Existing-A-38,Partner A,Existing,Test A,59.59,0,29,Online,True,2026-10-20
+DEMO-A-Existing-A-39,Partner A,Existing,Test A,96.3,0,74,Branch,True,2026-10-20
+DEMO-A-Existing-A-40,Partner A,Existing,Test A,143.06,0,31,Branch,True,2026-10-20
+DEMO-A-Existing-A-41,Partner A,Existing,Test A,97.14,0,27,Branch,True,2026-10-20
+DEMO-A-Existing-A-42,Partner A,Existing,Test A,112.27,1,50,Online,True,2026-10-20
+DEMO-A-Existing-A-43,Partner A,Existing,Test A,122.61,1,31,Branch,True,2026-10-20
+DEMO-A-Existing-A-44,Partner A,Existing,Test A,96.15,0,50,Online,True,2026-10-20
+DEMO-A-Existing-A-45,Partner A,Existing,Test A,136.63,0,72,Online,True,2026-10-20
+DEMO-A-Existing-A-46,Partner A,Existing,Test A,133.98,0,44,Online,True,2026-10-20
+DEMO-A-Existing-A-47,Partner A,Existing,Test A,138.08,1,54,Online,True,2026-10-20
+DEMO-A-Existing-A-48,Partner A,Existing,Test A,140.85,0,32,Online,True,2026-10-20
+DEMO-A-Existing-A-49,Partner A,Existing,Test A,92.37,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-A-50,Partner A,Existing,Test A,124.41,0,50,Branch,True,2026-10-20
+DEMO-A-Existing-A-51,Partner A,Existing,Test A,150.36,0,29,Online,True,2026-10-20
+DEMO-A-Existing-A-52,Partner A,Existing,Test A,115.69,0,55,Online,True,2026-10-20
+DEMO-A-Existing-A-53,Partner A,Existing,Test A,151.33,0,52,Online,True,2026-10-20
+DEMO-A-Existing-A-54,Partner A,Existing,Test A,81.17,0,54,Online,True,2026-10-20
+DEMO-A-Existing-A-55,Partner A,Existing,Test A,166.96,0,46,Branch,True,2026-10-20
+DEMO-A-Existing-A-56,Partner A,Existing,Test A,119.9,0,42,Online,True,2026-10-20
+DEMO-A-Existing-A-57,Partner A,Existing,Test A,135.4,0,31,Branch,True,2026-10-20
+DEMO-A-Existing-A-58,Partner A,Existing,Test A,134.15,0,64,Online,True,2026-10-20
+DEMO-A-Existing-A-59,Partner A,Existing,Test A,65.84,0,26,Online,True,2026-10-20
+DEMO-A-Existing-A-60,Partner A,Existing,Test A,152.12,0,72,Branch,True,2026-10-20
+DEMO-A-Existing-A-61,Partner A,Existing,Test A,100.18,0,23,Online,True,2026-10-20
+DEMO-A-Existing-A-62,Partner A,Existing,Test A,108.28,0,24,Branch,True,2026-10-20
+DEMO-A-Existing-A-63,Partner A,Existing,Test A,125.35,1,66,Branch,True,2026-10-20
+DEMO-A-Existing-A-64,Partner A,Existing,Test A,127.71,0,31,Branch,True,2026-10-20
+DEMO-A-Existing-A-65,Partner A,Existing,Test A,145.49,0,21,Branch,True,2026-10-20
+DEMO-A-Existing-A-66,Partner A,Existing,Test A,167.71,0,46,Online,True,2026-10-20
+DEMO-A-Existing-A-67,Partner A,Existing,Test A,54.63,0,68,Online,True,2026-10-20
+DEMO-A-Existing-A-68,Partner A,Existing,Test A,97.25,0,23,Branch,True,2026-10-20
+DEMO-A-Existing-A-69,Partner A,Existing,Test A,45.11,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-A-70,Partner A,Existing,Test A,160.95,0,44,Online,True,2026-10-20
+DEMO-A-Existing-A-71,Partner A,Existing,Test A,127.9,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-A-72,Partner A,Existing,Test A,99.12,0,67,Online,True,2026-10-20
+DEMO-A-Existing-A-73,Partner A,Existing,Test A,164.55,1,37,Online,True,2026-10-20
+DEMO-A-Existing-A-74,Partner A,Existing,Test A,147.91,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-A-75,Partner A,Existing,Test A,149.75,0,59,Branch,True,2026-10-20
+DEMO-A-Existing-A-76,Partner A,Existing,Test A,154.33,0,22,Branch,True,2026-10-20
+DEMO-A-Existing-A-77,Partner A,Existing,Test A,108.65,0,30,Online,True,2026-10-20
+DEMO-A-Existing-A-78,Partner A,Existing,Test A,190.11,1,73,Online,True,2026-10-20
+DEMO-A-Existing-A-79,Partner A,Existing,Test A,156.01,0,67,Branch,True,2026-10-20
+DEMO-A-Existing-A-80,Partner A,Existing,Test A,108.21,0,54,Online,True,2026-10-20
+DEMO-A-Existing-A-81,Partner A,Existing,Test A,120.32,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-A-82,Partner A,Existing,Test A,95.47,1,35,Online,True,2026-10-20
+DEMO-A-Existing-A-83,Partner A,Existing,Test A,110.42,0,66,Online,True,2026-10-20
+DEMO-A-Existing-A-84,Partner A,Existing,Test A,130.07,0,50,Online,True,2026-10-20
+DEMO-A-Existing-A-85,Partner A,Existing,Test A,114.47,0,28,Online,True,2026-10-20
+DEMO-A-Existing-A-86,Partner A,Existing,Test A,81.2,0,58,Online,True,2026-10-20
+DEMO-A-Existing-A-87,Partner A,Existing,Test A,143.09,0,43,Branch,True,2026-10-20
+DEMO-A-Existing-A-88,Partner A,Existing,Test A,207.87,0,70,Branch,True,2026-10-20
+DEMO-A-Existing-A-89,Partner A,Existing,Test A,130.76,0,52,Online,True,2026-10-20
+DEMO-A-Existing-A-90,Partner A,Existing,Test A,174.91,0,49,Online,True,2026-10-20
+DEMO-A-Existing-A-91,Partner A,Existing,Test A,144.02,0,43,Online,True,2026-10-20
+DEMO-A-Existing-A-92,Partner A,Existing,Test A,145.63,0,57,Online,True,2026-10-20
+DEMO-A-Existing-A-93,Partner A,Existing,Test A,142.14,0,23,Online,True,2026-10-20
+DEMO-A-Existing-A-94,Partner A,Existing,Test A,127.77,0,28,Branch,True,2026-10-20
+DEMO-A-Existing-A-95,Partner A,Existing,Test A,94.55,0,74,Online,True,2026-10-20
+DEMO-A-Existing-A-96,Partner A,Existing,Test A,114.41,0,52,Branch,True,2026-10-20
+DEMO-A-Existing-A-97,Partner A,Existing,Test A,142.44,0,29,Online,True,2026-10-20
+DEMO-A-Existing-A-98,Partner A,Existing,Test A,106.57,0,26,Branch,True,2026-10-20
+DEMO-A-Existing-A-99,Partner A,Existing,Test A,145.07,0,41,Online,True,2026-10-20
+DEMO-A-Existing-A-100,Partner A,Existing,Test A,159.49,0,40,Online,True,2026-10-20
+DEMO-A-Existing-A-101,Partner A,Existing,Test A,118.98,1,27,Branch,True,2026-10-20
+DEMO-A-Existing-A-102,Partner A,Existing,Test A,155.29,0,27,Online,True,2026-10-20
+DEMO-A-Existing-A-103,Partner A,Existing,Test A,96.43,0,58,Branch,True,2026-10-20
+DEMO-A-Existing-A-104,Partner A,Existing,Test A,116.79,0,22,Branch,True,2026-10-20
+DEMO-A-Existing-A-105,Partner A,Existing,Test A,126.05,0,51,Branch,True,2026-10-20
+DEMO-A-Existing-A-106,Partner A,Existing,Test A,126.65,0,70,Online,True,2026-10-20
+DEMO-A-Existing-A-107,Partner A,Existing,Test A,72.16,0,73,Online,True,2026-10-20
+DEMO-A-Existing-A-108,Partner A,Existing,Test A,110.63,0,25,Branch,True,2026-10-20
+DEMO-A-Existing-A-109,Partner A,Existing,Test A,127.49,0,39,Branch,True,2026-10-20
+DEMO-A-Existing-A-110,Partner A,Existing,Test A,176.1,0,72,Branch,True,2026-10-20
+DEMO-A-Existing-A-111,Partner A,Existing,Test A,60.05,0,70,Online,True,2026-10-20
+DEMO-A-Existing-A-112,Partner A,Existing,Test A,126.43,0,74,Branch,True,2026-10-20
+DEMO-A-Existing-A-113,Partner A,Existing,Test A,149.14,0,62,Online,True,2026-10-20
+DEMO-A-Existing-A-114,Partner A,Existing,Test A,96.34,0,46,Online,True,2026-10-20
+DEMO-A-Existing-A-115,Partner A,Existing,Test A,97.21,0,58,Branch,True,2026-10-20
+DEMO-A-Existing-A-116,Partner A,Existing,Test A,122.93,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-A-117,Partner A,Existing,Test A,110.92,0,65,Online,True,2026-10-20
+DEMO-A-Existing-A-118,Partner A,Existing,Test A,96.05,0,33,Branch,True,2026-10-20
+DEMO-A-Existing-A-119,Partner A,Existing,Test A,108.43,0,53,Online,True,2026-10-20
+DEMO-A-Existing-A-120,Partner A,Existing,Test A,125.22,0,24,Online,True,2026-10-20
+DEMO-A-Existing-A-121,Partner A,Existing,Test A,109.06,0,41,Online,True,2026-10-20
+DEMO-A-Existing-A-122,Partner A,Existing,Test A,129.42,0,70,Online,True,2026-10-20
+DEMO-A-Existing-A-123,Partner A,Existing,Test A,121.08,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-A-124,Partner A,Existing,Test A,53.2,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-A-125,Partner A,Existing,Test A,147.5,1,40,Branch,True,2026-10-20
+DEMO-A-Existing-A-126,Partner A,Existing,Test A,136.54,1,37,Branch,True,2026-10-20
+DEMO-A-Existing-A-127,Partner A,Existing,Test A,99.13,0,68,Online,True,2026-10-20
+DEMO-A-Existing-A-128,Partner A,Existing,Test A,167.18,0,24,Branch,True,2026-10-20
+DEMO-A-Existing-A-129,Partner A,Existing,Test A,156.65,0,60,Online,True,2026-10-20
+DEMO-A-Existing-B-0,Partner A,Existing,Test B,126.34,1,61,Online,True,2026-10-20
+DEMO-A-Existing-B-1,Partner A,Existing,Test B,172.82,0,36,Online,True,2026-10-20
+DEMO-A-Existing-B-2,Partner A,Existing,Test B,154.35,0,62,Online,True,2026-10-20
+DEMO-A-Existing-B-3,Partner A,Existing,Test B,195.67,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-B-4,Partner A,Existing,Test B,123.13,0,49,Branch,True,2026-10-20
+DEMO-A-Existing-B-5,Partner A,Existing,Test B,179.68,0,61,Online,True,2026-10-20
+DEMO-A-Existing-B-6,Partner A,Existing,Test B,155.28,0,27,Branch,True,2026-10-20
+DEMO-A-Existing-B-7,Partner A,Existing,Test B,126.32,0,49,Online,True,2026-10-20
+DEMO-A-Existing-B-8,Partner A,Existing,Test B,85.55,0,25,Online,True,2026-10-20
+DEMO-A-Existing-B-9,Partner A,Existing,Test B,117.0,0,63,Branch,True,2026-10-20
+DEMO-A-Existing-B-10,Partner A,Existing,Test B,149.38,0,33,Branch,True,2026-10-20
+DEMO-A-Existing-B-11,Partner A,Existing,Test B,117.06,0,37,Online,True,2026-10-20
+DEMO-A-Existing-B-12,Partner A,Existing,Test B,122.31,0,32,Branch,True,2026-10-20
+DEMO-A-Existing-B-13,Partner A,Existing,Test B,166.8,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-B-14,Partner A,Existing,Test B,125.3,0,53,Online,True,2026-10-20
+DEMO-A-Existing-B-15,Partner A,Existing,Test B,104.54,0,70,Online,True,2026-10-20
+DEMO-A-Existing-B-16,Partner A,Existing,Test B,115.87,0,54,Online,True,2026-10-20
+DEMO-A-Existing-B-17,Partner A,Existing,Test B,141.26,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-B-18,Partner A,Existing,Test B,160.36,0,58,Online,True,2026-10-20
+DEMO-A-Existing-B-19,Partner A,Existing,Test B,116.73,0,25,Branch,True,2026-10-20
+DEMO-A-Existing-B-20,Partner A,Existing,Test B,160.42,0,62,Branch,True,2026-10-20
+DEMO-A-Existing-B-21,Partner A,Existing,Test B,138.57,1,71,Online,True,2026-10-20
+DEMO-A-Existing-B-22,Partner A,Existing,Test B,87.18,0,45,Branch,True,2026-10-20
+DEMO-A-Existing-B-23,Partner A,Existing,Test B,105.75,0,58,Branch,True,2026-10-20
+DEMO-A-Existing-B-24,Partner A,Existing,Test B,133.87,0,74,Branch,True,2026-10-20
+DEMO-A-Existing-B-25,Partner A,Existing,Test B,111.47,0,36,Online,True,2026-10-20
+DEMO-A-Existing-B-26,Partner A,Existing,Test B,140.88,0,41,Branch,True,2026-10-20
+DEMO-A-Existing-B-27,Partner A,Existing,Test B,158.15,0,36,Branch,True,2026-10-20
+DEMO-A-Existing-B-28,Partner A,Existing,Test B,141.56,0,32,Online,True,2026-10-20
+DEMO-A-Existing-B-29,Partner A,Existing,Test B,125.6,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-B-30,Partner A,Existing,Test B,130.23,0,65,Branch,True,2026-10-20
+DEMO-A-Existing-B-31,Partner A,Existing,Test B,132.7,0,41,Online,True,2026-10-20
+DEMO-A-Existing-B-32,Partner A,Existing,Test B,168.76,0,47,Online,True,2026-10-20
+DEMO-A-Existing-B-33,Partner A,Existing,Test B,143.21,0,50,Online,True,2026-10-20
+DEMO-A-Existing-B-34,Partner A,Existing,Test B,171.55,0,45,Branch,True,2026-10-20
+DEMO-A-Existing-B-35,Partner A,Existing,Test B,119.05,0,59,Online,True,2026-10-20
+DEMO-A-Existing-B-36,Partner A,Existing,Test B,136.31,0,59,Branch,True,2026-10-20
+DEMO-A-Existing-B-37,Partner A,Existing,Test B,143.87,0,47,Branch,True,2026-10-20
+DEMO-A-Existing-B-38,Partner A,Existing,Test B,176.8,0,49,Branch,True,2026-10-20
+DEMO-A-Existing-B-39,Partner A,Existing,Test B,165.15,0,38,Branch,True,2026-10-20
+DEMO-A-Existing-B-40,Partner A,Existing,Test B,141.08,0,43,Online,True,2026-10-20
+DEMO-A-Existing-B-41,Partner A,Existing,Test B,111.79,0,61,Online,True,2026-10-20
+DEMO-A-Existing-B-42,Partner A,Existing,Test B,104.27,0,63,Online,True,2026-10-20
+DEMO-A-Existing-B-43,Partner A,Existing,Test B,64.97,1,42,Branch,True,2026-10-20
+DEMO-A-Existing-B-44,Partner A,Existing,Test B,184.48,0,57,Online,True,2026-10-20
+DEMO-A-Existing-B-45,Partner A,Existing,Test B,54.06,0,52,Online,True,2026-10-20
+DEMO-A-Existing-B-46,Partner A,Existing,Test B,104.87,0,50,Branch,True,2026-10-20
+DEMO-A-Existing-B-47,Partner A,Existing,Test B,121.82,1,36,Online,True,2026-10-20
+DEMO-A-Existing-B-48,Partner A,Existing,Test B,159.63,0,58,Branch,True,2026-10-20
+DEMO-A-Existing-B-49,Partner A,Existing,Test B,96.49,0,69,Online,True,2026-10-20
+DEMO-A-Existing-B-50,Partner A,Existing,Test B,112.74,1,50,Online,True,2026-10-20
+DEMO-A-Existing-B-51,Partner A,Existing,Test B,56.07,0,46,Online,True,2026-10-20
+DEMO-A-Existing-B-52,Partner A,Existing,Test B,107.68,0,27,Branch,True,2026-10-20
+DEMO-A-Existing-B-53,Partner A,Existing,Test B,126.46,0,39,Branch,True,2026-10-20
+DEMO-A-Existing-B-54,Partner A,Existing,Test B,193.64,0,50,Branch,True,2026-10-20
+DEMO-A-Existing-B-55,Partner A,Existing,Test B,206.12,0,50,Online,True,2026-10-20
+DEMO-A-Existing-B-56,Partner A,Existing,Test B,129.3,1,41,Branch,True,2026-10-20
+DEMO-A-Existing-B-57,Partner A,Existing,Test B,137.19,0,21,Online,True,2026-10-20
+DEMO-A-Existing-B-58,Partner A,Existing,Test B,119.35,0,51,Online,True,2026-10-20
+DEMO-A-Existing-B-59,Partner A,Existing,Test B,184.48,0,63,Branch,True,2026-10-20
+DEMO-A-Existing-B-60,Partner A,Existing,Test B,119.25,1,26,Online,True,2026-10-20
+DEMO-A-Existing-B-61,Partner A,Existing,Test B,84.91,0,21,Branch,True,2026-10-20
+DEMO-A-Existing-B-62,Partner A,Existing,Test B,173.16,0,66,Online,True,2026-10-20
+DEMO-A-Existing-B-63,Partner A,Existing,Test B,110.96,0,42,Online,True,2026-10-20
+DEMO-A-Existing-B-64,Partner A,Existing,Test B,125.19,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-B-65,Partner A,Existing,Test B,103.94,0,21,Online,True,2026-10-20
+DEMO-A-Existing-B-66,Partner A,Existing,Test B,99.98,0,65,Online,True,2026-10-20
+DEMO-A-Existing-B-67,Partner A,Existing,Test B,134.49,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-B-68,Partner A,Existing,Test B,113.6,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-B-69,Partner A,Existing,Test B,127.69,0,47,Online,True,2026-10-20
+DEMO-A-Existing-B-70,Partner A,Existing,Test B,140.06,1,21,Branch,True,2026-10-20
+DEMO-A-Existing-B-71,Partner A,Existing,Test B,139.52,0,74,Online,True,2026-10-20
+DEMO-A-Existing-B-72,Partner A,Existing,Test B,166.79,0,61,Branch,True,2026-10-20
+DEMO-A-Existing-B-73,Partner A,Existing,Test B,87.94,1,49,Online,True,2026-10-20
+DEMO-A-Existing-B-74,Partner A,Existing,Test B,147.26,1,29,Branch,True,2026-10-20
+DEMO-A-Existing-B-75,Partner A,Existing,Test B,95.19,0,29,Branch,True,2026-10-20
+DEMO-A-Existing-B-76,Partner A,Existing,Test B,87.24,0,46,Branch,True,2026-10-20
+DEMO-A-Existing-B-77,Partner A,Existing,Test B,158.5,0,36,Branch,True,2026-10-20
+DEMO-A-Existing-B-78,Partner A,Existing,Test B,119.3,1,22,Branch,True,2026-10-20
+DEMO-A-Existing-B-79,Partner A,Existing,Test B,123.09,0,70,Branch,True,2026-10-20
+DEMO-A-Existing-B-80,Partner A,Existing,Test B,129.83,0,51,Branch,True,2026-10-20
+DEMO-A-Existing-B-81,Partner A,Existing,Test B,164.39,0,62,Branch,True,2026-10-20
+DEMO-A-Existing-B-82,Partner A,Existing,Test B,129.97,0,41,Branch,True,2026-10-20
+DEMO-A-Existing-B-83,Partner A,Existing,Test B,69.8,0,54,Branch,True,2026-10-20
+DEMO-A-Existing-B-84,Partner A,Existing,Test B,154.69,0,49,Online,True,2026-10-20
+DEMO-A-Existing-B-85,Partner A,Existing,Test B,100.14,0,42,Online,True,2026-10-20
+DEMO-A-Existing-B-86,Partner A,Existing,Test B,148.9,0,36,Online,True,2026-10-20
+DEMO-A-Existing-B-87,Partner A,Existing,Test B,108.84,0,69,Branch,True,2026-10-20
+DEMO-A-Existing-B-88,Partner A,Existing,Test B,55.06,0,51,Branch,True,2026-10-20
+DEMO-A-Existing-B-89,Partner A,Existing,Test B,172.5,0,54,Online,True,2026-10-20
+DEMO-A-Existing-B-90,Partner A,Existing,Test B,138.83,0,29,Branch,True,2026-10-20
+DEMO-A-Existing-B-91,Partner A,Existing,Test B,152.79,0,55,Branch,True,2026-10-20
+DEMO-A-Existing-B-92,Partner A,Existing,Test B,186.95,0,67,Online,True,2026-10-20
+DEMO-A-Existing-B-93,Partner A,Existing,Test B,70.89,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-B-94,Partner A,Existing,Test B,104.71,0,67,Online,True,2026-10-20
+DEMO-A-Existing-B-95,Partner A,Existing,Test B,177.28,0,36,Online,True,2026-10-20
+DEMO-A-Existing-B-96,Partner A,Existing,Test B,118.15,0,72,Branch,True,2026-10-20
+DEMO-A-Existing-B-97,Partner A,Existing,Test B,128.37,0,57,Online,True,2026-10-20
+DEMO-A-Existing-B-98,Partner A,Existing,Test B,168.57,0,49,Online,True,2026-10-20
+DEMO-A-Existing-B-99,Partner A,Existing,Test B,123.15,0,45,Online,True,2026-10-20
+DEMO-A-Existing-B-100,Partner A,Existing,Test B,132.36,0,42,Online,True,2026-10-20
+DEMO-A-Existing-B-101,Partner A,Existing,Test B,119.74,1,71,Online,True,2026-10-20
+DEMO-A-Existing-B-102,Partner A,Existing,Test B,127.49,1,34,Online,True,2026-10-20
+DEMO-A-Existing-B-103,Partner A,Existing,Test B,95.37,0,39,Branch,True,2026-10-20
+DEMO-A-Existing-B-104,Partner A,Existing,Test B,119.57,0,52,Online,True,2026-10-20
+DEMO-A-Existing-B-105,Partner A,Existing,Test B,121.07,0,34,Online,True,2026-10-20
+DEMO-A-Existing-B-106,Partner A,Existing,Test B,148.15,0,42,Online,True,2026-10-20
+DEMO-A-Existing-B-107,Partner A,Existing,Test B,96.38,0,68,Online,True,2026-10-20
+DEMO-A-Existing-B-108,Partner A,Existing,Test B,123.8,1,25,Branch,True,2026-10-20
+DEMO-A-Existing-B-109,Partner A,Existing,Test B,73.43,0,69,Online,True,2026-10-20
+DEMO-A-Existing-B-110,Partner A,Existing,Test B,120.66,0,67,Branch,True,2026-10-20
+DEMO-A-Existing-B-111,Partner A,Existing,Test B,113.15,0,23,Online,True,2026-10-20
+DEMO-A-Existing-B-112,Partner A,Existing,Test B,125.59,0,34,Branch,True,2026-10-20
+DEMO-A-Existing-B-113,Partner A,Existing,Test B,125.62,0,49,Branch,True,2026-10-20
+DEMO-A-Existing-B-114,Partner A,Existing,Test B,137.48,0,56,Branch,True,2026-10-20
+DEMO-A-Existing-B-115,Partner A,Existing,Test B,159.19,0,32,Online,True,2026-10-20
+DEMO-A-Existing-B-116,Partner A,Existing,Test B,128.28,0,42,Branch,True,2026-10-20
+DEMO-A-Existing-B-117,Partner A,Existing,Test B,91.42,0,46,Online,True,2026-10-20
+DEMO-A-Existing-B-118,Partner A,Existing,Test B,137.78,0,40,Online,True,2026-10-20
+DEMO-A-Existing-B-119,Partner A,Existing,Test B,155.36,0,53,Branch,True,2026-10-20
+DEMO-A-Existing-B-120,Partner A,Existing,Test B,142.53,0,54,Online,True,2026-10-20
+DEMO-A-Existing-B-121,Partner A,Existing,Test B,145.12,0,31,Online,True,2026-10-20
+DEMO-A-Existing-B-122,Partner A,Existing,Test B,231.31,0,58,Online,True,2026-10-20
+DEMO-A-Existing-B-123,Partner A,Existing,Test B,150.63,0,23,Branch,True,2026-10-20
+DEMO-A-Existing-B-124,Partner A,Existing,Test B,155.61,0,37,Branch,True,2026-10-20
+DEMO-A-Existing-B-125,Partner A,Existing,Test B,103.6,1,43,Branch,True,2026-10-20
+DEMO-A-Existing-B-126,Partner A,Existing,Test B,154.56,0,73,Online,True,2026-10-20
+DEMO-A-Existing-B-127,Partner A,Existing,Test B,82.23,0,21,Branch,True,2026-10-20
+DEMO-A-Existing-B-128,Partner A,Existing,Test B,128.13,0,52,Branch,True,2026-10-20
+DEMO-A-Existing-B-129,Partner A,Existing,Test B,137.47,0,22,Branch,True,2026-10-20
+DEMO-B-New-l-0,Partner B,New,Control,115.67,0,28,Online,True,2026-10-20
+DEMO-B-New-l-1,Partner B,New,Control,123.94,0,55,Online,True,2026-10-20
+DEMO-B-New-l-2,Partner B,New,Control,109.62,1,25,Online,True,2026-10-20
+DEMO-B-New-l-3,Partner B,New,Control,148.15,0,46,Branch,True,2026-10-20
+DEMO-B-New-l-4,Partner B,New,Control,130.16,0,21,Branch,True,2026-10-20
+DEMO-B-New-l-5,Partner B,New,Control,158.75,0,57,Online,True,2026-10-20
+DEMO-B-New-l-6,Partner B,New,Control,121.24,0,23,Branch,True,2026-10-20
+DEMO-B-New-l-7,Partner B,New,Control,128.14,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-8,Partner B,New,Control,158.91,1,36,Branch,True,2026-10-20
+DEMO-B-New-l-9,Partner B,New,Control,130.38,0,66,Branch,True,2026-10-20
+DEMO-B-New-l-10,Partner B,New,Control,150.87,0,67,Online,True,2026-10-20
+DEMO-B-New-l-11,Partner B,New,Control,170.39,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-12,Partner B,New,Control,90.71,0,23,Online,True,2026-10-20
+DEMO-B-New-l-13,Partner B,New,Control,125.83,0,50,Online,True,2026-10-20
+DEMO-B-New-l-14,Partner B,New,Control,114.21,0,66,Branch,True,2026-10-20
+DEMO-B-New-l-15,Partner B,New,Control,163.11,0,50,Branch,True,2026-10-20
+DEMO-B-New-l-16,Partner B,New,Control,158.26,1,72,Branch,True,2026-10-20
+DEMO-B-New-l-17,Partner B,New,Control,148.88,0,28,Branch,True,2026-10-20
+DEMO-B-New-l-18,Partner B,New,Control,157.89,0,58,Branch,True,2026-10-20
+DEMO-B-New-l-19,Partner B,New,Control,75.44,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-20,Partner B,New,Control,148.07,0,67,Online,True,2026-10-20
+DEMO-B-New-l-21,Partner B,New,Control,118.96,1,65,Online,True,2026-10-20
+DEMO-B-New-l-22,Partner B,New,Control,119.2,0,58,Branch,True,2026-10-20
+DEMO-B-New-l-23,Partner B,New,Control,116.36,0,34,Online,True,2026-10-20
+DEMO-B-New-l-24,Partner B,New,Control,114.08,1,67,Online,True,2026-10-20
+DEMO-B-New-l-25,Partner B,New,Control,130.25,0,30,Branch,True,2026-10-20
+DEMO-B-New-l-26,Partner B,New,Control,149.3,1,26,Branch,True,2026-10-20
+DEMO-B-New-l-27,Partner B,New,Control,130.45,0,73,Branch,True,2026-10-20
+DEMO-B-New-l-28,Partner B,New,Control,142.58,0,44,Online,True,2026-10-20
+DEMO-B-New-l-29,Partner B,New,Control,90.41,0,67,Branch,True,2026-10-20
+DEMO-B-New-l-30,Partner B,New,Control,134.33,0,45,Online,True,2026-10-20
+DEMO-B-New-l-31,Partner B,New,Control,146.22,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-32,Partner B,New,Control,87.06,0,64,Branch,True,2026-10-20
+DEMO-B-New-l-33,Partner B,New,Control,91.03,0,35,Branch,True,2026-10-20
+DEMO-B-New-l-34,Partner B,New,Control,167.24,0,52,Branch,True,2026-10-20
+DEMO-B-New-l-35,Partner B,New,Control,161.29,0,61,Online,True,2026-10-20
+DEMO-B-New-l-36,Partner B,New,Control,131.68,0,41,Online,True,2026-10-20
+DEMO-B-New-l-37,Partner B,New,Control,127.36,0,60,Online,True,2026-10-20
+DEMO-B-New-l-38,Partner B,New,Control,92.64,0,58,Online,True,2026-10-20
+DEMO-B-New-l-39,Partner B,New,Control,167.6,0,40,Online,True,2026-10-20
+DEMO-B-New-l-40,Partner B,New,Control,168.33,0,44,Branch,True,2026-10-20
+DEMO-B-New-l-41,Partner B,New,Control,107.86,0,57,Online,True,2026-10-20
+DEMO-B-New-l-42,Partner B,New,Control,132.69,0,35,Online,True,2026-10-20
+DEMO-B-New-l-43,Partner B,New,Control,70.43,0,42,Online,True,2026-10-20
+DEMO-B-New-l-44,Partner B,New,Control,109.59,0,56,Online,True,2026-10-20
+DEMO-B-New-l-45,Partner B,New,Control,123.01,0,46,Online,True,2026-10-20
+DEMO-B-New-l-46,Partner B,New,Control,104.16,0,61,Online,True,2026-10-20
+DEMO-B-New-l-47,Partner B,New,Control,64.56,0,39,Online,True,2026-10-20
+DEMO-B-New-l-48,Partner B,New,Control,115.07,0,35,Branch,True,2026-10-20
+DEMO-B-New-l-49,Partner B,New,Control,136.96,0,27,Online,True,2026-10-20
+DEMO-B-New-l-50,Partner B,New,Control,155.37,0,58,Branch,True,2026-10-20
+DEMO-B-New-l-51,Partner B,New,Control,160.97,1,51,Online,True,2026-10-20
+DEMO-B-New-l-52,Partner B,New,Control,74.04,1,70,Branch,True,2026-10-20
+DEMO-B-New-l-53,Partner B,New,Control,116.87,0,21,Online,True,2026-10-20
+DEMO-B-New-l-54,Partner B,New,Control,162.25,0,70,Online,True,2026-10-20
+DEMO-B-New-l-55,Partner B,New,Control,110.5,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-56,Partner B,New,Control,86.62,0,41,Online,True,2026-10-20
+DEMO-B-New-l-57,Partner B,New,Control,62.66,0,73,Online,True,2026-10-20
+DEMO-B-New-l-58,Partner B,New,Control,126.01,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-59,Partner B,New,Control,171.73,0,26,Online,True,2026-10-20
+DEMO-B-New-l-60,Partner B,New,Control,36.42,0,34,Branch,True,2026-10-20
+DEMO-B-New-l-61,Partner B,New,Control,132.93,0,22,Online,True,2026-10-20
+DEMO-B-New-l-62,Partner B,New,Control,169.66,0,67,Online,True,2026-10-20
+DEMO-B-New-l-63,Partner B,New,Control,136.07,0,36,Online,True,2026-10-20
+DEMO-B-New-l-64,Partner B,New,Control,177.41,1,30,Branch,True,2026-10-20
+DEMO-B-New-l-65,Partner B,New,Control,136.6,0,72,Online,True,2026-10-20
+DEMO-B-New-l-66,Partner B,New,Control,177.05,0,32,Branch,True,2026-10-20
+DEMO-B-New-l-67,Partner B,New,Control,70.63,0,38,Online,True,2026-10-20
+DEMO-B-New-l-68,Partner B,New,Control,108.41,0,65,Online,True,2026-10-20
+DEMO-B-New-l-69,Partner B,New,Control,120.24,0,38,Branch,True,2026-10-20
+DEMO-B-New-l-70,Partner B,New,Control,117.07,0,21,Online,True,2026-10-20
+DEMO-B-New-l-71,Partner B,New,Control,65.41,1,32,Online,True,2026-10-20
+DEMO-B-New-l-72,Partner B,New,Control,93.12,0,56,Branch,True,2026-10-20
+DEMO-B-New-l-73,Partner B,New,Control,171.0,0,39,Online,True,2026-10-20
+DEMO-B-New-l-74,Partner B,New,Control,130.23,0,29,Branch,True,2026-10-20
+DEMO-B-New-l-75,Partner B,New,Control,95.38,0,25,Online,True,2026-10-20
+DEMO-B-New-l-76,Partner B,New,Control,95.11,0,60,Branch,True,2026-10-20
+DEMO-B-New-l-77,Partner B,New,Control,143.62,0,25,Online,True,2026-10-20
+DEMO-B-New-l-78,Partner B,New,Control,86.61,0,37,Branch,True,2026-10-20
+DEMO-B-New-l-79,Partner B,New,Control,124.75,0,23,Branch,True,2026-10-20
+DEMO-B-New-l-80,Partner B,New,Control,190.98,0,71,Online,True,2026-10-20
+DEMO-B-New-l-81,Partner B,New,Control,110.49,0,33,Branch,True,2026-10-20
+DEMO-B-New-l-82,Partner B,New,Control,154.97,0,45,Online,True,2026-10-20
+DEMO-B-New-l-83,Partner B,New,Control,166.58,1,51,Online,True,2026-10-20
+DEMO-B-New-l-84,Partner B,New,Control,107.55,0,59,Online,True,2026-10-20
+DEMO-B-New-l-85,Partner B,New,Control,54.54,0,40,Online,True,2026-10-20
+DEMO-B-New-l-86,Partner B,New,Control,119.32,0,37,Online,True,2026-10-20
+DEMO-B-New-l-87,Partner B,New,Control,88.27,0,41,Branch,True,2026-10-20
+DEMO-B-New-l-88,Partner B,New,Control,167.74,0,51,Branch,True,2026-10-20
+DEMO-B-New-l-89,Partner B,New,Control,85.56,0,50,Branch,True,2026-10-20
+DEMO-B-New-l-90,Partner B,New,Control,175.67,0,67,Branch,True,2026-10-20
+DEMO-B-New-l-91,Partner B,New,Control,68.04,0,44,Branch,True,2026-10-20
+DEMO-B-New-l-92,Partner B,New,Control,100.76,0,48,Branch,True,2026-10-20
+DEMO-B-New-l-93,Partner B,New,Control,186.85,0,57,Branch,True,2026-10-20
+DEMO-B-New-l-94,Partner B,New,Control,99.14,0,27,Online,True,2026-10-20
+DEMO-B-New-l-95,Partner B,New,Control,138.31,0,66,Branch,True,2026-10-20
+DEMO-B-New-l-96,Partner B,New,Control,120.07,0,24,Branch,True,2026-10-20
+DEMO-B-New-l-97,Partner B,New,Control,153.84,0,71,Online,True,2026-10-20
+DEMO-B-New-l-98,Partner B,New,Control,97.38,0,44,Online,True,2026-10-20
+DEMO-B-New-l-99,Partner B,New,Control,143.73,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-100,Partner B,New,Control,73.97,0,29,Online,True,2026-10-20
+DEMO-B-New-l-101,Partner B,New,Control,69.85,0,44,Branch,True,2026-10-20
+DEMO-B-New-l-102,Partner B,New,Control,146.65,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-103,Partner B,New,Control,156.17,0,47,Online,True,2026-10-20
+DEMO-B-New-l-104,Partner B,New,Control,181.67,0,74,Branch,True,2026-10-20
+DEMO-B-New-l-105,Partner B,New,Control,95.42,0,62,Branch,True,2026-10-20
+DEMO-B-New-l-106,Partner B,New,Control,64.3,0,35,Branch,True,2026-10-20
+DEMO-B-New-l-107,Partner B,New,Control,118.41,0,63,Branch,True,2026-10-20
+DEMO-B-New-l-108,Partner B,New,Control,117.42,0,53,Online,True,2026-10-20
+DEMO-B-New-l-109,Partner B,New,Control,133.97,0,64,Branch,True,2026-10-20
+DEMO-B-New-l-110,Partner B,New,Control,92.2,0,46,Branch,True,2026-10-20
+DEMO-B-New-l-111,Partner B,New,Control,128.6,0,46,Branch,True,2026-10-20
+DEMO-B-New-l-112,Partner B,New,Control,107.23,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-113,Partner B,New,Control,117.83,1,43,Branch,True,2026-10-20
+DEMO-B-New-l-114,Partner B,New,Control,145.29,0,42,Branch,True,2026-10-20
+DEMO-B-New-l-115,Partner B,New,Control,103.41,0,35,Branch,True,2026-10-20
+DEMO-B-New-l-116,Partner B,New,Control,80.87,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-117,Partner B,New,Control,101.31,0,48,Online,True,2026-10-20
+DEMO-B-New-l-118,Partner B,New,Control,144.14,0,56,Online,True,2026-10-20
+DEMO-B-New-l-119,Partner B,New,Control,140.23,0,25,Online,True,2026-10-20
+DEMO-B-New-l-120,Partner B,New,Control,123.13,0,53,Branch,True,2026-10-20
+DEMO-B-New-l-121,Partner B,New,Control,125.16,0,38,Branch,True,2026-10-20
+DEMO-B-New-l-122,Partner B,New,Control,169.92,0,47,Branch,True,2026-10-20
+DEMO-B-New-l-123,Partner B,New,Control,140.43,0,69,Branch,True,2026-10-20
+DEMO-B-New-l-124,Partner B,New,Control,88.95,0,54,Online,True,2026-10-20
+DEMO-B-New-l-125,Partner B,New,Control,170.17,0,44,Online,True,2026-10-20
+DEMO-B-New-l-126,Partner B,New,Control,118.14,0,44,Online,True,2026-10-20
+DEMO-B-New-l-127,Partner B,New,Control,86.15,1,40,Branch,True,2026-10-20
+DEMO-B-New-l-128,Partner B,New,Control,130.6,0,55,Branch,True,2026-10-20
+DEMO-B-New-l-129,Partner B,New,Control,163.89,0,27,Branch,True,2026-10-20
+DEMO-B-New-l-130,Partner B,New,Control,142.87,0,71,Online,True,2026-10-20
+DEMO-B-New-l-131,Partner B,New,Control,110.75,0,24,Branch,True,2026-10-20
+DEMO-B-New-l-132,Partner B,New,Control,116.51,0,42,Branch,True,2026-10-20
+DEMO-B-New-l-133,Partner B,New,Control,88.15,0,66,Online,True,2026-10-20
+DEMO-B-New-l-134,Partner B,New,Control,168.69,0,53,Branch,True,2026-10-20
+DEMO-B-New-l-135,Partner B,New,Control,128.78,0,43,Branch,True,2026-10-20
+DEMO-B-New-l-136,Partner B,New,Control,93.46,0,26,Branch,True,2026-10-20
+DEMO-B-New-l-137,Partner B,New,Control,128.34,0,65,Online,True,2026-10-20
+DEMO-B-New-l-138,Partner B,New,Control,87.18,0,43,Online,True,2026-10-20
+DEMO-B-New-l-139,Partner B,New,Control,126.2,0,30,Online,True,2026-10-20
+DEMO-B-New-A-0,Partner B,New,Test A,140.44,0,26,Branch,True,2026-10-20
+DEMO-B-New-A-1,Partner B,New,Test A,121.64,0,68,Branch,True,2026-10-20
+DEMO-B-New-A-2,Partner B,New,Test A,129.82,0,37,Online,True,2026-10-20
+DEMO-B-New-A-3,Partner B,New,Test A,124.3,0,71,Online,True,2026-10-20
+DEMO-B-New-A-4,Partner B,New,Test A,82.56,0,28,Online,True,2026-10-20
+DEMO-B-New-A-5,Partner B,New,Test A,113.11,0,24,Branch,True,2026-10-20
+DEMO-B-New-A-6,Partner B,New,Test A,121.29,0,31,Branch,True,2026-10-20
+DEMO-B-New-A-7,Partner B,New,Test A,154.08,0,63,Branch,True,2026-10-20
+DEMO-B-New-A-8,Partner B,New,Test A,87.08,0,44,Branch,True,2026-10-20
+DEMO-B-New-A-9,Partner B,New,Test A,119.19,0,47,Online,True,2026-10-20
+DEMO-B-New-A-10,Partner B,New,Test A,107.98,0,21,Online,True,2026-10-20
+DEMO-B-New-A-11,Partner B,New,Test A,138.79,1,65,Branch,True,2026-10-20
+DEMO-B-New-A-12,Partner B,New,Test A,144.22,0,31,Online,True,2026-10-20
+DEMO-B-New-A-13,Partner B,New,Test A,115.73,0,49,Branch,True,2026-10-20
+DEMO-B-New-A-14,Partner B,New,Test A,158.48,0,37,Online,True,2026-10-20
+DEMO-B-New-A-15,Partner B,New,Test A,169.5,0,33,Online,True,2026-10-20
+DEMO-B-New-A-16,Partner B,New,Test A,121.96,0,35,Branch,True,2026-10-20
+DEMO-B-New-A-17,Partner B,New,Test A,122.5,0,72,Online,True,2026-10-20
+DEMO-B-New-A-18,Partner B,New,Test A,178.67,0,36,Branch,True,2026-10-20
+DEMO-B-New-A-19,Partner B,New,Test A,156.77,0,70,Branch,True,2026-10-20
+DEMO-B-New-A-20,Partner B,New,Test A,126.07,0,49,Branch,True,2026-10-20
+DEMO-B-New-A-21,Partner B,New,Test A,132.52,0,40,Online,True,2026-10-20
+DEMO-B-New-A-22,Partner B,New,Test A,106.73,0,74,Online,True,2026-10-20
+DEMO-B-New-A-23,Partner B,New,Test A,106.26,0,55,Online,True,2026-10-20
+DEMO-B-New-A-24,Partner B,New,Test A,69.95,0,69,Online,True,2026-10-20
+DEMO-B-New-A-25,Partner B,New,Test A,169.39,0,44,Branch,True,2026-10-20
+DEMO-B-New-A-26,Partner B,New,Test A,56.48,0,58,Online,True,2026-10-20
+DEMO-B-New-A-27,Partner B,New,Test A,97.82,0,31,Branch,True,2026-10-20
+DEMO-B-New-A-28,Partner B,New,Test A,109.07,0,33,Online,True,2026-10-20
+DEMO-B-New-A-29,Partner B,New,Test A,114.6,0,66,Online,True,2026-10-20
+DEMO-B-New-A-30,Partner B,New,Test A,118.1,0,40,Branch,True,2026-10-20
+DEMO-B-New-A-31,Partner B,New,Test A,108.74,0,51,Branch,True,2026-10-20
+DEMO-B-New-A-32,Partner B,New,Test A,126.75,1,37,Branch,True,2026-10-20
+DEMO-B-New-A-33,Partner B,New,Test A,132.82,0,24,Branch,True,2026-10-20
+DEMO-B-New-A-34,Partner B,New,Test A,126.82,0,60,Branch,True,2026-10-20
+DEMO-B-New-A-35,Partner B,New,Test A,76.47,0,42,Branch,True,2026-10-20
+DEMO-B-New-A-36,Partner B,New,Test A,183.32,0,46,Branch,True,2026-10-20
+DEMO-B-New-A-37,Partner B,New,Test A,95.19,0,36,Online,True,2026-10-20
+DEMO-B-New-A-38,Partner B,New,Test A,99.07,0,39,Online,True,2026-10-20
+DEMO-B-New-A-39,Partner B,New,Test A,163.2,0,24,Online,True,2026-10-20
+DEMO-B-New-A-40,Partner B,New,Test A,121.79,0,52,Online,True,2026-10-20
+DEMO-B-New-A-41,Partner B,New,Test A,45.21,0,56,Branch,True,2026-10-20
+DEMO-B-New-A-42,Partner B,New,Test A,190.94,0,36,Online,True,2026-10-20
+DEMO-B-New-A-43,Partner B,New,Test A,149.46,0,32,Online,True,2026-10-20
+DEMO-B-New-A-44,Partner B,New,Test A,165.18,1,21,Branch,True,2026-10-20
+DEMO-B-New-A-45,Partner B,New,Test A,112.8,0,62,Branch,True,2026-10-20
+DEMO-B-New-A-46,Partner B,New,Test A,180.5,0,29,Branch,True,2026-10-20
+DEMO-B-New-A-47,Partner B,New,Test A,181.03,0,45,Branch,True,2026-10-20
+DEMO-B-New-A-48,Partner B,New,Test A,148.83,0,53,Online,True,2026-10-20
+DEMO-B-New-A-49,Partner B,New,Test A,88.77,0,51,Branch,True,2026-10-20
+DEMO-B-New-A-50,Partner B,New,Test A,143.06,0,27,Online,True,2026-10-20
+DEMO-B-New-A-51,Partner B,New,Test A,142.09,0,69,Online,True,2026-10-20
+DEMO-B-New-A-52,Partner B,New,Test A,223.88,0,29,Online,True,2026-10-20
+DEMO-B-New-A-53,Partner B,New,Test A,165.34,0,60,Online,True,2026-10-20
+DEMO-B-New-A-54,Partner B,New,Test A,59.31,0,39,Online,True,2026-10-20
+DEMO-B-New-A-55,Partner B,New,Test A,99.29,0,39,Online,True,2026-10-20
+DEMO-B-New-A-56,Partner B,New,Test A,134.4,0,71,Online,True,2026-10-20
+DEMO-B-New-A-57,Partner B,New,Test A,100.25,0,69,Branch,True,2026-10-20
+DEMO-B-New-A-58,Partner B,New,Test A,116.46,0,61,Branch,True,2026-10-20
+DEMO-B-New-A-59,Partner B,New,Test A,147.07,0,37,Branch,True,2026-10-20
+DEMO-B-New-A-60,Partner B,New,Test A,161.3,1,28,Online,True,2026-10-20
+DEMO-B-New-A-61,Partner B,New,Test A,93.75,0,34,Online,True,2026-10-20
+DEMO-B-New-A-62,Partner B,New,Test A,92.39,0,31,Branch,True,2026-10-20
+DEMO-B-New-A-63,Partner B,New,Test A,77.62,0,29,Online,True,2026-10-20
+DEMO-B-New-A-64,Partner B,New,Test A,101.1,0,72,Branch,True,2026-10-20
+DEMO-B-New-A-65,Partner B,New,Test A,106.18,0,25,Online,True,2026-10-20
+DEMO-B-New-A-66,Partner B,New,Test A,209.65,0,23,Online,True,2026-10-20
+DEMO-B-New-A-67,Partner B,New,Test A,144.68,0,24,Branch,True,2026-10-20
+DEMO-B-New-A-68,Partner B,New,Test A,143.07,0,55,Branch,True,2026-10-20
+DEMO-B-New-A-69,Partner B,New,Test A,118.54,0,50,Branch,True,2026-10-20
+DEMO-B-New-A-70,Partner B,New,Test A,125.56,0,25,Online,True,2026-10-20
+DEMO-B-New-A-71,Partner B,New,Test A,144.54,1,61,Online,True,2026-10-20
+DEMO-B-New-A-72,Partner B,New,Test A,92.14,0,38,Branch,True,2026-10-20
+DEMO-B-New-A-73,Partner B,New,Test A,126.02,0,55,Online,True,2026-10-20
+DEMO-B-New-A-74,Partner B,New,Test A,122.5,0,73,Online,True,2026-10-20
+DEMO-B-New-A-75,Partner B,New,Test A,132.88,1,37,Branch,True,2026-10-20
+DEMO-B-New-A-76,Partner B,New,Test A,114.98,0,71,Branch,True,2026-10-20
+DEMO-B-New-A-77,Partner B,New,Test A,113.14,0,57,Online,True,2026-10-20
+DEMO-B-New-A-78,Partner B,New,Test A,182.51,0,35,Online,True,2026-10-20
+DEMO-B-New-A-79,Partner B,New,Test A,114.12,0,46,Online,True,2026-10-20
+DEMO-B-New-A-80,Partner B,New,Test A,144.59,0,58,Branch,True,2026-10-20
+DEMO-B-New-A-81,Partner B,New,Test A,88.23,0,56,Branch,True,2026-10-20
+DEMO-B-New-A-82,Partner B,New,Test A,149.77,0,45,Branch,True,2026-10-20
+DEMO-B-New-A-83,Partner B,New,Test A,88.63,0,53,Branch,True,2026-10-20
+DEMO-B-New-A-84,Partner B,New,Test A,148.51,0,29,Online,True,2026-10-20
+DEMO-B-New-A-85,Partner B,New,Test A,160.97,0,27,Online,True,2026-10-20
+DEMO-B-New-A-86,Partner B,New,Test A,188.76,0,50,Online,True,2026-10-20
+DEMO-B-New-A-87,Partner B,New,Test A,183.32,0,48,Online,True,2026-10-20
+DEMO-B-New-A-88,Partner B,New,Test A,125.4,1,66,Branch,True,2026-10-20
+DEMO-B-New-A-89,Partner B,New,Test A,129.63,0,59,Branch,True,2026-10-20
+DEMO-B-New-A-90,Partner B,New,Test A,107.54,0,60,Branch,True,2026-10-20
+DEMO-B-New-A-91,Partner B,New,Test A,137.49,0,45,Branch,True,2026-10-20
+DEMO-B-New-A-92,Partner B,New,Test A,169.45,0,67,Online,True,2026-10-20
+DEMO-B-New-A-93,Partner B,New,Test A,180.49,0,66,Branch,True,2026-10-20
+DEMO-B-New-A-94,Partner B,New,Test A,107.78,0,48,Online,True,2026-10-20
+DEMO-B-New-A-95,Partner B,New,Test A,132.07,0,42,Branch,True,2026-10-20
+DEMO-B-New-A-96,Partner B,New,Test A,119.58,0,56,Online,True,2026-10-20
+DEMO-B-New-A-97,Partner B,New,Test A,115.54,0,56,Branch,True,2026-10-20
+DEMO-B-New-A-98,Partner B,New,Test A,127.43,0,34,Branch,True,2026-10-20
+DEMO-B-New-A-99,Partner B,New,Test A,187.21,0,25,Online,True,2026-10-20
+DEMO-B-New-A-100,Partner B,New,Test A,150.39,0,50,Branch,True,2026-10-20
+DEMO-B-New-A-101,Partner B,New,Test A,106.87,0,60,Online,True,2026-10-20
+DEMO-B-New-A-102,Partner B,New,Test A,160.94,1,25,Online,True,2026-10-20
+DEMO-B-New-A-103,Partner B,New,Test A,146.69,0,47,Online,True,2026-10-20
+DEMO-B-New-A-104,Partner B,New,Test A,173.64,0,43,Branch,True,2026-10-20
+DEMO-B-New-A-105,Partner B,New,Test A,125.04,1,34,Online,True,2026-10-20
+DEMO-B-New-A-106,Partner B,New,Test A,88.32,0,26,Online,True,2026-10-20
+DEMO-B-New-A-107,Partner B,New,Test A,95.58,0,40,Branch,True,2026-10-20
+DEMO-B-New-A-108,Partner B,New,Test A,148.29,0,56,Branch,True,2026-10-20
+DEMO-B-New-A-109,Partner B,New,Test A,109.63,0,74,Branch,True,2026-10-20
+DEMO-B-New-A-110,Partner B,New,Test A,181.26,0,72,Branch,True,2026-10-20
+DEMO-B-New-A-111,Partner B,New,Test A,183.58,1,44,Branch,True,2026-10-20
+DEMO-B-New-A-112,Partner B,New,Test A,153.04,0,42,Online,True,2026-10-20
+DEMO-B-New-A-113,Partner B,New,Test A,136.76,0,25,Branch,True,2026-10-20
+DEMO-B-New-A-114,Partner B,New,Test A,123.64,0,44,Online,True,2026-10-20
+DEMO-B-New-A-115,Partner B,New,Test A,111.96,0,24,Online,True,2026-10-20
+DEMO-B-New-A-116,Partner B,New,Test A,168.92,0,38,Branch,True,2026-10-20
+DEMO-B-New-A-117,Partner B,New,Test A,106.15,0,60,Online,True,2026-10-20
+DEMO-B-New-A-118,Partner B,New,Test A,78.19,0,52,Online,True,2026-10-20
+DEMO-B-New-A-119,Partner B,New,Test A,109.17,0,31,Branch,True,2026-10-20
+DEMO-B-New-A-120,Partner B,New,Test A,140.28,0,55,Online,True,2026-10-20
+DEMO-B-New-A-121,Partner B,New,Test A,192.98,0,73,Online,True,2026-10-20
+DEMO-B-New-A-122,Partner B,New,Test A,84.42,0,66,Online,True,2026-10-20
+DEMO-B-New-A-123,Partner B,New,Test A,103.66,0,42,Branch,True,2026-10-20
+DEMO-B-New-A-124,Partner B,New,Test A,189.76,0,24,Online,True,2026-10-20
+DEMO-B-New-A-125,Partner B,New,Test A,100.29,0,51,Branch,True,2026-10-20
+DEMO-B-New-A-126,Partner B,New,Test A,108.55,0,60,Online,True,2026-10-20
+DEMO-B-New-A-127,Partner B,New,Test A,118.47,0,34,Branch,True,2026-10-20
+DEMO-B-New-A-128,Partner B,New,Test A,133.47,0,46,Branch,True,2026-10-20
+DEMO-B-New-A-129,Partner B,New,Test A,135.43,0,42,Branch,True,2026-10-20
+DEMO-B-New-B-0,Partner B,New,Test B,163.64,0,24,Branch,True,2026-10-20
+DEMO-B-New-B-1,Partner B,New,Test B,96.63,0,41,Branch,True,2026-10-20
+DEMO-B-New-B-2,Partner B,New,Test B,144.04,0,64,Online,True,2026-10-20
+DEMO-B-New-B-3,Partner B,New,Test B,94.48,0,54,Branch,True,2026-10-20
+DEMO-B-New-B-4,Partner B,New,Test B,110.72,1,51,Branch,True,2026-10-20
+DEMO-B-New-B-5,Partner B,New,Test B,157.83,0,31,Online,True,2026-10-20
+DEMO-B-New-B-6,Partner B,New,Test B,114.19,0,25,Online,True,2026-10-20
+DEMO-B-New-B-7,Partner B,New,Test B,150.23,0,72,Online,True,2026-10-20
+DEMO-B-New-B-8,Partner B,New,Test B,145.25,0,25,Online,True,2026-10-20
+DEMO-B-New-B-9,Partner B,New,Test B,112.21,0,71,Online,True,2026-10-20
+DEMO-B-New-B-10,Partner B,New,Test B,130.12,1,58,Online,True,2026-10-20
+DEMO-B-New-B-11,Partner B,New,Test B,104.94,0,30,Branch,True,2026-10-20
+DEMO-B-New-B-12,Partner B,New,Test B,189.12,0,38,Online,True,2026-10-20
+DEMO-B-New-B-13,Partner B,New,Test B,99.6,0,65,Online,True,2026-10-20
+DEMO-B-New-B-14,Partner B,New,Test B,144.29,0,27,Online,True,2026-10-20
+DEMO-B-New-B-15,Partner B,New,Test B,146.23,0,53,Branch,True,2026-10-20
+DEMO-B-New-B-16,Partner B,New,Test B,133.39,0,30,Online,True,2026-10-20
+DEMO-B-New-B-17,Partner B,New,Test B,111.17,0,50,Branch,True,2026-10-20
+DEMO-B-New-B-18,Partner B,New,Test B,171.95,0,65,Online,True,2026-10-20
+DEMO-B-New-B-19,Partner B,New,Test B,95.82,0,34,Branch,True,2026-10-20
+DEMO-B-New-B-20,Partner B,New,Test B,53.52,0,33,Branch,True,2026-10-20
+DEMO-B-New-B-21,Partner B,New,Test B,114.3,0,47,Online,True,2026-10-20
+DEMO-B-New-B-22,Partner B,New,Test B,127.27,0,64,Branch,True,2026-10-20
+DEMO-B-New-B-23,Partner B,New,Test B,169.35,0,42,Online,True,2026-10-20
+DEMO-B-New-B-24,Partner B,New,Test B,90.44,1,50,Branch,True,2026-10-20
+DEMO-B-New-B-25,Partner B,New,Test B,140.92,0,54,Branch,True,2026-10-20
+DEMO-B-New-B-26,Partner B,New,Test B,129.57,0,74,Branch,True,2026-10-20
+DEMO-B-New-B-27,Partner B,New,Test B,152.18,1,56,Online,True,2026-10-20
+DEMO-B-New-B-28,Partner B,New,Test B,83.16,0,48,Branch,True,2026-10-20
+DEMO-B-New-B-29,Partner B,New,Test B,170.47,0,44,Branch,True,2026-10-20
+DEMO-B-New-B-30,Partner B,New,Test B,67.48,1,46,Branch,True,2026-10-20
+DEMO-B-New-B-31,Partner B,New,Test B,110.54,1,54,Branch,True,2026-10-20
+DEMO-B-New-B-32,Partner B,New,Test B,145.45,0,33,Branch,True,2026-10-20
+DEMO-B-New-B-33,Partner B,New,Test B,56.09,0,66,Online,True,2026-10-20
+DEMO-B-New-B-34,Partner B,New,Test B,84.58,0,26,Branch,True,2026-10-20
+DEMO-B-New-B-35,Partner B,New,Test B,159.22,0,28,Online,True,2026-10-20
+DEMO-B-New-B-36,Partner B,New,Test B,176.94,0,67,Online,True,2026-10-20
+DEMO-B-New-B-37,Partner B,New,Test B,126.17,0,30,Online,True,2026-10-20
+DEMO-B-New-B-38,Partner B,New,Test B,123.03,0,34,Branch,True,2026-10-20
+DEMO-B-New-B-39,Partner B,New,Test B,173.62,0,74,Branch,True,2026-10-20
+DEMO-B-New-B-40,Partner B,New,Test B,140.06,1,57,Online,True,2026-10-20
+DEMO-B-New-B-41,Partner B,New,Test B,156.66,0,68,Online,True,2026-10-20
+DEMO-B-New-B-42,Partner B,New,Test B,153.44,0,50,Online,True,2026-10-20
+DEMO-B-New-B-43,Partner B,New,Test B,122.56,0,35,Online,True,2026-10-20
+DEMO-B-New-B-44,Partner B,New,Test B,144.23,1,36,Branch,True,2026-10-20
+DEMO-B-New-B-45,Partner B,New,Test B,112.62,0,44,Branch,True,2026-10-20
+DEMO-B-New-B-46,Partner B,New,Test B,160.77,0,51,Branch,True,2026-10-20
+DEMO-B-New-B-47,Partner B,New,Test B,150.66,1,69,Branch,True,2026-10-20
+DEMO-B-New-B-48,Partner B,New,Test B,133.73,0,57,Branch,True,2026-10-20
+DEMO-B-New-B-49,Partner B,New,Test B,171.64,1,58,Online,True,2026-10-20
+DEMO-B-New-B-50,Partner B,New,Test B,121.86,0,74,Online,True,2026-10-20
+DEMO-B-New-B-51,Partner B,New,Test B,155.75,0,73,Branch,True,2026-10-20
+DEMO-B-New-B-52,Partner B,New,Test B,104.99,0,53,Online,True,2026-10-20
+DEMO-B-New-B-53,Partner B,New,Test B,105.61,0,45,Online,True,2026-10-20
+DEMO-B-New-B-54,Partner B,New,Test B,111.24,1,45,Online,True,2026-10-20
+DEMO-B-New-B-55,Partner B,New,Test B,77.12,0,38,Branch,True,2026-10-20
+DEMO-B-New-B-56,Partner B,New,Test B,138.2,0,48,Branch,True,2026-10-20
+DEMO-B-New-B-57,Partner B,New,Test B,166.58,1,47,Branch,True,2026-10-20
+DEMO-B-New-B-58,Partner B,New,Test B,94.53,0,36,Online,True,2026-10-20
+DEMO-B-New-B-59,Partner B,New,Test B,105.89,0,69,Online,True,2026-10-20
+DEMO-B-New-B-60,Partner B,New,Test B,150.04,0,31,Online,True,2026-10-20
+DEMO-B-New-B-61,Partner B,New,Test B,151.74,0,59,Online,True,2026-10-20
+DEMO-B-New-B-62,Partner B,New,Test B,109.31,0,65,Branch,True,2026-10-20
+DEMO-B-New-B-63,Partner B,New,Test B,103.58,0,70,Online,True,2026-10-20
+DEMO-B-New-B-64,Partner B,New,Test B,142.76,0,66,Online,True,2026-10-20
+DEMO-B-New-B-65,Partner B,New,Test B,112.27,0,54,Online,True,2026-10-20
+DEMO-B-New-B-66,Partner B,New,Test B,139.5,0,40,Branch,True,2026-10-20
+DEMO-B-New-B-67,Partner B,New,Test B,153.45,0,42,Branch,True,2026-10-20
+DEMO-B-New-B-68,Partner B,New,Test B,149.25,0,32,Online,True,2026-10-20
+DEMO-B-New-B-69,Partner B,New,Test B,157.58,0,45,Branch,True,2026-10-20
+DEMO-B-New-B-70,Partner B,New,Test B,249.22,0,71,Branch,True,2026-10-20
+DEMO-B-New-B-71,Partner B,New,Test B,179.62,1,28,Branch,True,2026-10-20
+DEMO-B-New-B-72,Partner B,New,Test B,156.98,0,61,Online,True,2026-10-20
+DEMO-B-New-B-73,Partner B,New,Test B,113.82,0,61,Branch,True,2026-10-20
+DEMO-B-New-B-74,Partner B,New,Test B,127.38,0,52,Branch,True,2026-10-20
+DEMO-B-New-B-75,Partner B,New,Test B,127.54,0,42,Branch,True,2026-10-20
+DEMO-B-New-B-76,Partner B,New,Test B,99.61,0,56,Online,True,2026-10-20
+DEMO-B-New-B-77,Partner B,New,Test B,71.29,0,57,Online,True,2026-10-20
+DEMO-B-New-B-78,Partner B,New,Test B,155.39,0,52,Branch,True,2026-10-20
+DEMO-B-New-B-79,Partner B,New,Test B,147.91,0,74,Online,True,2026-10-20
+DEMO-B-New-B-80,Partner B,New,Test B,161.3,0,71,Branch,True,2026-10-20
+DEMO-B-New-B-81,Partner B,New,Test B,117.06,0,50,Branch,True,2026-10-20
+DEMO-B-New-B-82,Partner B,New,Test B,157.48,0,22,Online,True,2026-10-20
+DEMO-B-New-B-83,Partner B,New,Test B,175.12,0,30,Online,True,2026-10-20
+DEMO-B-New-B-84,Partner B,New,Test B,75.12,0,39,Branch,True,2026-10-20
+DEMO-B-New-B-85,Partner B,New,Test B,119.45,0,45,Branch,True,2026-10-20
+DEMO-B-New-B-86,Partner B,New,Test B,133.46,0,44,Online,True,2026-10-20
+DEMO-B-New-B-87,Partner B,New,Test B,158.63,1,57,Online,True,2026-10-20
+DEMO-B-New-B-88,Partner B,New,Test B,140.2,0,30,Branch,True,2026-10-20
+DEMO-B-New-B-89,Partner B,New,Test B,124.64,1,49,Branch,True,2026-10-20
+DEMO-B-New-B-90,Partner B,New,Test B,185.12,0,47,Online,True,2026-10-20
+DEMO-B-New-B-91,Partner B,New,Test B,113.14,0,26,Online,True,2026-10-20
+DEMO-B-New-B-92,Partner B,New,Test B,69.68,0,57,Online,True,2026-10-20
+DEMO-B-New-B-93,Partner B,New,Test B,214.54,0,27,Online,True,2026-10-20
+DEMO-B-New-B-94,Partner B,New,Test B,135.96,0,70,Online,True,2026-10-20
+DEMO-B-New-B-95,Partner B,New,Test B,101.22,0,32,Online,True,2026-10-20
+DEMO-B-New-B-96,Partner B,New,Test B,124.46,0,36,Online,True,2026-10-20
+DEMO-B-New-B-97,Partner B,New,Test B,121.89,0,71,Online,True,2026-10-20
+DEMO-B-New-B-98,Partner B,New,Test B,174.23,0,38,Branch,True,2026-10-20
+DEMO-B-New-B-99,Partner B,New,Test B,158.0,0,21,Branch,True,2026-10-20
+DEMO-B-New-B-100,Partner B,New,Test B,103.15,0,58,Branch,True,2026-10-20
+DEMO-B-New-B-101,Partner B,New,Test B,121.04,0,22,Online,True,2026-10-20
+DEMO-B-New-B-102,Partner B,New,Test B,168.87,0,29,Online,True,2026-10-20
+DEMO-B-New-B-103,Partner B,New,Test B,115.76,0,44,Branch,True,2026-10-20
+DEMO-B-New-B-104,Partner B,New,Test B,161.9,1,33,Branch,True,2026-10-20
+DEMO-B-New-B-105,Partner B,New,Test B,137.85,0,52,Branch,True,2026-10-20
+DEMO-B-New-B-106,Partner B,New,Test B,161.97,0,46,Branch,True,2026-10-20
+DEMO-B-New-B-107,Partner B,New,Test B,168.18,0,56,Online,True,2026-10-20
+DEMO-B-New-B-108,Partner B,New,Test B,211.89,0,61,Branch,True,2026-10-20
+DEMO-B-New-B-109,Partner B,New,Test B,133.6,0,67,Online,True,2026-10-20
+DEMO-B-New-B-110,Partner B,New,Test B,105.7,1,52,Branch,True,2026-10-20
+DEMO-B-New-B-111,Partner B,New,Test B,154.82,0,61,Branch,True,2026-10-20
+DEMO-B-New-B-112,Partner B,New,Test B,171.03,0,62,Branch,True,2026-10-20
+DEMO-B-New-B-113,Partner B,New,Test B,135.49,0,46,Branch,True,2026-10-20
+DEMO-B-New-B-114,Partner B,New,Test B,168.43,0,59,Branch,True,2026-10-20
+DEMO-B-New-B-115,Partner B,New,Test B,142.97,0,53,Online,True,2026-10-20
+DEMO-B-New-B-116,Partner B,New,Test B,216.67,0,43,Branch,True,2026-10-20
+DEMO-B-New-B-117,Partner B,New,Test B,154.6,0,72,Online,True,2026-10-20
+DEMO-B-New-B-118,Partner B,New,Test B,72.41,0,34,Online,True,2026-10-20
+DEMO-B-New-B-119,Partner B,New,Test B,119.13,0,50,Online,True,2026-10-20
+DEMO-B-New-B-120,Partner B,New,Test B,154.22,0,53,Branch,True,2026-10-20
+DEMO-B-New-B-121,Partner B,New,Test B,97.8,0,64,Online,True,2026-10-20
+DEMO-B-New-B-122,Partner B,New,Test B,159.39,1,51,Online,True,2026-10-20
+DEMO-B-New-B-123,Partner B,New,Test B,191.27,1,44,Online,True,2026-10-20
+DEMO-B-New-B-124,Partner B,New,Test B,136.36,0,56,Branch,True,2026-10-20
+DEMO-B-New-B-125,Partner B,New,Test B,74.79,0,33,Online,True,2026-10-20
+DEMO-B-New-B-126,Partner B,New,Test B,159.23,0,40,Online,True,2026-10-20
+DEMO-B-New-B-127,Partner B,New,Test B,154.94,0,62,Online,True,2026-10-20
+DEMO-B-New-B-128,Partner B,New,Test B,118.63,0,41,Online,True,2026-10-20
+DEMO-B-New-B-129,Partner B,New,Test B,178.26,0,27,Branch,True,2026-10-20
+DEMO-B-Existing-l-0,Partner B,Existing,Control,122.15,0,33,Online,True,2026-10-20
+DEMO-B-Existing-l-1,Partner B,Existing,Control,168.3,0,60,Branch,True,2026-10-20
+DEMO-B-Existing-l-2,Partner B,Existing,Control,147.2,0,54,Branch,True,2026-10-20
+DEMO-B-Existing-l-3,Partner B,Existing,Control,186.38,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-l-4,Partner B,Existing,Control,104.53,0,26,Online,True,2026-10-20
+DEMO-B-Existing-l-5,Partner B,Existing,Control,215.74,0,69,Branch,True,2026-10-20
+DEMO-B-Existing-l-6,Partner B,Existing,Control,168.03,0,33,Branch,True,2026-10-20
+DEMO-B-Existing-l-7,Partner B,Existing,Control,124.91,0,65,Online,True,2026-10-20
+DEMO-B-Existing-l-8,Partner B,Existing,Control,157.9,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-l-9,Partner B,Existing,Control,158.63,0,68,Online,True,2026-10-20
+DEMO-B-Existing-l-10,Partner B,Existing,Control,105.02,0,74,Branch,True,2026-10-20
+DEMO-B-Existing-l-11,Partner B,Existing,Control,176.95,0,25,Online,True,2026-10-20
+DEMO-B-Existing-l-12,Partner B,Existing,Control,142.91,0,25,Branch,True,2026-10-20
+DEMO-B-Existing-l-13,Partner B,Existing,Control,127.1,0,38,Online,True,2026-10-20
+DEMO-B-Existing-l-14,Partner B,Existing,Control,183.77,0,30,Online,True,2026-10-20
+DEMO-B-Existing-l-15,Partner B,Existing,Control,193.98,0,50,Branch,True,2026-10-20
+DEMO-B-Existing-l-16,Partner B,Existing,Control,85.97,0,69,Online,True,2026-10-20
+DEMO-B-Existing-l-17,Partner B,Existing,Control,202.38,0,41,Online,True,2026-10-20
+DEMO-B-Existing-l-18,Partner B,Existing,Control,183.5,0,53,Branch,True,2026-10-20
+DEMO-B-Existing-l-19,Partner B,Existing,Control,185.0,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-l-20,Partner B,Existing,Control,145.57,0,25,Online,True,2026-10-20
+DEMO-B-Existing-l-21,Partner B,Existing,Control,135.07,1,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-22,Partner B,Existing,Control,200.23,0,64,Branch,True,2026-10-20
+DEMO-B-Existing-l-23,Partner B,Existing,Control,120.47,0,43,Branch,True,2026-10-20
+DEMO-B-Existing-l-24,Partner B,Existing,Control,127.35,0,24,Online,True,2026-10-20
+DEMO-B-Existing-l-25,Partner B,Existing,Control,143.75,0,26,Branch,True,2026-10-20
+DEMO-B-Existing-l-26,Partner B,Existing,Control,204.81,0,62,Online,True,2026-10-20
+DEMO-B-Existing-l-27,Partner B,Existing,Control,100.78,0,71,Branch,True,2026-10-20
+DEMO-B-Existing-l-28,Partner B,Existing,Control,179.82,0,61,Online,True,2026-10-20
+DEMO-B-Existing-l-29,Partner B,Existing,Control,217.89,0,26,Branch,True,2026-10-20
+DEMO-B-Existing-l-30,Partner B,Existing,Control,146.2,0,48,Branch,True,2026-10-20
+DEMO-B-Existing-l-31,Partner B,Existing,Control,147.4,0,23,Online,True,2026-10-20
+DEMO-B-Existing-l-32,Partner B,Existing,Control,98.38,0,59,Branch,True,2026-10-20
+DEMO-B-Existing-l-33,Partner B,Existing,Control,179.04,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-l-34,Partner B,Existing,Control,137.03,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-35,Partner B,Existing,Control,146.38,1,60,Online,True,2026-10-20
+DEMO-B-Existing-l-36,Partner B,Existing,Control,150.32,0,48,Online,True,2026-10-20
+DEMO-B-Existing-l-37,Partner B,Existing,Control,78.71,0,59,Online,True,2026-10-20
+DEMO-B-Existing-l-38,Partner B,Existing,Control,190.49,0,36,Branch,True,2026-10-20
+DEMO-B-Existing-l-39,Partner B,Existing,Control,45.31,0,63,Branch,True,2026-10-20
+DEMO-B-Existing-l-40,Partner B,Existing,Control,204.99,0,44,Branch,True,2026-10-20
+DEMO-B-Existing-l-41,Partner B,Existing,Control,100.15,0,26,Online,True,2026-10-20
+DEMO-B-Existing-l-42,Partner B,Existing,Control,174.21,0,36,Online,True,2026-10-20
+DEMO-B-Existing-l-43,Partner B,Existing,Control,133.77,0,56,Online,True,2026-10-20
+DEMO-B-Existing-l-44,Partner B,Existing,Control,154.98,0,63,Online,True,2026-10-20
+DEMO-B-Existing-l-45,Partner B,Existing,Control,95.95,0,25,Branch,True,2026-10-20
+DEMO-B-Existing-l-46,Partner B,Existing,Control,185.89,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-l-47,Partner B,Existing,Control,140.89,0,57,Online,True,2026-10-20
+DEMO-B-Existing-l-48,Partner B,Existing,Control,143.38,0,49,Branch,True,2026-10-20
+DEMO-B-Existing-l-49,Partner B,Existing,Control,201.8,0,69,Branch,True,2026-10-20
+DEMO-B-Existing-l-50,Partner B,Existing,Control,192.13,0,42,Online,True,2026-10-20
+DEMO-B-Existing-l-51,Partner B,Existing,Control,86.98,0,39,Branch,True,2026-10-20
+DEMO-B-Existing-l-52,Partner B,Existing,Control,214.32,0,69,Branch,True,2026-10-20
+DEMO-B-Existing-l-53,Partner B,Existing,Control,181.19,0,23,Branch,True,2026-10-20
+DEMO-B-Existing-l-54,Partner B,Existing,Control,144.76,0,57,Online,True,2026-10-20
+DEMO-B-Existing-l-55,Partner B,Existing,Control,107.49,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-56,Partner B,Existing,Control,133.2,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-l-57,Partner B,Existing,Control,89.86,0,67,Branch,True,2026-10-20
+DEMO-B-Existing-l-58,Partner B,Existing,Control,145.91,0,58,Online,True,2026-10-20
+DEMO-B-Existing-l-59,Partner B,Existing,Control,160.99,1,34,Online,True,2026-10-20
+DEMO-B-Existing-l-60,Partner B,Existing,Control,144.83,0,40,Online,True,2026-10-20
+DEMO-B-Existing-l-61,Partner B,Existing,Control,192.06,1,24,Online,True,2026-10-20
+DEMO-B-Existing-l-62,Partner B,Existing,Control,117.53,0,34,Branch,True,2026-10-20
+DEMO-B-Existing-l-63,Partner B,Existing,Control,142.54,0,32,Online,True,2026-10-20
+DEMO-B-Existing-l-64,Partner B,Existing,Control,145.71,0,55,Online,True,2026-10-20
+DEMO-B-Existing-l-65,Partner B,Existing,Control,153.55,0,59,Online,True,2026-10-20
+DEMO-B-Existing-l-66,Partner B,Existing,Control,172.18,0,25,Branch,True,2026-10-20
+DEMO-B-Existing-l-67,Partner B,Existing,Control,95.78,0,62,Branch,True,2026-10-20
+DEMO-B-Existing-l-68,Partner B,Existing,Control,164.7,0,65,Online,True,2026-10-20
+DEMO-B-Existing-l-69,Partner B,Existing,Control,228.73,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-70,Partner B,Existing,Control,84.91,1,53,Branch,True,2026-10-20
+DEMO-B-Existing-l-71,Partner B,Existing,Control,173.5,0,49,Online,True,2026-10-20
+DEMO-B-Existing-l-72,Partner B,Existing,Control,157.64,0,22,Online,True,2026-10-20
+DEMO-B-Existing-l-73,Partner B,Existing,Control,139.33,0,37,Branch,True,2026-10-20
+DEMO-B-Existing-l-74,Partner B,Existing,Control,205.05,1,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-75,Partner B,Existing,Control,136.56,1,28,Online,True,2026-10-20
+DEMO-B-Existing-l-76,Partner B,Existing,Control,134.34,0,28,Branch,True,2026-10-20
+DEMO-B-Existing-l-77,Partner B,Existing,Control,140.66,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-l-78,Partner B,Existing,Control,147.01,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-79,Partner B,Existing,Control,126.52,0,56,Online,True,2026-10-20
+DEMO-B-Existing-l-80,Partner B,Existing,Control,133.27,0,38,Branch,True,2026-10-20
+DEMO-B-Existing-l-81,Partner B,Existing,Control,122.01,0,73,Branch,True,2026-10-20
+DEMO-B-Existing-l-82,Partner B,Existing,Control,159.9,0,23,Online,True,2026-10-20
+DEMO-B-Existing-l-83,Partner B,Existing,Control,190.91,0,40,Online,True,2026-10-20
+DEMO-B-Existing-l-84,Partner B,Existing,Control,134.06,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-l-85,Partner B,Existing,Control,105.12,0,47,Branch,True,2026-10-20
+DEMO-B-Existing-l-86,Partner B,Existing,Control,154.67,0,46,Branch,True,2026-10-20
+DEMO-B-Existing-l-87,Partner B,Existing,Control,196.71,0,48,Online,True,2026-10-20
+DEMO-B-Existing-l-88,Partner B,Existing,Control,146.15,0,40,Branch,True,2026-10-20
+DEMO-B-Existing-l-89,Partner B,Existing,Control,205.17,0,45,Online,True,2026-10-20
+DEMO-B-Existing-l-90,Partner B,Existing,Control,92.12,1,24,Branch,True,2026-10-20
+DEMO-B-Existing-l-91,Partner B,Existing,Control,136.14,0,58,Branch,True,2026-10-20
+DEMO-B-Existing-l-92,Partner B,Existing,Control,183.0,0,69,Branch,True,2026-10-20
+DEMO-B-Existing-l-93,Partner B,Existing,Control,143.49,0,62,Online,True,2026-10-20
+DEMO-B-Existing-l-94,Partner B,Existing,Control,143.33,0,74,Online,True,2026-10-20
+DEMO-B-Existing-l-95,Partner B,Existing,Control,188.35,0,44,Online,True,2026-10-20
+DEMO-B-Existing-l-96,Partner B,Existing,Control,121.7,0,49,Online,True,2026-10-20
+DEMO-B-Existing-l-97,Partner B,Existing,Control,72.23,0,67,Branch,True,2026-10-20
+DEMO-B-Existing-l-98,Partner B,Existing,Control,109.48,1,61,Branch,True,2026-10-20
+DEMO-B-Existing-l-99,Partner B,Existing,Control,161.76,0,45,Branch,True,2026-10-20
+DEMO-B-Existing-l-100,Partner B,Existing,Control,138.06,0,68,Online,True,2026-10-20
+DEMO-B-Existing-l-101,Partner B,Existing,Control,191.84,0,41,Branch,True,2026-10-20
+DEMO-B-Existing-l-102,Partner B,Existing,Control,177.87,0,64,Branch,True,2026-10-20
+DEMO-B-Existing-l-103,Partner B,Existing,Control,133.13,0,47,Branch,True,2026-10-20
+DEMO-B-Existing-l-104,Partner B,Existing,Control,137.89,0,28,Online,True,2026-10-20
+DEMO-B-Existing-l-105,Partner B,Existing,Control,157.56,0,65,Online,True,2026-10-20
+DEMO-B-Existing-l-106,Partner B,Existing,Control,156.68,1,65,Online,True,2026-10-20
+DEMO-B-Existing-l-107,Partner B,Existing,Control,123.01,0,37,Online,True,2026-10-20
+DEMO-B-Existing-l-108,Partner B,Existing,Control,161.51,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-l-109,Partner B,Existing,Control,145.72,0,62,Online,True,2026-10-20
+DEMO-B-Existing-l-110,Partner B,Existing,Control,242.79,0,55,Branch,True,2026-10-20
+DEMO-B-Existing-l-111,Partner B,Existing,Control,154.89,0,70,Branch,True,2026-10-20
+DEMO-B-Existing-l-112,Partner B,Existing,Control,111.46,0,72,Branch,True,2026-10-20
+DEMO-B-Existing-l-113,Partner B,Existing,Control,99.53,0,73,Online,True,2026-10-20
+DEMO-B-Existing-l-114,Partner B,Existing,Control,136.48,0,72,Online,True,2026-10-20
+DEMO-B-Existing-l-115,Partner B,Existing,Control,130.91,0,69,Online,True,2026-10-20
+DEMO-B-Existing-l-116,Partner B,Existing,Control,274.97,0,21,Online,True,2026-10-20
+DEMO-B-Existing-l-117,Partner B,Existing,Control,195.75,0,43,Branch,True,2026-10-20
+DEMO-B-Existing-l-118,Partner B,Existing,Control,198.31,0,51,Online,True,2026-10-20
+DEMO-B-Existing-l-119,Partner B,Existing,Control,158.54,0,71,Online,True,2026-10-20
+DEMO-B-Existing-l-120,Partner B,Existing,Control,99.63,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-l-121,Partner B,Existing,Control,140.5,0,36,Branch,True,2026-10-20
+DEMO-B-Existing-l-122,Partner B,Existing,Control,164.69,0,45,Branch,True,2026-10-20
+DEMO-B-Existing-l-123,Partner B,Existing,Control,241.4,0,69,Online,True,2026-10-20
+DEMO-B-Existing-l-124,Partner B,Existing,Control,128.88,0,31,Branch,True,2026-10-20
+DEMO-B-Existing-l-125,Partner B,Existing,Control,163.64,0,69,Branch,True,2026-10-20
+DEMO-B-Existing-l-126,Partner B,Existing,Control,110.28,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-l-127,Partner B,Existing,Control,109.75,0,72,Branch,True,2026-10-20
+DEMO-B-Existing-l-128,Partner B,Existing,Control,132.99,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-l-129,Partner B,Existing,Control,194.27,0,39,Branch,True,2026-10-20
+DEMO-B-Existing-l-130,Partner B,Existing,Control,185.18,0,53,Branch,True,2026-10-20
+DEMO-B-Existing-l-131,Partner B,Existing,Control,157.41,0,65,Online,True,2026-10-20
+DEMO-B-Existing-l-132,Partner B,Existing,Control,131.55,1,69,Online,True,2026-10-20
+DEMO-B-Existing-l-133,Partner B,Existing,Control,177.06,1,41,Online,True,2026-10-20
+DEMO-B-Existing-l-134,Partner B,Existing,Control,126.43,0,71,Branch,True,2026-10-20
+DEMO-B-Existing-l-135,Partner B,Existing,Control,146.5,0,50,Branch,True,2026-10-20
+DEMO-B-Existing-l-136,Partner B,Existing,Control,118.58,0,35,Online,True,2026-10-20
+DEMO-B-Existing-l-137,Partner B,Existing,Control,174.28,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-l-138,Partner B,Existing,Control,137.06,0,55,Online,True,2026-10-20
+DEMO-B-Existing-l-139,Partner B,Existing,Control,183.79,0,66,Online,True,2026-10-20
+DEMO-B-Existing-A-0,Partner B,Existing,Test A,149.89,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-A-1,Partner B,Existing,Test A,177.15,0,60,Online,True,2026-10-20
+DEMO-B-Existing-A-2,Partner B,Existing,Test A,219.56,0,51,Online,True,2026-10-20
+DEMO-B-Existing-A-3,Partner B,Existing,Test A,180.89,0,46,Online,True,2026-10-20
+DEMO-B-Existing-A-4,Partner B,Existing,Test A,149.66,0,31,Online,True,2026-10-20
+DEMO-B-Existing-A-5,Partner B,Existing,Test A,146.19,0,40,Branch,True,2026-10-20
+DEMO-B-Existing-A-6,Partner B,Existing,Test A,164.93,0,67,Online,True,2026-10-20
+DEMO-B-Existing-A-7,Partner B,Existing,Test A,105.85,0,53,Online,True,2026-10-20
+DEMO-B-Existing-A-8,Partner B,Existing,Test A,136.92,1,56,Online,True,2026-10-20
+DEMO-B-Existing-A-9,Partner B,Existing,Test A,163.49,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-A-10,Partner B,Existing,Test A,119.76,0,24,Online,True,2026-10-20
+DEMO-B-Existing-A-11,Partner B,Existing,Test A,84.6,0,34,Branch,True,2026-10-20
+DEMO-B-Existing-A-12,Partner B,Existing,Test A,98.37,0,28,Online,True,2026-10-20
+DEMO-B-Existing-A-13,Partner B,Existing,Test A,164.08,0,31,Branch,True,2026-10-20
+DEMO-B-Existing-A-14,Partner B,Existing,Test A,169.33,1,53,Online,True,2026-10-20
+DEMO-B-Existing-A-15,Partner B,Existing,Test A,156.59,0,43,Branch,True,2026-10-20
+DEMO-B-Existing-A-16,Partner B,Existing,Test A,147.57,0,51,Online,True,2026-10-20
+DEMO-B-Existing-A-17,Partner B,Existing,Test A,200.38,0,71,Branch,True,2026-10-20
+DEMO-B-Existing-A-18,Partner B,Existing,Test A,161.13,0,67,Branch,True,2026-10-20
+DEMO-B-Existing-A-19,Partner B,Existing,Test A,143.9,0,54,Branch,True,2026-10-20
+DEMO-B-Existing-A-20,Partner B,Existing,Test A,287.49,1,39,Online,True,2026-10-20
+DEMO-B-Existing-A-21,Partner B,Existing,Test A,96.22,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-A-22,Partner B,Existing,Test A,154.47,1,55,Online,True,2026-10-20
+DEMO-B-Existing-A-23,Partner B,Existing,Test A,160.01,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-A-24,Partner B,Existing,Test A,156.39,0,47,Branch,True,2026-10-20
+DEMO-B-Existing-A-25,Partner B,Existing,Test A,166.53,0,58,Online,True,2026-10-20
+DEMO-B-Existing-A-26,Partner B,Existing,Test A,83.29,1,24,Branch,True,2026-10-20
+DEMO-B-Existing-A-27,Partner B,Existing,Test A,104.76,1,64,Branch,True,2026-10-20
+DEMO-B-Existing-A-28,Partner B,Existing,Test A,161.3,0,71,Online,True,2026-10-20
+DEMO-B-Existing-A-29,Partner B,Existing,Test A,105.19,0,38,Branch,True,2026-10-20
+DEMO-B-Existing-A-30,Partner B,Existing,Test A,76.01,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-A-31,Partner B,Existing,Test A,165.5,0,39,Online,True,2026-10-20
+DEMO-B-Existing-A-32,Partner B,Existing,Test A,191.93,0,44,Branch,True,2026-10-20
+DEMO-B-Existing-A-33,Partner B,Existing,Test A,170.31,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-A-34,Partner B,Existing,Test A,62.11,0,23,Online,True,2026-10-20
+DEMO-B-Existing-A-35,Partner B,Existing,Test A,191.96,0,74,Online,True,2026-10-20
+DEMO-B-Existing-A-36,Partner B,Existing,Test A,189.45,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-A-37,Partner B,Existing,Test A,120.4,0,48,Online,True,2026-10-20
+DEMO-B-Existing-A-38,Partner B,Existing,Test A,181.47,0,35,Online,True,2026-10-20
+DEMO-B-Existing-A-39,Partner B,Existing,Test A,111.33,0,44,Online,True,2026-10-20
+DEMO-B-Existing-A-40,Partner B,Existing,Test A,145.27,1,52,Online,True,2026-10-20
+DEMO-B-Existing-A-41,Partner B,Existing,Test A,105.48,0,71,Online,True,2026-10-20
+DEMO-B-Existing-A-42,Partner B,Existing,Test A,146.95,0,23,Online,True,2026-10-20
+DEMO-B-Existing-A-43,Partner B,Existing,Test A,191.07,0,49,Online,True,2026-10-20
+DEMO-B-Existing-A-44,Partner B,Existing,Test A,128.13,1,50,Online,True,2026-10-20
+DEMO-B-Existing-A-45,Partner B,Existing,Test A,125.6,0,61,Online,True,2026-10-20
+DEMO-B-Existing-A-46,Partner B,Existing,Test A,79.42,0,71,Branch,True,2026-10-20
+DEMO-B-Existing-A-47,Partner B,Existing,Test A,242.24,0,74,Branch,True,2026-10-20
+DEMO-B-Existing-A-48,Partner B,Existing,Test A,123.2,0,29,Online,True,2026-10-20
+DEMO-B-Existing-A-49,Partner B,Existing,Test A,113.92,0,57,Branch,True,2026-10-20
+DEMO-B-Existing-A-50,Partner B,Existing,Test A,172.27,0,58,Online,True,2026-10-20
+DEMO-B-Existing-A-51,Partner B,Existing,Test A,202.22,0,49,Branch,True,2026-10-20
+DEMO-B-Existing-A-52,Partner B,Existing,Test A,131.8,0,72,Online,True,2026-10-20
+DEMO-B-Existing-A-53,Partner B,Existing,Test A,133.06,0,54,Online,True,2026-10-20
+DEMO-B-Existing-A-54,Partner B,Existing,Test A,121.62,0,24,Online,True,2026-10-20
+DEMO-B-Existing-A-55,Partner B,Existing,Test A,125.01,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-A-56,Partner B,Existing,Test A,155.32,0,24,Online,True,2026-10-20
+DEMO-B-Existing-A-57,Partner B,Existing,Test A,129.59,0,53,Online,True,2026-10-20
+DEMO-B-Existing-A-58,Partner B,Existing,Test A,137.88,0,54,Branch,True,2026-10-20
+DEMO-B-Existing-A-59,Partner B,Existing,Test A,163.31,0,63,Branch,True,2026-10-20
+DEMO-B-Existing-A-60,Partner B,Existing,Test A,200.08,0,45,Online,True,2026-10-20
+DEMO-B-Existing-A-61,Partner B,Existing,Test A,164.41,0,37,Online,True,2026-10-20
+DEMO-B-Existing-A-62,Partner B,Existing,Test A,191.97,0,51,Online,True,2026-10-20
+DEMO-B-Existing-A-63,Partner B,Existing,Test A,190.86,0,37,Branch,True,2026-10-20
+DEMO-B-Existing-A-64,Partner B,Existing,Test A,147.26,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-A-65,Partner B,Existing,Test A,118.65,0,26,Branch,True,2026-10-20
+DEMO-B-Existing-A-66,Partner B,Existing,Test A,183.96,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-A-67,Partner B,Existing,Test A,146.66,0,50,Online,True,2026-10-20
+DEMO-B-Existing-A-68,Partner B,Existing,Test A,224.3,0,36,Online,True,2026-10-20
+DEMO-B-Existing-A-69,Partner B,Existing,Test A,150.62,0,45,Branch,True,2026-10-20
+DEMO-B-Existing-A-70,Partner B,Existing,Test A,147.35,0,32,Branch,True,2026-10-20
+DEMO-B-Existing-A-71,Partner B,Existing,Test A,194.79,0,39,Online,True,2026-10-20
+DEMO-B-Existing-A-72,Partner B,Existing,Test A,138.3,0,60,Online,True,2026-10-20
+DEMO-B-Existing-A-73,Partner B,Existing,Test A,157.44,0,34,Branch,True,2026-10-20
+DEMO-B-Existing-A-74,Partner B,Existing,Test A,97.04,0,21,Online,True,2026-10-20
+DEMO-B-Existing-A-75,Partner B,Existing,Test A,115.42,0,46,Branch,True,2026-10-20
+DEMO-B-Existing-A-76,Partner B,Existing,Test A,149.96,0,36,Online,True,2026-10-20
+DEMO-B-Existing-A-77,Partner B,Existing,Test A,139.73,0,68,Online,True,2026-10-20
+DEMO-B-Existing-A-78,Partner B,Existing,Test A,178.38,0,30,Branch,True,2026-10-20
+DEMO-B-Existing-A-79,Partner B,Existing,Test A,128.0,0,29,Online,True,2026-10-20
+DEMO-B-Existing-A-80,Partner B,Existing,Test A,158.15,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-A-81,Partner B,Existing,Test A,162.71,0,61,Branch,True,2026-10-20
+DEMO-B-Existing-A-82,Partner B,Existing,Test A,125.76,0,73,Branch,True,2026-10-20
+DEMO-B-Existing-A-83,Partner B,Existing,Test A,151.62,0,38,Branch,True,2026-10-20
+DEMO-B-Existing-A-84,Partner B,Existing,Test A,145.91,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-A-85,Partner B,Existing,Test A,146.35,0,51,Branch,True,2026-10-20
+DEMO-B-Existing-A-86,Partner B,Existing,Test A,135.32,0,22,Branch,True,2026-10-20
+DEMO-B-Existing-A-87,Partner B,Existing,Test A,177.31,0,63,Branch,True,2026-10-20
+DEMO-B-Existing-A-88,Partner B,Existing,Test A,67.64,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-A-89,Partner B,Existing,Test A,127.06,0,25,Online,True,2026-10-20
+DEMO-B-Existing-A-90,Partner B,Existing,Test A,112.04,0,43,Online,True,2026-10-20
+DEMO-B-Existing-A-91,Partner B,Existing,Test A,210.17,0,43,Branch,True,2026-10-20
+DEMO-B-Existing-A-92,Partner B,Existing,Test A,115.75,0,66,Branch,True,2026-10-20
+DEMO-B-Existing-A-93,Partner B,Existing,Test A,170.28,0,59,Online,True,2026-10-20
+DEMO-B-Existing-A-94,Partner B,Existing,Test A,118.72,1,53,Branch,True,2026-10-20
+DEMO-B-Existing-A-95,Partner B,Existing,Test A,118.89,1,48,Online,True,2026-10-20
+DEMO-B-Existing-A-96,Partner B,Existing,Test A,162.46,0,60,Online,True,2026-10-20
+DEMO-B-Existing-A-97,Partner B,Existing,Test A,188.44,0,49,Branch,True,2026-10-20
+DEMO-B-Existing-A-98,Partner B,Existing,Test A,177.75,0,30,Branch,True,2026-10-20
+DEMO-B-Existing-A-99,Partner B,Existing,Test A,176.6,1,21,Branch,True,2026-10-20
+DEMO-B-Existing-A-100,Partner B,Existing,Test A,179.93,0,48,Online,True,2026-10-20
+DEMO-B-Existing-A-101,Partner B,Existing,Test A,117.77,0,43,Branch,True,2026-10-20
+DEMO-B-Existing-A-102,Partner B,Existing,Test A,189.66,0,70,Online,True,2026-10-20
+DEMO-B-Existing-A-103,Partner B,Existing,Test A,157.18,0,21,Online,True,2026-10-20
+DEMO-B-Existing-A-104,Partner B,Existing,Test A,160.39,0,38,Online,True,2026-10-20
+DEMO-B-Existing-A-105,Partner B,Existing,Test A,132.63,0,53,Online,True,2026-10-20
+DEMO-B-Existing-A-106,Partner B,Existing,Test A,101.06,0,27,Branch,True,2026-10-20
+DEMO-B-Existing-A-107,Partner B,Existing,Test A,82.13,1,24,Online,True,2026-10-20
+DEMO-B-Existing-A-108,Partner B,Existing,Test A,138.92,0,45,Branch,True,2026-10-20
+DEMO-B-Existing-A-109,Partner B,Existing,Test A,132.83,0,33,Branch,True,2026-10-20
+DEMO-B-Existing-A-110,Partner B,Existing,Test A,153.48,0,30,Branch,True,2026-10-20
+DEMO-B-Existing-A-111,Partner B,Existing,Test A,146.83,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-A-112,Partner B,Existing,Test A,130.78,0,51,Online,True,2026-10-20
+DEMO-B-Existing-A-113,Partner B,Existing,Test A,140.59,0,52,Online,True,2026-10-20
+DEMO-B-Existing-A-114,Partner B,Existing,Test A,97.26,0,34,Online,True,2026-10-20
+DEMO-B-Existing-A-115,Partner B,Existing,Test A,201.77,0,53,Online,True,2026-10-20
+DEMO-B-Existing-A-116,Partner B,Existing,Test A,169.33,1,32,Online,True,2026-10-20
+DEMO-B-Existing-A-117,Partner B,Existing,Test A,196.79,0,59,Branch,True,2026-10-20
+DEMO-B-Existing-A-118,Partner B,Existing,Test A,124.23,1,49,Branch,True,2026-10-20
+DEMO-B-Existing-A-119,Partner B,Existing,Test A,130.81,0,34,Online,True,2026-10-20
+DEMO-B-Existing-A-120,Partner B,Existing,Test A,179.75,0,62,Branch,True,2026-10-20
+DEMO-B-Existing-A-121,Partner B,Existing,Test A,207.33,0,71,Branch,True,2026-10-20
+DEMO-B-Existing-A-122,Partner B,Existing,Test A,105.69,0,68,Online,True,2026-10-20
+DEMO-B-Existing-A-123,Partner B,Existing,Test A,170.09,0,60,Branch,True,2026-10-20
+DEMO-B-Existing-A-124,Partner B,Existing,Test A,185.55,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-A-125,Partner B,Existing,Test A,115.14,0,62,Branch,True,2026-10-20
+DEMO-B-Existing-A-126,Partner B,Existing,Test A,165.92,0,48,Branch,True,2026-10-20
+DEMO-B-Existing-A-127,Partner B,Existing,Test A,102.2,0,58,Online,True,2026-10-20
+DEMO-B-Existing-A-128,Partner B,Existing,Test A,161.21,0,39,Online,True,2026-10-20
+DEMO-B-Existing-A-129,Partner B,Existing,Test A,158.3,0,67,Branch,True,2026-10-20
+DEMO-B-Existing-B-0,Partner B,Existing,Test B,95.4,0,54,Online,True,2026-10-20
+DEMO-B-Existing-B-1,Partner B,Existing,Test B,106.5,0,69,Online,True,2026-10-20
+DEMO-B-Existing-B-2,Partner B,Existing,Test B,164.43,0,30,Online,True,2026-10-20
+DEMO-B-Existing-B-3,Partner B,Existing,Test B,160.4,0,31,Online,True,2026-10-20
+DEMO-B-Existing-B-4,Partner B,Existing,Test B,88.54,0,44,Branch,True,2026-10-20
+DEMO-B-Existing-B-5,Partner B,Existing,Test B,148.28,0,63,Online,True,2026-10-20
+DEMO-B-Existing-B-6,Partner B,Existing,Test B,87.89,0,35,Online,True,2026-10-20
+DEMO-B-Existing-B-7,Partner B,Existing,Test B,86.03,0,45,Online,True,2026-10-20
+DEMO-B-Existing-B-8,Partner B,Existing,Test B,252.4,0,40,Online,True,2026-10-20
+DEMO-B-Existing-B-9,Partner B,Existing,Test B,192.26,1,47,Branch,True,2026-10-20
+DEMO-B-Existing-B-10,Partner B,Existing,Test B,169.07,0,26,Branch,True,2026-10-20
+DEMO-B-Existing-B-11,Partner B,Existing,Test B,130.48,0,30,Online,True,2026-10-20
+DEMO-B-Existing-B-12,Partner B,Existing,Test B,154.14,1,64,Online,True,2026-10-20
+DEMO-B-Existing-B-13,Partner B,Existing,Test B,179.97,0,54,Branch,True,2026-10-20
+DEMO-B-Existing-B-14,Partner B,Existing,Test B,122.26,0,25,Branch,True,2026-10-20
+DEMO-B-Existing-B-15,Partner B,Existing,Test B,147.9,0,26,Online,True,2026-10-20
+DEMO-B-Existing-B-16,Partner B,Existing,Test B,113.66,0,46,Online,True,2026-10-20
+DEMO-B-Existing-B-17,Partner B,Existing,Test B,154.18,0,37,Branch,True,2026-10-20
+DEMO-B-Existing-B-18,Partner B,Existing,Test B,77.7,0,64,Branch,True,2026-10-20
+DEMO-B-Existing-B-19,Partner B,Existing,Test B,176.72,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-B-20,Partner B,Existing,Test B,178.43,0,34,Online,True,2026-10-20
+DEMO-B-Existing-B-21,Partner B,Existing,Test B,109.09,1,71,Branch,True,2026-10-20
+DEMO-B-Existing-B-22,Partner B,Existing,Test B,167.01,0,32,Online,True,2026-10-20
+DEMO-B-Existing-B-23,Partner B,Existing,Test B,141.76,0,37,Branch,True,2026-10-20
+DEMO-B-Existing-B-24,Partner B,Existing,Test B,142.7,0,71,Online,True,2026-10-20
+DEMO-B-Existing-B-25,Partner B,Existing,Test B,86.66,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-B-26,Partner B,Existing,Test B,164.93,0,64,Online,True,2026-10-20
+DEMO-B-Existing-B-27,Partner B,Existing,Test B,225.14,0,22,Branch,True,2026-10-20
+DEMO-B-Existing-B-28,Partner B,Existing,Test B,96.13,1,62,Branch,True,2026-10-20
+DEMO-B-Existing-B-29,Partner B,Existing,Test B,160.63,0,36,Online,True,2026-10-20
+DEMO-B-Existing-B-30,Partner B,Existing,Test B,192.44,0,64,Branch,True,2026-10-20
+DEMO-B-Existing-B-31,Partner B,Existing,Test B,114.52,0,51,Branch,True,2026-10-20
+DEMO-B-Existing-B-32,Partner B,Existing,Test B,132.79,0,32,Online,True,2026-10-20
+DEMO-B-Existing-B-33,Partner B,Existing,Test B,180.7,0,66,Online,True,2026-10-20
+DEMO-B-Existing-B-34,Partner B,Existing,Test B,169.86,0,68,Online,True,2026-10-20
+DEMO-B-Existing-B-35,Partner B,Existing,Test B,177.22,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-B-36,Partner B,Existing,Test B,159.51,0,51,Branch,True,2026-10-20
+DEMO-B-Existing-B-37,Partner B,Existing,Test B,150.34,0,35,Online,True,2026-10-20
+DEMO-B-Existing-B-38,Partner B,Existing,Test B,119.05,0,47,Online,True,2026-10-20
+DEMO-B-Existing-B-39,Partner B,Existing,Test B,146.57,0,57,Online,True,2026-10-20
+DEMO-B-Existing-B-40,Partner B,Existing,Test B,126.49,0,29,Online,True,2026-10-20
+DEMO-B-Existing-B-41,Partner B,Existing,Test B,191.78,0,48,Branch,True,2026-10-20
+DEMO-B-Existing-B-42,Partner B,Existing,Test B,127.44,1,59,Online,True,2026-10-20
+DEMO-B-Existing-B-43,Partner B,Existing,Test B,130.2,0,51,Branch,True,2026-10-20
+DEMO-B-Existing-B-44,Partner B,Existing,Test B,183.68,0,50,Branch,True,2026-10-20
+DEMO-B-Existing-B-45,Partner B,Existing,Test B,191.7,0,42,Online,True,2026-10-20
+DEMO-B-Existing-B-46,Partner B,Existing,Test B,179.34,0,35,Online,True,2026-10-20
+DEMO-B-Existing-B-47,Partner B,Existing,Test B,122.74,0,39,Online,True,2026-10-20
+DEMO-B-Existing-B-48,Partner B,Existing,Test B,205.88,0,29,Online,True,2026-10-20
+DEMO-B-Existing-B-49,Partner B,Existing,Test B,156.64,0,64,Online,True,2026-10-20
+DEMO-B-Existing-B-50,Partner B,Existing,Test B,89.36,0,23,Online,True,2026-10-20
+DEMO-B-Existing-B-51,Partner B,Existing,Test B,128.13,0,37,Branch,True,2026-10-20
+DEMO-B-Existing-B-52,Partner B,Existing,Test B,146.28,0,45,Branch,True,2026-10-20
+DEMO-B-Existing-B-53,Partner B,Existing,Test B,136.37,0,44,Online,True,2026-10-20
+DEMO-B-Existing-B-54,Partner B,Existing,Test B,72.86,0,71,Online,True,2026-10-20
+DEMO-B-Existing-B-55,Partner B,Existing,Test B,210.03,0,26,Branch,True,2026-10-20
+DEMO-B-Existing-B-56,Partner B,Existing,Test B,228.4,0,58,Online,True,2026-10-20
+DEMO-B-Existing-B-57,Partner B,Existing,Test B,134.07,0,61,Branch,True,2026-10-20
+DEMO-B-Existing-B-58,Partner B,Existing,Test B,109.0,0,34,Branch,True,2026-10-20
+DEMO-B-Existing-B-59,Partner B,Existing,Test B,156.99,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-B-60,Partner B,Existing,Test B,103.5,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-B-61,Partner B,Existing,Test B,170.17,0,63,Online,True,2026-10-20
+DEMO-B-Existing-B-62,Partner B,Existing,Test B,75.83,0,65,Branch,True,2026-10-20
+DEMO-B-Existing-B-63,Partner B,Existing,Test B,88.92,0,24,Online,True,2026-10-20
+DEMO-B-Existing-B-64,Partner B,Existing,Test B,136.76,0,24,Online,True,2026-10-20
+DEMO-B-Existing-B-65,Partner B,Existing,Test B,153.39,1,41,Branch,True,2026-10-20
+DEMO-B-Existing-B-66,Partner B,Existing,Test B,137.82,1,42,Branch,True,2026-10-20
+DEMO-B-Existing-B-67,Partner B,Existing,Test B,196.93,0,44,Online,True,2026-10-20
+DEMO-B-Existing-B-68,Partner B,Existing,Test B,142.66,0,67,Online,True,2026-10-20
+DEMO-B-Existing-B-69,Partner B,Existing,Test B,123.66,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-B-70,Partner B,Existing,Test B,170.61,0,41,Online,True,2026-10-20
+DEMO-B-Existing-B-71,Partner B,Existing,Test B,139.53,0,58,Online,True,2026-10-20
+DEMO-B-Existing-B-72,Partner B,Existing,Test B,160.05,0,33,Branch,True,2026-10-20
+DEMO-B-Existing-B-73,Partner B,Existing,Test B,161.95,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-B-74,Partner B,Existing,Test B,226.23,0,50,Branch,True,2026-10-20
+DEMO-B-Existing-B-75,Partner B,Existing,Test B,160.93,0,21,Branch,True,2026-10-20
+DEMO-B-Existing-B-76,Partner B,Existing,Test B,152.4,0,44,Online,True,2026-10-20
+DEMO-B-Existing-B-77,Partner B,Existing,Test B,221.75,1,54,Branch,True,2026-10-20
+DEMO-B-Existing-B-78,Partner B,Existing,Test B,86.59,0,74,Branch,True,2026-10-20
+DEMO-B-Existing-B-79,Partner B,Existing,Test B,136.49,0,60,Online,True,2026-10-20
+DEMO-B-Existing-B-80,Partner B,Existing,Test B,129.68,0,49,Branch,True,2026-10-20
+DEMO-B-Existing-B-81,Partner B,Existing,Test B,176.55,0,37,Online,True,2026-10-20
+DEMO-B-Existing-B-82,Partner B,Existing,Test B,157.31,0,48,Online,True,2026-10-20
+DEMO-B-Existing-B-83,Partner B,Existing,Test B,204.33,0,34,Online,True,2026-10-20
+DEMO-B-Existing-B-84,Partner B,Existing,Test B,134.47,0,36,Online,True,2026-10-20
+DEMO-B-Existing-B-85,Partner B,Existing,Test B,81.63,0,72,Branch,True,2026-10-20
+DEMO-B-Existing-B-86,Partner B,Existing,Test B,159.89,0,25,Branch,True,2026-10-20
+DEMO-B-Existing-B-87,Partner B,Existing,Test B,99.9,1,73,Branch,True,2026-10-20
+DEMO-B-Existing-B-88,Partner B,Existing,Test B,157.71,1,70,Online,True,2026-10-20
+DEMO-B-Existing-B-89,Partner B,Existing,Test B,195.97,0,29,Online,True,2026-10-20
+DEMO-B-Existing-B-90,Partner B,Existing,Test B,127.55,0,43,Online,True,2026-10-20
+DEMO-B-Existing-B-91,Partner B,Existing,Test B,169.97,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-B-92,Partner B,Existing,Test B,191.3,0,26,Online,True,2026-10-20
+DEMO-B-Existing-B-93,Partner B,Existing,Test B,205.05,0,31,Branch,True,2026-10-20
+DEMO-B-Existing-B-94,Partner B,Existing,Test B,132.58,0,57,Branch,True,2026-10-20
+DEMO-B-Existing-B-95,Partner B,Existing,Test B,172.62,0,23,Branch,True,2026-10-20
+DEMO-B-Existing-B-96,Partner B,Existing,Test B,126.71,0,72,Branch,True,2026-10-20
+DEMO-B-Existing-B-97,Partner B,Existing,Test B,217.96,0,39,Branch,True,2026-10-20
+DEMO-B-Existing-B-98,Partner B,Existing,Test B,192.36,0,29,Branch,True,2026-10-20
+DEMO-B-Existing-B-99,Partner B,Existing,Test B,153.6,0,61,Branch,True,2026-10-20
+DEMO-B-Existing-B-100,Partner B,Existing,Test B,130.65,0,41,Branch,True,2026-10-20
+DEMO-B-Existing-B-101,Partner B,Existing,Test B,165.27,0,70,Online,True,2026-10-20
+DEMO-B-Existing-B-102,Partner B,Existing,Test B,144.69,0,52,Branch,True,2026-10-20
+DEMO-B-Existing-B-103,Partner B,Existing,Test B,186.83,0,28,Branch,True,2026-10-20
+DEMO-B-Existing-B-104,Partner B,Existing,Test B,167.52,0,57,Branch,True,2026-10-20
+DEMO-B-Existing-B-105,Partner B,Existing,Test B,185.51,0,25,Online,True,2026-10-20
+DEMO-B-Existing-B-106,Partner B,Existing,Test B,69.41,0,56,Branch,True,2026-10-20
+DEMO-B-Existing-B-107,Partner B,Existing,Test B,195.68,0,68,Branch,True,2026-10-20
+DEMO-B-Existing-B-108,Partner B,Existing,Test B,121.92,0,46,Branch,True,2026-10-20
+DEMO-B-Existing-B-109,Partner B,Existing,Test B,206.53,1,66,Online,True,2026-10-20
+DEMO-B-Existing-B-110,Partner B,Existing,Test B,210.7,0,37,Online,True,2026-10-20
+DEMO-B-Existing-B-111,Partner B,Existing,Test B,150.53,0,24,Online,True,2026-10-20
+DEMO-B-Existing-B-112,Partner B,Existing,Test B,132.54,0,50,Online,True,2026-10-20
+DEMO-B-Existing-B-113,Partner B,Existing,Test B,187.33,0,50,Online,True,2026-10-20
+DEMO-B-Existing-B-114,Partner B,Existing,Test B,192.23,0,73,Online,True,2026-10-20
+DEMO-B-Existing-B-115,Partner B,Existing,Test B,163.91,0,46,Online,True,2026-10-20
+DEMO-B-Existing-B-116,Partner B,Existing,Test B,134.36,0,67,Online,True,2026-10-20
+DEMO-B-Existing-B-117,Partner B,Existing,Test B,178.52,0,57,Branch,True,2026-10-20
+DEMO-B-Existing-B-118,Partner B,Existing,Test B,152.14,0,72,Online,True,2026-10-20
+DEMO-B-Existing-B-119,Partner B,Existing,Test B,161.3,0,74,Branch,True,2026-10-20
+DEMO-B-Existing-B-120,Partner B,Existing,Test B,142.11,0,32,Branch,True,2026-10-20
+DEMO-B-Existing-B-121,Partner B,Existing,Test B,192.21,0,59,Online,True,2026-10-20
+DEMO-B-Existing-B-122,Partner B,Existing,Test B,143.7,1,72,Branch,True,2026-10-20
+DEMO-B-Existing-B-123,Partner B,Existing,Test B,134.45,0,53,Online,True,2026-10-20
+DEMO-B-Existing-B-124,Partner B,Existing,Test B,224.29,0,42,Branch,True,2026-10-20
+DEMO-B-Existing-B-125,Partner B,Existing,Test B,155.07,0,60,Branch,True,2026-10-20
+DEMO-B-Existing-B-126,Partner B,Existing,Test B,250.12,1,72,Online,True,2026-10-20
+DEMO-B-Existing-B-127,Partner B,Existing,Test B,155.76,0,25,Online,True,2026-10-20
+DEMO-B-Existing-B-128,Partner B,Existing,Test B,131.68,0,33,Online,True,2026-10-20
+DEMO-B-Existing-B-129,Partner B,Existing,Test B,170.51,0,66,Branch,True,2026-10-20

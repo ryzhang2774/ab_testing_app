@@ -8,6 +8,13 @@ A business-first Streamlit application for planning, monitoring, analyzing, and 
 
 The interface is designed for desktop demos and business users. Each workflow starts with a visual data story, keeps the main path simple, and places technical controls inside advanced settings.
 
+**Customer Business V2 is now the default Customer workspace.** It provides a
+four-step setup, planning, monitoring and analysis flow, separate Partner and
+Segment dimensions, versioned sample plans, SRM / pre-treatment SMD diagnostics,
+and native PDF calculation memos. Existing Customer workflows remain available
+through **Classic workspace**. See [the V2 guide](docs/customer-v2/README.md) for
+input definitions, statistical methods, templates and Databricks persistence.
+
 ## What The Platform Does
 
 ### Experiment Command Center
@@ -23,7 +30,7 @@ The home page gives teams a shared view of the experiment portfolio:
 
 Saved experiments are stored locally in `.experiment_portfolio.json`. This file is intentionally ignored by Git.
 
-### Customer Experiments
+### Classic Customer Experiments
 
 Use this workflow for acquisition policy, proactive credit-line increase, offers, pricing, retention, messaging, card design, product experiences, and other customer-level strategies.
 

@@ -1,0 +1,9 @@
+"partner"	"segment"	"metric"	"sample_mean"	"sample_variance"	"sample_number"	"successes"
+"Partner A"	"New"	"revenue"	100.0	900.0	1200	""
+"Partner A"	"New"	"cancellation"	0.1	""	1200	120.0
+"Partner A"	"Existing"	"revenue"	120.0	1156.0	1200	""
+"Partner A"	"Existing"	"cancellation"	0.1	""	1200	120.0
+"Partner B"	"New"	"revenue"	125.0	1225.0	1200	""
+"Partner B"	"New"	"cancellation"	0.1	""	1200	120.0
+"Partner B"	"Existing"	"revenue"	145.0	1521.0	1200	""
+"Partner B"	"Existing"	"cancellation"	0.1	""	1200	120.0

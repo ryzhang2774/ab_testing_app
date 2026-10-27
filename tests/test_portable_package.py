@@ -22,6 +22,10 @@ def test_portable_package_contains_current_sources_and_replaces_latest(tmp_path)
         assert "ab_testing_app/start_windows.bat" in names
         assert "ab_testing_app/scripts/check_installation.py" in names
         assert "ab_testing_app/src/experiment_platform/customer_ui.py" in names
+        assert "ab_testing_app/src/experiment_platform/business_ui.py" in names
+        assert "ab_testing_app/src/experiment_platform/assets/fonts/BusinessSansSC-Regular.ttf" in names
+        assert "ab_testing_app/src/experiment_platform/assets/fonts/OFL.txt" in names
+        assert "ab_testing_app/docs/customer-v2/README.md" in names
         assert "ab_testing_app/tests/test_app_portability.py" in names
         assert not any(part in name for name in names for part in ["/.venv/", "/.git/", "/.experiment_portfolio.json", "/.env", "/__pycache__/"])
         assert archive.read("ab_testing_app/app.py") == (builder.ROOT / "app.py").read_bytes()

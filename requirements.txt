@@ -6,3 +6,5 @@ statsmodels==0.14.2
 plotly==5.23.0
 pytest==8.3.2
 pyarrow==25.0.1
+reportlab==4.4.9
+pypdf==6.10.0

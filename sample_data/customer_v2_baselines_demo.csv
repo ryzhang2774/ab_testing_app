@@ -1,0 +1,37 @@
+partner,segment,arm,feature,kind,category,sample_number,sample_mean,sample_variance,missing_rate
+Partner A,New,Control,baseline_age,Continuous,,140,47.81428571428572,223.9508735868448,0.0
+Partner A,New,Test A,baseline_age,Continuous,,130,45.93076923076923,246.2044722719141,0.0
+Partner A,New,Test B,baseline_age,Continuous,,130,44.776923076923076,240.11264162194394,0.0
+Partner A,Existing,Control,baseline_age,Continuous,,140,44.95,247.04064748201435,0.0
+Partner A,Existing,Test A,baseline_age,Continuous,,130,48.42307692307692,274.9591532498509,0.0
+Partner A,Existing,Test B,baseline_age,Continuous,,130,47.63076923076923,204.5292784734645,0.0
+Partner B,New,Control,baseline_age,Continuous,,140,45.77142857142857,229.80349434737923,0.0
+Partner B,New,Test A,baseline_age,Continuous,,130,46.02307692307692,230.68938580799045,0.0
+Partner B,New,Test B,baseline_age,Continuous,,130,48.63076923076923,211.35098389982107,0.0
+Partner B,Existing,Control,baseline_age,Continuous,,140,50.18571428571428,251.33216855087358,0.0
+Partner B,Existing,Test A,baseline_age,Continuous,,130,47.2,227.97519379844962,0.0
+Partner B,Existing,Test B,baseline_age,Continuous,,130,47.246153846153845,252.93118664281454,0.0
+Partner A,New,Control,baseline_channel,Categorical,Branch,140,0.4714285714285714,0.25097636176772864,0.0
+Partner A,New,Control,baseline_channel,Categorical,Online,140,0.5285714285714286,0.25097636176772864,0.0
+Partner A,New,Test A,baseline_channel,Categorical,Branch,130,0.5538461538461539,0.24901610017889086,0.0
+Partner A,New,Test A,baseline_channel,Categorical,Online,130,0.4461538461538462,0.24901610017889092,0.0
+Partner A,New,Test B,baseline_channel,Categorical,Branch,130,0.49230769230769234,0.2518783542039356,0.0
+Partner A,New,Test B,baseline_channel,Categorical,Online,130,0.5076923076923077,0.2518783542039356,0.0
+Partner A,Existing,Control,baseline_channel,Categorical,Branch,140,0.5071428571428571,0.2517471736896197,0.0
+Partner A,Existing,Control,baseline_channel,Categorical,Online,140,0.4928571428571429,0.2517471736896197,0.0
+Partner A,Existing,Test A,baseline_channel,Categorical,Branch,130,0.4461538461538462,0.24901610017889086,0.0
+Partner A,Existing,Test A,baseline_channel,Categorical,Online,130,0.5538461538461539,0.24901610017889086,0.0
+Partner A,Existing,Test B,baseline_channel,Categorical,Branch,130,0.5076923076923077,0.2518783542039356,0.0
+Partner A,Existing,Test B,baseline_channel,Categorical,Online,130,0.49230769230769234,0.2518783542039356,0.0
+Partner B,New,Control,baseline_channel,Categorical,Branch,140,0.5285714285714286,0.25097636176772864,0.0
+Partner B,New,Control,baseline_channel,Categorical,Online,140,0.4714285714285714,0.25097636176772864,0.0
+Partner B,New,Test A,baseline_channel,Categorical,Branch,130,0.5,0.25193798449612403,0.0
+Partner B,New,Test A,baseline_channel,Categorical,Online,130,0.5,0.25193798449612403,0.0
+Partner B,New,Test B,baseline_channel,Categorical,Branch,130,0.4846153846153846,0.2516994633273703,0.0
+Partner B,New,Test B,baseline_channel,Categorical,Online,130,0.5153846153846153,0.2516994633273703,0.0
+Partner B,Existing,Control,baseline_channel,Categorical,Branch,140,0.55,0.24928057553956828,0.0
+Partner B,Existing,Control,baseline_channel,Categorical,Online,140,0.45,0.2492805755395684,0.0
+Partner B,Existing,Test A,baseline_channel,Categorical,Branch,130,0.5,0.25193798449612403,0.0
+Partner B,Existing,Test A,baseline_channel,Categorical,Online,130,0.5,0.25193798449612403,0.0
+Partner B,Existing,Test B,baseline_channel,Categorical,Branch,130,0.4846153846153846,0.2516994633273703,0.0
+Partner B,Existing,Test B,baseline_channel,Categorical,Online,130,0.5153846153846153,0.2516994633273703,0.0

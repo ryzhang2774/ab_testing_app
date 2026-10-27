@@ -8,6 +8,7 @@ import streamlit as st
 from dataclasses import asdict, fields
 from datetime import datetime
 from src.experiment_platform.customer_ui import simple_customer_analysis
+from src.experiment_platform.business_ui import render_business_workspace
 
 from src.experiment_platform.customer import (
     adjusted_alpha,
@@ -1131,6 +1132,7 @@ def open_experiment_landing(experiment_type: str) -> None:
     st.session_state.main_page = experiment_type
     if experiment_type == "Customer":
         st.session_state.customer_intent = None
+        st.session_state.customer_workspace_interface = "Business workspace"
     elif experiment_type == "Geography":
         st.session_state.geo_intent = None
     else:
@@ -1339,6 +1341,8 @@ def save_current_workspace(experiment_type: str) -> dict:
 
 def restore_portfolio_experiment(experiment: dict) -> None:
     payload = experiment.get("config_payload") or {}
+    if experiment["type"] == "Customer":
+        st.session_state.customer_workspace_interface = "Classic workspace"
     if experiment["type"] == "Customer" and payload:
         _restore_dataclass(st.session_state.data_config, payload.get("data_config", {}))
         _restore_dataclass(st.session_state.data_mapping, payload.get("data_mapping", {}))
@@ -6186,7 +6190,7 @@ def customer_summary_step(intent: str) -> None:
             render_customer_evidence(results["Primary"], metric, f"{prefix}_chart_{group}")
 
 
-def customer_page() -> None:
+def classic_customer_page() -> None:
     intent = st.session_state.get("customer_intent")
     render_customer_shell(intent)
     st.markdown(
@@ -6229,6 +6233,17 @@ def customer_page() -> None:
         customer_group_analysis_step()
     else:
         analysis_step()
+
+
+def customer_page() -> None:
+    # Existing saved classic workspaces retain their route; fresh entry opens V2.
+    default = "Classic workspace" if st.session_state.get("customer_intent") and "business_v2" not in st.session_state else "Business workspace"
+    interface = st.sidebar.selectbox("Customer workspace", ["Business workspace", "Classic workspace"],
+                                    index=["Business workspace", "Classic workspace"].index(default), key="customer_workspace_interface")
+    if interface == "Business workspace":
+        render_business_workspace()
+    else:
+        classic_customer_page()
 
 
 init_state()

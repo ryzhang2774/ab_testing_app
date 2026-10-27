@@ -10,3 +10,5 @@ __pycache__/
 .experiment_portfolio.json
 .experiment_portfolio.json.tmp
 dist/
+.customer_protocols/
+tmp/

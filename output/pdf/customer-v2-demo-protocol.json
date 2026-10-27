@@ -1,0 +1,558 @@
+{
+  "schema_version": 2,
+  "version": 1,
+  "saved_at": "2026-10-26T21:08:06+00:00",
+  "config": {
+    "schema_version": 2,
+    "experiment_id": "customer-business-v2-demo",
+    "synthetic": true,
+    "name": "Partner growth experiment",
+    "owner": "Growth team",
+    "question": "Does a simpler offer increase revenue without increasing cancellations?",
+    "unit": "Customer",
+    "start_date": "2026-10-26",
+    "max_recruitment_weeks": 12,
+    "eligible_per_week": 2500.0,
+    "window_days": 28,
+    "maturity_delay_days": 0,
+    "decision_scope": "Overall",
+    "arms": [
+      {
+        "name": "Control",
+        "definition": "Current offer",
+        "role": "Control"
+      },
+      {
+        "name": "Test A",
+        "definition": "Simplified offer",
+        "role": "Test"
+      },
+      {
+        "name": "Test B",
+        "definition": "Simplified offer with reminder",
+        "role": "Test"
+      }
+    ],
+    "metrics": [
+      {
+        "name": "revenue",
+        "role": "Primary",
+        "type": "Continuous",
+        "unit": "currency / customer",
+        "definition": "Total per randomized customer over the observation window",
+        "window_days": 28,
+        "direction": "Higher",
+        "effect": 5.0,
+        "effect_scale": "Relative %",
+        "margin": 0.0,
+        "alert_threshold": 0.0,
+        "include_in_plan": true
+      },
+      {
+        "name": "cancellation",
+        "role": "Guardrail",
+        "type": "Binary",
+        "unit": "rate (0 to 1)",
+        "definition": "Cancellation within 28 days per randomized customer",
+        "window_days": 28,
+        "direction": "Lower",
+        "effect": 1.0,
+        "effect_scale": "Percentage points",
+        "margin": 0.03,
+        "alert_threshold": 0.02,
+        "include_in_plan": true
+      }
+    ],
+    "alpha": 0.05,
+    "power": 0.8,
+    "multiplicity": true,
+    "attrition": 0.0,
+    "srm_alpha": 0.001,
+    "smd_threshold": 0.1,
+    "allocation": "Recommended",
+    "fixed_shares": {},
+    "test_sd_multipliers": {},
+    "assumption_only": false,
+    "historical_start": "",
+    "historical_end": "",
+    "weights": [
+      {
+        "partner": "Partner A",
+        "segment": "New",
+        "weight": 0.25
+      },
+      {
+        "partner": "Partner A",
+        "segment": "Existing",
+        "weight": 0.25
+      },
+      {
+        "partner": "Partner B",
+        "segment": "New",
+        "weight": 0.25
+      },
+      {
+        "partner": "Partner B",
+        "segment": "Existing",
+        "weight": 0.25
+      }
+    ],
+    "baseline_types": {},
+    "design": "Fixed horizon"
+  },
+  "config_fingerprint": "b224399aed519178fb3e87d8c66c355911e429557767faed2058115bba182b3d",
+  "history": [
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "revenue",
+      "sample_mean": 100.0,
+      "sample_variance": 900.0,
+      "sample_number": 1200,
+      "successes": null,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "cancellation",
+      "sample_mean": 0.1,
+      "sample_variance": 0.09007506255212679,
+      "sample_number": 1200,
+      "successes": 120.0,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "revenue",
+      "sample_mean": 120.0,
+      "sample_variance": 1156.0,
+      "sample_number": 1200,
+      "successes": null,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "sample_mean": 0.1,
+      "sample_variance": 0.09007506255212679,
+      "sample_number": 1200,
+      "successes": 120.0,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "revenue",
+      "sample_mean": 125.0,
+      "sample_variance": 1225.0,
+      "sample_number": 1200,
+      "successes": null,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "cancellation",
+      "sample_mean": 0.1,
+      "sample_variance": 0.09007506255212679,
+      "sample_number": 1200,
+      "successes": 120.0,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "revenue",
+      "sample_mean": 145.0,
+      "sample_variance": 1521.0,
+      "sample_number": 1200,
+      "successes": null,
+      "arm": "Control"
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "sample_mean": 0.1,
+      "sample_variance": 0.09007506255212679,
+      "sample_number": 1200,
+      "successes": 120.0,
+      "arm": "Control"
+    }
+  ],
+  "weights": [
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "weight": 0.25
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "weight": 0.25
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "weight": 0.25
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "weight": 0.25
+    }
+  ],
+  "data_fingerprint": "6db1f0a135c8fb72cc56d20247cd1193da534f518d18d0d12c13555e438dbaec",
+  "code_version": "customer-v2-sha256:22a48312d3977f1fa7ce93127e4d1d4909fe104bb255b0eb94104a9d03f2cf0a",
+  "runtime_versions": {
+    "python": "3.11.15",
+    "numpy": "1.26.4",
+    "pandas": "2.2.2",
+    "scipy": "1.13.1",
+    "statsmodels": "0.14.2",
+    "streamlit": "1.39.0",
+    "reportlab": "4.4.9"
+  },
+  "targets": [
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "arm": "Control",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "arm": "Control",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "arm": "Control",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.33373205741626794
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "arm": "Control",
+      "analyzable_n": 557,
+      "recruitment_n": 557,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "arm": "Test A",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "arm": "Test A",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "arm": "Test A",
+      "analyzable_n": 557,
+      "recruitment_n": 557,
+      "scope": "Overall",
+      "expected_share": 0.333133971291866
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "arm": "Test A",
+      "analyzable_n": 557,
+      "recruitment_n": 557,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner A",
+      "segment": "New",
+      "arm": "Test B",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner A",
+      "segment": "Existing",
+      "arm": "Test B",
+      "analyzable_n": 558,
+      "recruitment_n": 558,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    },
+    {
+      "partner": "Partner B",
+      "segment": "New",
+      "arm": "Test B",
+      "analyzable_n": 557,
+      "recruitment_n": 557,
+      "scope": "Overall",
+      "expected_share": 0.333133971291866
+    },
+    {
+      "partner": "Partner B",
+      "segment": "Existing",
+      "arm": "Test B",
+      "analyzable_n": 557,
+      "recruitment_n": 557,
+      "scope": "Overall",
+      "expected_share": 0.3333333333333333
+    }
+  ],
+  "arm_totals": [
+    {
+      "arm": "Control",
+      "analyzable_n": 2231,
+      "recruitment_n": 2231
+    },
+    {
+      "arm": "Test A",
+      "analyzable_n": 2230,
+      "recruitment_n": 2230
+    },
+    {
+      "arm": "Test B",
+      "analyzable_n": 2230,
+      "recruitment_n": 2230
+    }
+  ],
+  "comparisons": [
+    {
+      "scope": "Overall",
+      "metric": "revenue",
+      "role": "Primary",
+      "test": "Test A",
+      "control": "Control",
+      "control_n": 2231,
+      "test_n": 2230,
+      "baseline": 122.5,
+      "detectable_change_or_margin": 6.125,
+      "planning_alpha": 0.0125,
+      "power": 0.9996671229670835,
+      "normal_cells_adequate": true,
+      "variance_of_difference": 1.0765748972027567,
+      "degrees_of_freedom": 4304.70060353468
+    },
+    {
+      "scope": "Overall",
+      "metric": "revenue",
+      "role": "Primary",
+      "test": "Test B",
+      "control": "Control",
+      "control_n": 2231,
+      "test_n": 2230,
+      "baseline": 122.5,
+      "detectable_change_or_margin": 6.125,
+      "planning_alpha": 0.0125,
+      "power": 0.9996671229670835,
+      "normal_cells_adequate": true,
+      "variance_of_difference": 1.0765748972027567,
+      "degrees_of_freedom": 4304.70060353468
+    },
+    {
+      "scope": "Overall",
+      "metric": "cancellation",
+      "role": "Guardrail",
+      "test": "Test A",
+      "control": "Control",
+      "control_n": 2231,
+      "test_n": 2230,
+      "baseline": 0.1,
+      "detectable_change_or_margin": 0.03,
+      "planning_alpha": 0.0125,
+      "power": 0.8000582070422385,
+      "normal_cells_adequate": true,
+      "variance_of_difference": 8.06994556089651e-05,
+      "degrees_of_freedom": 4452.986538046334
+    },
+    {
+      "scope": "Overall",
+      "metric": "cancellation",
+      "role": "Guardrail",
+      "test": "Test B",
+      "control": "Control",
+      "control_n": 2231,
+      "test_n": 2230,
+      "baseline": 0.1,
+      "detectable_change_or_margin": 0.03,
+      "planning_alpha": 0.0125,
+      "power": 0.8000582070422385,
+      "normal_cells_adequate": true,
+      "variance_of_difference": 8.06994556089651e-05,
+      "degrees_of_freedom": 4452.986538046334
+    }
+  ],
+  "pairwise": [
+    {
+      "scope": "Overall",
+      "test": "Test A",
+      "pair_control_n": 2231,
+      "pair_test_n": 2231,
+      "neyman_ratio": 1.0
+    },
+    {
+      "scope": "Overall",
+      "test": "Test B",
+      "pair_control_n": 2231,
+      "pair_test_n": 2231,
+      "neyman_ratio": 1.0
+    }
+  ],
+  "variance_assumptions": [
+    {
+      "arm": "Test A",
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test A",
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner A",
+      "segment": "Existing",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner A",
+      "segment": "New",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner B",
+      "segment": "Existing",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "cancellation",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    },
+    {
+      "arm": "Test B",
+      "partner": "Partner B",
+      "segment": "New",
+      "metric": "revenue",
+      "source": "Control variance × 1² (assumed Test SD multiplier)"
+    }
+  ],
+  "family_size": 4,
+  "planning_alpha": 0.0125,
+  "recruitment_weeks": 2.6764,
+  "recruitment_end": "2026-11-14",
+  "earliest_readout": "2026-12-12",
+  "within_max_duration": true,
+  "limitations": [
+    "Power uses plug-in historical moments and an approximate fixed-weight stratified Welch / normal model; historical parameter uncertainty is not fully propagated.",
+    "Target power applies to each planned comparison, not to simultaneous success of every metric or arm.",
+    "Pairwise Neyman with shared control is intuitive and verified, but is not a global minimum-total-sample optimization.",
+    "Recruitment dates assume stable eligible traffic and adequate recruitment in every selected stratum.",
+    "Fixed-horizon inference: repeated monitoring does not authorize early efficacy stopping.",
+    "Binary planning assumes a common absolute risk difference across strata at the design alternative, or zero true difference for Guardrail non-inferiority power; rates are never silently clipped.",
+    "The historical period was not fully supplied. Confirm the source is representative and uses the configured metric observation windows."
+  ],
+  "estimator": "Fixed-weight Partner × Segment mean difference; variance = sum(w² s²/n); Welch-Satterthwaite df. Binary: fixed-weight risk difference with normal inference when adequate, exact per-cell fallback."
+}

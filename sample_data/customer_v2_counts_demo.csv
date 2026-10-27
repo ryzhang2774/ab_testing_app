@@ -1,0 +1,13 @@
+partner,segment,arm,assigned_n,mature_n
+Partner A,New,Control,140,140
+Partner A,New,Test A,130,130
+Partner A,New,Test B,130,130
+Partner A,Existing,Control,140,140
+Partner A,Existing,Test A,130,130
+Partner A,Existing,Test B,130,130
+Partner B,New,Control,140,140
+Partner B,New,Test A,130,130
+Partner B,New,Test B,130,130
+Partner B,Existing,Control,140,140
+Partner B,Existing,Test A,130,130
+Partner B,Existing,Test B,130,130

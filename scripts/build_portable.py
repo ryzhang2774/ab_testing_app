@@ -19,6 +19,14 @@ def package_files(root: Path) -> list[Path]:
     for directory in ("src", "tests", "scripts"):
         files.extend((root / directory).rglob("*.py"))
     files.extend((root / "sample_data").rglob("*.csv"))
+    files.extend((root / "sample_data").rglob("*.tsv"))
+    # PDF generation must not depend on fonts installed on the Windows host.
+    assets = root / "src" / "experiment_platform" / "assets"
+    if assets.exists():
+        files.extend(path for path in assets.rglob("*") if path.is_file() and path.suffix in {".ttf", ".txt", ".md"})
+    guides = root / "docs" / "customer-v2"
+    if guides.exists():
+        files.extend(path for path in guides.rglob("*") if path.is_file() and path.suffix in {".md", ".png"})
     missing = [str(path.relative_to(root)) for path in files if not path.is_file()]
     if missing:
         raise ValueError("Required package files are missing: " + ", ".join(missing))
