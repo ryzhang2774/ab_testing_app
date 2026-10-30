@@ -1,141 +1,121 @@
-"""Business-facing three-column customer result workflow."""
-from datetime import datetime
+"""Business-facing customer results: one dataset, overall and segment views."""
+from html import escape
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 import streamlit as st
 
-from .core import MetricConfig, normalize_uploaded_dataset
-from .customer import analyze_customer_records
-from .portfolio import configuration_fingerprint
-from .timeseries import humanize_column_name
+
+
+def _p_text(p):
+    return '<0.001' if p < .001 else f'{p:.3f}'
+
+
+def average_chart(result, comparisons, binary, metric, control, colors, patterns):
+    """Display average outcomes and the CI for each Test-Control difference.
+
+    Difference intervals are shifted by the observed Control mean onto the
+    average-outcome axis; they are not confidence intervals for each mean.
+    """
+    rows = result.sort_values('Mean / Rate', kind='stable')
+    scale = 100 if binary else 1
+    labels = rows['Credit Line'].astype(str).tolist()
+    means = rows['Mean / Rate'].to_numpy(dtype=float) * scale
+    control_mean = float(rows.loc[rows['Is Control'], 'Mean / Rate'].iloc[0])
+    lookup = comparisons.set_index('Test option')
+    fig = go.Figure(go.Bar(x=labels, y=means,
+        marker=dict(color=[colors[name] for name in labels], pattern_shape=[patterns[name] for name in labels]),
+        customdata=np.stack([rows['N'], ['Control' if x == control else 'Test' for x in labels]], axis=-1),
+        hovertemplate='%{x} (%{customdata[1]})<br>Average: %{y:.2f}<br>Customers: %{customdata[0]}<extra></extra>',
+        showlegend=False))
+    annotation_text, annotation_y, all_bounds = [], [], list(means) + [0.0]
+    for name, mean in zip(labels, means):
+        if name == control:
+            annotation_text.append(f'Control<br>Average {mean:,.2f}')
+            annotation_y.append(mean)
+            continue
+        comparison = lookup.loc[name]
+        low = (control_mean + float(comparison['CI lower'])) * scale
+        high = (control_mean + float(comparison['CI upper'])) * scale
+        all_bounds += [low, high]
+        lift = float(comparison['Difference']) / control_mean * 100 if control_mean > 0 else None
+        lift_text = f'Lift {lift:+,.1f}%' if lift is not None and np.isfinite(lift) else 'Lift unavailable'
+        significance = 'Significant' if comparison['Significant'] else 'Not significant'
+        annotation_text.append(f'Average {mean:,.2f}<br>{lift_text}<br>p {_p_text(comparison["Adjusted p-value"])}<br>{significance}')
+        annotation_y.append(max(mean, high))
+        fig.add_trace(go.Scatter(x=[name, name], y=[low, high], mode='lines+markers',
+            line=dict(color='#334e5d', width=2), marker=dict(symbol='line-ew', size=10, color='#334e5d'),
+            hovertemplate='Comparison interval (shifted): %{y:.2f}<extra></extra>', showlegend=False))
+    ymin, ymax = min(all_bounds), max(all_bounds)
+    span = max(ymax-ymin, abs(ymax)*.1, 1.)
+    fig.add_hline(y=control_mean * scale, line_dash='dot', line_color='#92a5af', line_width=1,
+                  annotation_text='Control average', annotation_position='top left')
+    fig.add_trace(go.Scatter(x=labels, y=[v + span*.025 for v in annotation_y], text=annotation_text,
+                             mode='text', textposition='top center', textfont=dict(size=11, color='#334e5d'),
+                             hoverinfo='skip', showlegend=False))
+    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=75),
+        xaxis=dict(title='Assigned strategy', categoryorder='array', categoryarray=labels),
+        yaxis_title='Rate (%)' if binary else str(metric), plot_bgcolor='white', paper_bgcolor='white')
+    fig.update_yaxes(gridcolor='#e5eef2', range=[ymin-span*.06, ymax+span*.42])
+    return fig
+
+
+def _result_rows(result, scope, metric_type, frame, arm_col, outcome_col, control, group_col, alpha):
+    control_row = result[result['Is Control']].iloc[0]
+    rows = []
+    for _, row in result[~result['Is Control']].iterrows():
+        if 'Method' in row and isinstance(row['Method'], str):
+            method = row['Method']
+        elif metric_type == 'Continuous':
+            method = 'Welch t-test'
+        else:
+            pair = frame[frame[arm_col].astype(str).str.strip().isin([control, str(row['Credit Line'])])]
+            if scope != 'Overall' and group_col:
+                pair = pair[pair[group_col].astype(str) == scope]
+            rate = pd.to_numeric(pair[outcome_col], errors='coerce').mean()
+            counts = pair.groupby(arm_col).size()
+            method = 'Fisher exact test' if len(counts) < 2 or min(counts.min()*rate, counts.min()*(1-rate)) < 5 else 'Two-proportion z-test'
+        rows.append({'Scope':scope, 'Test option':row['Credit Line'], 'Control N':int(control_row['N']), 'Test N':int(row['N']),
+                     'Control mean / rate':control_row['Mean / Rate'], 'Test mean / rate':row['Mean / Rate'],
+                     'Difference':row['Effect vs Control'], 'CI lower':row['CI Lower'], 'CI upper':row['CI Upper'],
+                     'Test statistic':row['Statistic'], 'Raw p-value':row['Raw p-value'], 'Adjusted p-value':row['Adjusted p-value'],
+                     'Significant':bool(row['Adjusted p-value'] < alpha), 'Method':method})
+    return pd.DataFrame(rows).sort_values('Test option', kind='stable').reset_index(drop=True)
+
+
+def render_decision_card(insight):
+    insight_rows = ''.join(
+        '<div class="insight-row"><div class="insight-option">' + escape(item['test']) + '</div>'
+        '<span class="insight-badge ' + escape(item['tone']) + '">' + escape(item['status']) + '</span>'
+        '<div class="insight-detail">' + escape(item['detail']) + '</div></div>'
+        for item in insight['comparisons']
+    )
+    observations = ''.join('<p class="insight-observation">' + escape(item) + '</p>' for item in insight['observations'])
+    st.markdown(
+        '<style>'
+        '.insight-card{border:1px solid #d1e4ed;border-radius:10px;background:#f7fbfd;padding:1.2rem 1.35rem;margin:.3rem 0 1rem;color:#153449}'
+        '.insight-heading{display:flex;align-items:center;gap:.65rem;color:#006b9b;font-size:.85rem;font-weight:750;letter-spacing:.02em}'
+        '.insight-sparkle{display:grid;place-items:center;width:2rem;height:2rem;border-radius:8px;background:#d9f2fc;font-size:1.1rem}'
+        '.insight-summary{margin:.8rem 0 1rem;line-height:1.55;color:#153449;font-size:.93rem}'
+        '.insight-row{display:flex;align-items:center;gap:.65rem;flex-wrap:wrap;border-top:1px solid #e0edf2;padding:.7rem 0}'
+        '.insight-option{font-weight:700;min-width:10rem;color:#153449}.insight-detail{font-size:.84rem;color:#526a79;flex:1;min-width:13rem}'
+        '.insight-badge{font-size:.69rem;font-weight:700;padding:.22rem .5rem;border-radius:20px;background:#e9eff2;color:#526a79}'
+        '.insight-badge.positive{background:#e0f3ee;color:#11675b}.insight-badge.negative{background:#fbeae8;color:#a03b32}'
+        '.insight-observation{border-top:1px solid #e0edf2;padding:.8rem 0 0;margin:.15rem 0 0;color:#36596c;font-size:.84rem}'
+        '</style><div class="insight-card"><div class="insight-heading"><span class="insight-sparkle">✦</span> RESULT INSIGHTS</div>'
+        '<p class="insight-summary">' + escape(insight['primary']) + '</p>' + insight_rows + observations + '</div>',
+        unsafe_allow_html=True,
+    )
 
 
 def simple_customer_analysis(render_evidence) -> None:
     st.session_state.customer_analysis_is_current = False
-    st.markdown("**Analyze a test with just three columns**")
-    st.caption("ID = one randomized customer/account · Arm = assigned option · Outcome = actual result over the same observation window. Every option is compared with your chosen control.")
-    template = "ID,Arm,Outcome\nC001,Control,100\nC002,Control,110\nC003,Option A,115\nC004,Option A,120\nC005,Option B,108\nC006,Option B,125\n"
-    st.download_button("Download 3-column CSV template", template, "customer_results_template.csv", "text/csv", key="simple_template")
-    source = st.radio("Result source", ["Upload CSV", "Try an example"], horizontal=True, key="simple_source")
-    if source == "Upload CSV":
-        uploaded = st.file_uploader("Upload ID, arm label, and actual outcome", type=["csv"], key="simple_upload")
-        if uploaded is None:
-            st.info("Only three columns are required. For conversion or retention, use Outcome = 1 for yes and 0 for no. Add Partner only if you want separate Partner results.")
-            return
-        try:
-            # IDs and numeric-looking labels are identifiers, not quantities.
-            # Preserve leading zeroes; only the outcome is converted later.
-            frame = normalize_uploaded_dataset(pd.read_csv(uploaded, dtype=str))
-        except (ValueError, UnicodeError, pd.errors.ParserError) as exc:
-            st.error(f"Could not read this CSV: {exc}")
-            return
-    else:
-        rng = np.random.default_rng(42)
-        frame = pd.DataFrame({"ID": [f"C{i:04d}" for i in range(600)],
-                              "Arm": np.repeat(["Control", "Option A", "Option B"], 200),
-                              "Outcome": np.concatenate([rng.normal(mean, sd, 200) for mean, sd in [(100, 20), (108, 25), (101, 30)]])})
-        st.info("Example results — these are synthetic customers, not live business data.")
-    if len(frame.columns) < 3 or frame.empty:
-        st.error("Provide a non-empty CSV with ID, arm label, and actual outcome columns.")
+    st.markdown('### Analyze results')
+    st.caption('Compare randomized Control and Test strategies using experiment results.')
+    source = st.radio('Data source', ['Upload file', 'Databricks', 'Synthetic demo'], index=2, horizontal=True, key='simple_source')
+    if source == 'Databricks':
+        st.info('Databricks is not connected yet. Choose Upload file or Synthetic demo to continue.')
         return
-    columns = list(frame.columns)
-    saved = st.session_state.get("customer_simple_settings", {})
-    def guess(names, fallback):
-        return next((col for name in names for col in columns if col.lower() == name), fallback)
-    id_col = guess(["id", "customer_id", "account_id", "user_id"], columns[0])
-    arm_col = guess(["arm", "label", "treatment", "group", "assigned_treatment"], columns[1])
-    outcome_col = guess(["outcome", "value", "result", "actual", "revenue", "conversion"], columns[2])
-    id_col = saved.get("id_column") if saved.get("id_column") in columns else id_col
-    arm_col = saved.get("arm_column") if saved.get("arm_column") in columns else arm_col
-    outcome_col = saved.get("outcome_column") if saved.get("outcome_column") in columns else outcome_col
-    design = st.session_state.design_config
-    with st.expander("Column mapping and advanced settings", expanded=False):
-        a, b, c = st.columns(3)
-        id_col = a.selectbox("ID column", columns, index=columns.index(id_col), key="simple_id")
-        arm_col = b.selectbox("Arm label column", columns, index=columns.index(arm_col), key="simple_arm")
-        outcome_col = c.selectbox("Actual outcome column", columns, index=columns.index(outcome_col), key="simple_outcome")
-        partner_options = ["No separate Partner analysis"] + [col for col in columns if col not in {id_col, arm_col, outcome_col}]
-        partner = st.selectbox("Optional Partner column", partner_options, index=partner_options.index(saved["partner_column"]) if saved.get("partner_column") in partner_options else 0, key="simple_partner")
-        metric_type = st.selectbox("Outcome type", ["Auto", "Continuous", "Binary"], index=["Auto", "Continuous", "Binary"].index(saved.get("metric_type", "Auto")), key="simple_type")
-        direction = st.selectbox("Better outcome", ["Higher is Better", "Lower is Better"], index=1 if saved.get("direction") == "Lower is Better" else 0, key="simple_direction")
-        alpha = st.number_input("False-positive rate", min_value=.001, max_value=.2, value=float(design.alpha), key="simple_alpha")
-        protection = st.selectbox("Comparison protection", ["Holm", "None"], index=0 if design.multiplicity_method == "Holm" else 1, key="simple_protection")
-        joint = st.checkbox("Protect one decision across all Partner comparisons", value=True, key="simple_joint")
-    labels = frame[arm_col].dropna().astype(str).str.strip().drop_duplicates().tolist()
-    if len(labels) < 2:
-        st.error("Provide at least two arm labels: a control and one test option.")
-        return
-    preferred = next((label for label in labels if label.lower() in {"control", "bau", "current"}), labels[0])
-    preferred = saved["control"] if saved.get("control") in labels else preferred
-    control = st.selectbox("Which label is the current / control experience?", labels, index=labels.index(preferred), key="simple_control")
-    outcome_name = st.text_input("Business outcome name", value=saved.get("outcome_name", humanize_column_name(outcome_col)), key="simple_name")
-    st.caption(f"Detected: {len(frame):,} records · {len(labels) - 1} test options versus {control}. Confirm that assignment was randomized; three columns cannot prove randomization or equal Partner mix.")
-    expected = None
-    planned = design.arm_sample_sizes
-    matching_plan = all(float(planned.get(label, 0)) > 0 for label in labels)
-    allocation_key = configuration_fingerprint({"labels": labels, "plan": planned})[:10]
-    with st.expander("Check planned traffic allocation (optional)", expanded=False):
-        check_allocation = st.checkbox("I have a planned traffic split", value=matching_plan, key=f"simple_check_allocation_{allocation_key}")
-        st.caption("Use the intended randomization split, not the observed split. Without it, allocation health is left unchecked.")
-        if check_allocation:
-            expected = {}
-            total = sum(float(planned.get(label, 0)) for label in labels) if matching_plan else len(labels)
-            for index, label in enumerate(labels):
-                value = float(planned[label]) / total if matching_plan else 1 / len(labels)
-                expected[label] = st.number_input(f"{label}: planned traffic (%)", min_value=.001, max_value=100., value=100 * value, key=f"simple_share_{allocation_key}_{index}")
-            if not np.isclose(sum(expected.values()), 100, atol=.1):
-                st.error("Planned traffic percentages must total 100%.")
-                return
-    settings = dict(id_column=id_col, arm_column=arm_col, outcome_column=outcome_col,
-                    control=control, alpha=alpha, metric_type=metric_type,
-                    multiplicity_method=protection, partner_column=None if partner == partner_options[0] else partner,
-                    joint_decision=joint, expected_shares=expected)
-    fingerprint = configuration_fingerprint({"data": frame.to_json(orient="split"), "settings": settings, "outcome": outcome_name, "direction": direction})
-    current = st.session_state.get("simple_fingerprint") == fingerprint
-    if st.button("Calculate Results", type="primary", key="simple_calculate"):
-        try:
-            results, audit = analyze_customer_records(frame, **settings)
-        except ValueError as exc:
-            st.error(str(exc))
-            return
-        st.session_state.simple_results = results
-        st.session_state.simple_audit = audit
-        st.session_state.simple_timestamp = datetime.now().isoformat(timespec="seconds")
-        st.session_state.simple_fingerprint = fingerprint
-        current = True
-    if not current:
-        if st.session_state.get("simple_fingerprint"):
-            st.warning("Inputs changed. Calculate again to update the result.")
-        return
-    results, audit = st.session_state.simple_results, st.session_state.simple_audit
-    metric = MetricConfig(outcome_name, outcome_col, "Primary", metric_type=audit["metric_type"], direction=direction)
-    design.alpha, design.multiplicity_method = alpha, protection
-    design.audience_decision_scope = "One joint decision across audiences" if joint else "Separate decision per audience"
-    st.session_state.metrics_config = {"Primary": metric}
-    st.session_state.group_analysis_results = {group: {"Primary": result} for group, result in results.items()}
-    st.session_state.analysis_results_by_role = {"Primary": next(iter(results.values()))}
-    st.session_state.customer_analysis_timestamp = st.session_state.simple_timestamp
-    st.session_state.customer_analysis_mode = "Simple results"
-    st.session_state.customer_analysis_is_current = True
-    st.session_state.customer_evidence_note = "Customer records checked; confirm randomized assignment, outcome maturity, and Partner balance before acting"
-    st.session_state.customer_simple_settings = {**settings, "outcome_name": outcome_name, "direction": direction}
-    health = pd.DataFrame(audit["health"])
-    st.markdown("**Data checks**")
-    st.success(f"{audit['accounts']:,} unique IDs · numeric outcomes complete · at least two accounts per option")
-    st.dataframe(health, hide_index=True, use_container_width=True)
-    if (health["Allocation check"] == "Review").any():
-        st.warning("Observed allocation differs from the planned split. Investigate assignment and missing customers before using these effects for a decision.")
-    combined = []
-    for index, (group, result) in enumerate(results.items()):
-        st.markdown(f"**{group} · What changed?**")
-        for _, row in result[~result["Is Control"]].iterrows():
-            sign = 1 if direction == "Higher is Better" else -1
-            low, high = sorted([sign * row["CI Lower"], sign * row["CI Upper"]])
-            status = "Evidence of improvement" if low > 0 and row["Significant"] else "Evidence of worse outcomes" if high < 0 and row["Significant"] else "Evidence is not sufficient to establish a difference"
-            scale, unit = (100, " percentage points") if metric.metric_type == "Binary" else (1, " outcome units")
-            st.write(f"**{row['Credit Line']}**: {status}. Difference from {control}: {row['Effect vs Control'] * scale:+,.2f}{unit}; uncertainty range {row['CI Lower'] * scale:+,.2f} to {row['CI Upper'] * scale:+,.2f}.")
-        render_evidence(result, metric, f"simple_evidence_{index}")
-        combined.append(result.assign(Partner=group))
-    st.caption("An inconclusive result does not prove no effect. Check the planned sample target and observation window before considering more data. Repeated early checks require a separately reviewed sequential-testing plan.")
-    st.download_button("Download analysis results", pd.concat(combined).to_csv(index=False), "customer_analysis_results.csv", "text/csv", key="simple_results_download")
+    from .customer_summary_ui import render_summary_analysis
+    render_summary_analysis(source)

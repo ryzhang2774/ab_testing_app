@@ -16,3 +16,8 @@ Asset SHA-256:
 
 This covers Latin and common Simplified Chinese input. Unsupported scripts or
 rare CJK extension characters should be checked before sharing a report.
+
+`DejaVuSans.ttf` is bundled separately for mathematical expressions (including
+summation and square root symbols). It is distributed under the Bitstream Vera
+license in `DejaVuSans-LICENSE.txt`; DejaVu changes are in the public domain.
+Source: https://dejavu-fonts.github.io/; bundled copy from the local Poppler runtime.

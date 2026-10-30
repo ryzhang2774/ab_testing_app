@@ -1,43 +1,42 @@
 """Single customer planning flow using explicit historical strategy statistics."""
 from __future__ import annotations
 
-from io import BytesIO, StringIO
-import json
-from pathlib import Path
+from io import BytesIO
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
-from reportlab.lib.pagesizes import A4
-from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, KeepTogether
-from reportlab.lib import colors
-from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from xml.sax.saxutils import escape
 
 from .business_config import control_name, default_config, fingerprint
 from .business_data import canonical, read_table
 from .business_plan import build_plan
 from .business_store import code_fingerprint
+from .customer_demo import historical_demo
+from .customer_palette import STRATEGY_COLORS, strategy_styles
 from .portfolio import load_experiments, upsert_experiment
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
-
-
 def demo_data():
-    rows = []
-    for partner, shift in [('Holland', 0), ('PriceLine', 120), ('Princess', 220), ('Carnival', 300)]:
-        for i, fico in enumerate(['FICO 650–699', 'FICO 700–749', 'FICO 750+']):
-            for k, pd_group in enumerate(['PD low', 'PD medium', 'PD high']):
-                for j, strategy in enumerate(['Credit line 1000', 'Credit line 2000', 'Credit line 3000']):
-                    for metric, mean, sd in [
-                        ('Revolving Balance', 1100+shift+100*i-80*k+100*j, 300+20*i+10*k+20*j),
-                        ('RAR', 120+shift/20+10*i-8*k+5*j, 45+3*i+2*k+3*j),
-                        ('NCL', 35+shift/50-4*i+10*k+5*j, 20+2*i+3*k+2*j),
-                    ]:
-                        rows.append([partner, fico, pd_group, strategy, metric, mean, sd**2, 200+25*i+20*k+15*j])
-    return pd.DataFrame(rows, columns=COLUMNS)
+    return historical_demo()
+
+
+def historical_metric_chart(data, grouping, primary, options):
+    """Compare ordered options within each Partner and segment, keeping gaps visible."""
+    partners = list(data.partner.unique())
+    segments = list(data.segment.unique())
+    index = pd.MultiIndex.from_product([partners, segments, options], names=['partner', 'segment', 'strategy'])
+    rows = data.set_index(['partner', 'segment', 'strategy']).reindex(index).reset_index()
+    fig = px.line(rows, x='strategy', y='sample_mean', color='segment', line_group='segment',
+                  facet_col='partner', facet_col_wrap=2, markers=True,
+                  category_orders={'strategy': options, 'segment': segments, 'partner': partners},
+                  labels={'strategy': 'Control and Test options', 'segment': grouping,
+                          'sample_mean': f'{primary} historical mean', 'partner': 'Partner'},
+                  color_discrete_sequence=STRATEGY_COLORS)
+    fig.update_traces(connectgaps=False)
+    fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
+    fig.update_layout(height=360 if len(partners) <= 2 else 590, margin=dict(t=40, b=70, l=30, r=20),
+                      legend_title_text=grouping)
+    return fig
 
 
 def _canonical_input(frame, default_metric='Primary metric'):
@@ -60,12 +59,33 @@ def grouping_columns(frame):
         if col in reserved or col.endswith('_id') or col == 'id':
             continue
         series = d[col].dropna()
-        # Do not treat continuous scores or customer IDs as arbitrary categories.
-        if len(series) == 0 or (pd.to_numeric(series, errors='coerce').notna().all() and series.nunique() > 20):
+        # Keep numeric scores available; the UI requests bins for continuous values.
+        if len(series) == 0:
             continue
         preferred = any(x in col for x in ('segment', 'fico', 'risk', 'group', 'band', 'score'))
         candidates.append((0 if preferred else 1, str(original), col))
     return [(label, col) for _, label, col in sorted(candidates, key=lambda x: x[0])]
+
+
+def bin_group_column(frame, column, boundaries):
+    """Apply user-supplied upper boundaries; never infer score bins."""
+    values = pd.to_numeric(frame[column], errors='coerce')
+    if values.isna().any() or not np.isfinite(values).all():
+        raise ValueError('All values in the selected score column must be numeric and non-missing.')
+    try:
+        cuts = [float(part.strip()) for part in boundaries.split(',') if part.strip()]
+    except ValueError:
+        raise ValueError('Enter numeric group boundaries separated by commas.') from None
+    if not cuts or not np.isfinite(cuts).all() or any(a >= b for a, b in zip(cuts, cuts[1:])):
+        raise ValueError('Enter one or more strictly increasing numeric boundaries.')
+    labels = [f'<= {cuts[0]:g}'] + [f'{a:g} to {b:g}' for a, b in zip(cuts, cuts[1:])] + [f'> {cuts[-1]:g}']
+    result = frame.copy()
+    original_key = f'__original_{column}'
+    if original_key in result:
+        raise ValueError('The file contains a reserved original-score column name.')
+    result[original_key] = result[column]
+    result[column] = pd.cut(values, [-np.inf, *cuts, np.inf], labels=labels, right=True).astype(str)
+    return result
 
 
 def pool_statistics(frame, keys):
@@ -81,6 +101,19 @@ def pool_statistics(frame, keys):
         variance = float(np.sum((n-1)*variances + n*(means-mean)**2) / (total-1))
         result.append({**dict(zip(keys, key)), 'sample_mean':mean, 'sample_variance':variance, 'sample_number':int(total)})
     return pd.DataFrame(result)
+
+
+def demo_overall_summary(frame, by_partner=False):
+    """Summarize disjoint demo cells separately for each strategy and metric."""
+    data = _canonical_input(frame)
+    keys = (['partner'] if by_partner else []) + ['strategy', 'metric']
+    result = pool_statistics(data, keys)
+    result['standard_deviation'] = np.sqrt(result['sample_variance'])
+    return result.drop(columns='sample_variance').rename(columns={
+        'partner': 'Partner', 'strategy': 'Strategy', 'metric': 'Metric',
+        'sample_mean': 'Historical mean', 'sample_number': 'Historical sample number',
+        'standard_deviation': 'Historical standard deviation',
+    })
 
 
 def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', grouping=None, allow_pool=False) -> pd.DataFrame:
@@ -105,7 +138,7 @@ def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', groupi
             raise ValueError('Choose an available grouping column.')
         dimensions = [col for _, col in candidates]
         d = d.rename(columns={mapping[grouping]: 'segment'})
-        dimensions = ['segment' if c == mapping[grouping] else c for c in dimensions]
+        dimensions = ['segment'] + [c for c in dimensions if c != mapping[grouping] and d[c].notna().all()]
         d['group_by'] = grouping
     for col in list(dict.fromkeys(['partner', 'group_by', 'strategy', 'metric'] + dimensions)):
         if d[col].isna().any() or d[col].astype(str).str.strip().eq('').any():
@@ -161,73 +194,11 @@ def calculate_plan(data, partners, segments, control, tests, primary, guardrail,
 
 
 def pdf_summary(plan):
-    output = BytesIO()
-    styles = getSampleStyleSheet()
-    font = 'CustomerPlanSans'
-    if font not in pdfmetrics.getRegisteredFontNames():
-        pdfmetrics.registerFont(TTFont(font, str(Path(__file__).parent / 'assets' / 'fonts' / 'BusinessSansSC-Regular.ttf')))
-    for style in styles.byName.values():
-        style.fontName = font
-        style.wordWrap = 'CJK'
-    c = plan['config']
-    control = control_name(c)
-    roles = {arm['name']: arm['role'] for arm in c['arms']}
-    story = [Paragraph('Customer experiment sample size plan', styles['Title']), Spacer(1, 12),
-             Paragraph(escape(c['name']), styles['Heading2']),
-             Paragraph('Historical summaries are estimates, not evidence of a causal effect. Historical control counts determine the assumed population mix. Maintain this mix across arms.', styles['BodyText']), Spacer(1,12)]
-    if c.get('synthetic'):
-        story.insert(1, Paragraph('SYNTHETIC DEMO - inputs and results are illustrative.', styles['BodyText']))
-    rows = [['Role', 'Option', 'Analyzable N', 'Required customers']] + [[roles.get(r['arm'], 'Test'), str(r['arm']), str(r['analyzable_n']), str(r['recruitment_n'])] for r in plan['arm_totals']]
-    rows.append(['Total', '', str(sum(r['analyzable_n'] for r in plan['arm_totals'])), str(sum(r['recruitment_n'] for r in plan['arm_totals']))])
-    table = Table(rows, repeatRows=1, hAlign='LEFT', colWidths=[60,170,100,110])
-    table.setStyle(TableStyle([('FONTNAME',(0,0),(-1,-1),font),('BACKGROUND',(0,0),(-1,0),colors.HexColor('#f8e7e6')),('GRID',(0,0),(-1,-1),.4,colors.lightgrey),('PADDING',(0,0),(-1,-1),7)]))
-    story += [table, Spacer(1,12), Paragraph('Statistical settings', styles['Heading2'])]
-    primary = next(metric for metric in c['metrics'] if metric['role'] == 'Primary')
-    details = [f"Control: {control}. Primary metric: {primary['name']}. MDE: {primary['effect']:g} {primary['effect_scale']}.",
-               f"Data source: {plan.get('input_source', 'Not recorded')}; Group by: {plan.get('input_grouping', 'Not recorded')}; calculated: {plan.get('saved_at', 'Not recorded')}.",
-               f"Significance level (alpha): {c['alpha']:g}; target power: {c['power']:.1%} per comparison; expected missing-outcome fraction: {c['attrition']:.1%}.",
-               f"Multiple-comparison protection: {'on' if c['multiplicity'] else 'off'}. Comparison family: {plan['family_size']}; planning alpha per comparison: {plan['planning_alpha']:.8g}.",
-               f"Allocation: {c['allocation']} (pairwise Neyman with shared Control). Decision scope: {c['decision_scope']}. Unit: {c['unit']}."]
-    for metric in c['metrics']:
-        if metric['role'] == 'Guardrail':
-            status = (f"included in sample planning; maximum tolerated deterioration {metric['margin']:g} metric units" if metric['include_in_plan'] else 'monitoring only; not a sample-size constraint')
-            details.append(f"Guardrail: {metric['name']}; {status}.")
-    details.append('Fixed-weight stratified Welch planning uses historical variances, assumes the same Partner / Segment mix across groups, and does not treat historical option differences as causal effects. The target is per-comparison power, not simultaneous power. Historical parameter uncertainty is not fully propagated.')
-    story.extend(Paragraph(escape(text), styles['BodyText']) for text in details)
-    story.append(Paragraph('Calculation formulas', styles['Heading2']))
-    formulas = [
-        'Historical sample pooling (only for non-overlapping customers): N = sum(n_i); mean = sum(n_i * mean_i) / N; variance = [sum((n_i - 1) * variance_i + n_i * (mean_i - mean)^2)] / (N - 1).',
-        'Population weight for stratum h: w_h = historical Control N_h / sum(historical Control N). The same weights are used for Control and each Test.',
-        'Control baseline = sum(w_h * Control mean_h). For a relative MDE, delta = abs(Control baseline) * MDE / 100; for an absolute MDE, delta = MDE.',
-        'Variance of each weighted Test - Control difference: V = sum_h[w_h^2 * (s_Control,h^2 / n_Control,h + s_Test,h^2 / n_Test,h)].',
-        'Welch-Satterthwaite degrees of freedom: df = V^2 / sum_j[v_j^2 / (n_j - 1)], where each v_j is a weighted variance component in V.',
-        'Primary metric power uses the noncentral t distribution with noncentrality delta / sqrt(V) and critical value t_(1 - alpha_comparison/2, df). The engine searches integer sample sizes and verifies the resulting power.',
-        'Pairwise Neyman starting ratio for Test k: n_Test,k / n_Control = sqrt(sum_h(w_h * s_Test,k,h^2)) / sqrt(sum_h(w_h * s_Control,h^2)). Each Test is first sized against Control; the largest pairwise Control N is retained, then each Test N is recalculated and checked with that shared Control.',
-        'When protection is enabled, alpha_comparison = alpha / number of comparisons in the family; otherwise alpha_comparison = alpha. Recruitment target per stratum and arm = ceil(analyzable N / (1 - missing-outcome fraction)).',
-    ]
-    story.extend(KeepTogether([Paragraph(escape(text), styles['BodyText'])]) for text in formulas)
-    if any(metric['role'] == 'Guardrail' and metric['include_in_plan'] for metric in c['metrics']):
-        story.append(Paragraph('For a guardrail included in planning, the engine uses its absolute deterioration margin as delta and checks one-sided non-inferiority power under no true difference, using the same conservative t critical value.', styles['BodyText']))
-    story.append(Paragraph('Pairwise calculations and final verification', styles['Heading2']))
-    for pair in plan['pairwise']:
-        story.append(Paragraph(escape(f"{pair['test']} vs {control}: initial pairwise Control N = {pair['pair_control_n']}, Test N = {pair['pair_test_n']}, Neyman ratio = {pair['neyman_ratio']:.5g}."), styles['BodyText']))
-    for comparison in plan['comparisons']:
-        story.append(Paragraph(escape(f"{comparison['metric']} / {comparison['test']}: final Control N = {comparison['control_n']}, Test N = {comparison['test_n']}, baseline = {comparison['baseline']:.6g}, detectable change or margin = {comparison['detectable_change_or_margin']:.6g}, variance = {comparison['variance_of_difference']:.6g}, df = {comparison['degrees_of_freedom']:.6g}, verified power = {comparison['power']:.2%}."), styles['BodyText']))
-    story.append(Paragraph('Population weights', styles['Heading2']))
-    for row in plan['weights']:
-        story.append(Paragraph(escape(f"{row['partner']} / {row['segment']}: {row['weight']:.1%} of population"),styles['BodyText']))
-    story += [Spacer(1, 12), Paragraph('Historical inputs', styles['Heading2']), Paragraph('One row per Partner, Segment, option and metric. Variance is the sample variance supplied by the data owner.', styles['BodyText'])]
-    history_rows = [['Partner / Segment', 'Option', 'Metric', 'Mean', 'Variance', 'N']]
-    for r in plan['history']:
-        history_rows.append([Paragraph(escape(f"{r['partner']} / {r['segment']}"), styles['BodyText']), Paragraph(escape(str(r['arm'])), styles['BodyText']), Paragraph(escape(str(r['metric'])), styles['BodyText']), f"{r['sample_mean']:.4g}", f"{r['sample_variance']:.4g}", str(int(r['sample_number']))])
-    history_table = Table(history_rows, repeatRows=1, colWidths=[112,100,70,50,55,50], hAlign='LEFT')
-    history_table.setStyle(TableStyle([('FONTNAME',(0,0),(-1,-1),font), ('FONTSIZE',(0,0),(-1,-1),8), ('BACKGROUND',(0,0),(-1,0),colors.HexColor('#f8e7e6')), ('GRID',(0,0),(-1,-1),.4,colors.lightgrey), ('VALIGN',(0,0),(-1,-1),'TOP')]))
-    story.append(history_table)
-    SimpleDocTemplate(output, pagesize=A4).build(story)
-    return output.getvalue()
+    from .customer_report import build_design_package
+    return build_design_package(plan)
 
 
-def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping):
+def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries):
     if not tests:
         st.session_state.customer_plan_error = 'Choose at least one Test option.'
         return
@@ -236,7 +207,8 @@ def _run_plan(data, partners, segments, control, tests, primary, guardrail, effe
         plan['config']['synthetic'] = source == 'Synthetic demo'
         plan['input_source'] = source
         plan['input_grouping'] = grouping
-        st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping)
+        plan['group_boundaries'] = boundaries
+        st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping, boundaries=boundaries)
         st.session_state.customer_plan_result = plan
         st.session_state.customer_plan_result_view = True
         st.session_state.customer_plan_error = ''
@@ -270,14 +242,16 @@ def render_customer_plan():
         with st.expander('Population mix and sample detail'):
             st.dataframe(pd.DataFrame(plan['weights']), hide_index=True, use_container_width=True)
             st.dataframe(pd.DataFrame(plan['targets'])[['partner','segment','arm','recruitment_n']], hide_index=True, use_container_width=True)
+        name=st.text_input('Experiment name', value=plan['config'].get('name', 'Customer experiment'), key='customer_plan_name',
+                           help='This name appears in the PDF and in your saved experiments.')
+        report_plan = {**plan, 'config': {**plan['config'], 'name': name.strip() or plan['config']['name']}}
         a,b,c=st.columns(3)
-        a.download_button('Download PDF summary', pdf_summary(plan), 'customer-plan.pdf', 'application/pdf', use_container_width=True)
+        a.download_button('Download design package (PDF)', pdf_summary(report_plan), 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
         b.download_button('Download sample sizes', totals.to_csv(index=False), 'sample-size-plan.csv', 'text/csv', use_container_width=True)
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
         c.button('Back to settings', use_container_width=True, on_click=back_to_settings)
         st.markdown('#### Save experiment')
-        name=st.text_input('Experiment name', value=st.session_state.get('customer_saved_name','Customer experiment'), key='customer_plan_name')
         if st.button('Save to Your experiments', type='primary'):
             if not name.strip():
                 st.error('Enter an experiment name.')
@@ -295,14 +269,17 @@ def render_customer_plan():
 
     draft = st.session_state.get('customer_plan_draft', {})
     sources = ['Upload file', 'Databricks', 'Synthetic demo']
-    source = st.radio('Data source', sources, index=sources.index(draft.get('source', sources[0])), horizontal=True, key='customer_plan_source')
+    source = st.radio('Data source', sources, index=sources.index(draft.get('source', 'Synthetic demo')), horizontal=True, key='customer_plan_source')
     if source == 'Databricks':
         st.info('Databricks is not connected yet. Choose Upload file or Synthetic demo to continue.')
         return
     metric_default='Primary metric'
     if source == 'Synthetic demo':
-        st.info('Synthetic example: credit line strategies, FICO groups and PD score groups. Figures are illustrative.')
+        st.info('Synthetic example: credit line strategies, FICO groups and PD score groups. Metrics are simplified illustrations, not calibrated portfolio estimates.')
         raw=demo_data()
+        st.markdown('**Data preview**')
+        st.dataframe(raw.iloc[np.linspace(0, len(raw) - 1, 12, dtype=int)], hide_index=True, use_container_width=True)
+        st.caption('Demo rows within each Strategy and Metric represent non-overlapping customers.')
     else:
         st.download_button('Download CSV template', demo_data().head(6).to_csv(index=False), 'customer-history-template.csv', 'text/csv')
         st.caption('Each row describes a Partner, strategy, metric and combination of grouping columns. Use a consistent observation window and non-overlapping customers.')
@@ -332,7 +309,31 @@ def render_customer_plan():
                 try: raw=read_table(pasted)
                 except (ValueError, UnicodeError) as exc:
                     st.error(f'Could not read pasted data: {exc}'); return
-        if not any(str(c).strip().lower() == 'metric' for c in raw.columns):
+        if raw.empty:
+            st.info('Add historical statistics to continue.')
+            return
+        st.markdown('**Data preview**')
+        st.dataframe(raw.head(15), hide_index=True, use_container_width=True)
+        try:
+            detected = _canonical_input(raw)
+        except ValueError as exc:
+            st.warning(str(exc)); return
+        original_columns = list(raw.columns)
+        normalized_columns = list(detected.columns)[:len(original_columns)]
+        fields = [('Partner', 'partner'), ('Strategy / Option', 'strategy'), ('Metric', 'metric'), ('Sample mean', 'sample_mean'), ('Sample variance', 'sample_variance'), ('Sample number', 'sample_number')]
+        column_choices = ['Not provided'] + original_columns
+        mapping = {}
+        with st.expander('Review or change column mapping', expanded=False):
+            st.caption('Select the matching column for each field. Metric may be omitted when the file contains one metric.')
+            for label, field in fields:
+                guess = original_columns[normalized_columns.index(field)] if field in normalized_columns else 'Not provided'
+                chosen = st.selectbox(label, column_choices, index=column_choices.index(guess), key='customer_map_' + field + '_' + fingerprint({'columns': [str(c) for c in original_columns]})[:10])
+                if chosen != 'Not provided':
+                    if chosen in mapping:
+                        st.error('Choose a different column for each field.'); return
+                    mapping[chosen] = field
+        raw = raw.rename(columns=mapping)
+        if 'metric' not in raw:
             metric_default=st.text_input('Name of the metric in this file', value='Primary metric')
     try:
         input_data = _canonical_input(raw, metric_default)
@@ -347,15 +348,47 @@ def render_customer_plan():
             raise ValueError('Add a grouping column such as Segment, FICO group or PD score group. Continuous scores must be grouped first.')
     except ValueError as exc:
         st.warning(str(exc)); return
+    st.markdown('**Choose your grouping column**')
+    st.caption('Select one column from the data above. The available group values and historical statistics update when you change it.')
+    if not is_legacy:
+        st.caption('Suggested columns: ' + ', '.join(groups[:6]))
     left,right=st.columns(2)
     partner_options = list(input_data['partner'].astype(str).str.strip().unique())
     partners=left.multiselect('Partners', partner_options, default=[p for p in draft.get('partners', partner_options) if p in partner_options])
-    grouping=right.selectbox('Group by', groups, index=groups.index(draft.get('grouping')) if draft.get('grouping') in groups else 0)
+    default_group = draft.get('grouping') if draft.get('grouping') in groups else ('FICO group' if source == 'Synthetic demo' and 'FICO group' in groups else None)
+    grouping=right.selectbox('Group by', groups, index=groups.index(default_group) if default_group else None,
+                             placeholder='Choose a column, such as FICO group or PD score group')
+    if grouping is None:
+        st.info('Choose a Group by column to see its segments and historical statistics.')
+        return
+    raw_before_binning = raw.copy()
+    boundaries = ''
+    if not is_legacy:
+        selected_values = raw[grouping].dropna()
+        numeric_values = pd.to_numeric(selected_values, errors='coerce')
+        if len(selected_values) and numeric_values.notna().all() and selected_values.nunique() > 20:
+            st.info(f'{grouping} contains many numeric values. Enter boundaries to group this continuous score; each boundary is included in the lower group.')
+            boundaries = st.text_input('Group boundaries', value=draft.get('boundaries', '') if grouping == draft.get('grouping') else '', placeholder='For example: 0.02, 0.05, 0.10', key='customer_score_bins_' + fingerprint({'column':grouping})[:10])
+            if not boundaries.strip():
+                return
+            try:
+                raw = bin_group_column(raw, grouping, boundaries)
+            except ValueError as exc:
+                st.warning(str(exc)); return
+        st.caption(f'Grouping by the column {grouping}. Available values: ' + ', '.join(str(value) for value in raw[grouping].dropna().unique()[:12]))
     allow_pool = source == 'Synthetic demo'
-    if not is_legacy and len(candidates) > 1 and source != 'Synthetic demo':
-        allow_pool = st.checkbox('The rows being combined contain different, non-overlapping customers', value=False,
-                                 key='customer_nonoverlap_' + fingerprint({'data': raw.to_csv(index=False), 'grouping': grouping})[:16],
-                                 help='Required when the selected grouping combines multiple rows across other columns. Do not add monthly snapshots of the same customers.')
+    if not is_legacy and source != 'Synthetic demo':
+        normalized = _canonical_input(raw, metric_default)
+        group_field = dict(grouping_columns(raw)).get(grouping)
+        pool_keys = ['partner', group_field, 'strategy', 'metric']
+        if all(key in normalized.columns for key in pool_keys):
+            combining = normalized.duplicated(pool_keys, keep=False)
+            if combining.any():
+                st.caption('These rows share the selected Partner, group, strategy and metric and would be combined. Previewing up to 30 rows.')
+                st.dataframe(raw.loc[combining].head(30), hide_index=True, use_container_width=True)
+                allow_pool = st.checkbox('The rows being combined contain different, non-overlapping customers', value=False,
+                                         key='customer_nonoverlap_' + fingerprint({'data': raw.to_csv(index=False), 'grouping': grouping})[:16],
+                                         help='Do not combine monthly snapshots of the same customers.')
     try:
         data=normalize_table(raw,metric_default,grouping=grouping,allow_pool=allow_pool)
     except ValueError as exc:
@@ -366,14 +399,9 @@ def render_customer_plan():
     if view.empty:
         st.info('Select at least one Partner and segment.'); return
     st.caption('Each historical count belongs to a Strategy and Metric. Counts across options, metrics or time periods may overlap and are not necessarily unique customers.')
-    st.markdown('**Historical data overview**')
-    st.dataframe(view.groupby(['partner','segment','strategy','metric'],as_index=False).sample_number.sum().rename(columns={'sample_number':'historical sample number'}), hide_index=True, use_container_width=True)
-    with st.expander('Uploaded data preview'):
-        st.dataframe(raw, hide_index=True, use_container_width=True)
-        month_col = next((c for c in raw.columns if str(c).strip().lower() in ('ym', 'month', 'year_month')), None)
-        if month_col is not None:
-            st.write('Months represented:', ', '.join(sorted(raw[month_col].dropna().astype(str).unique())))
-            st.caption('Month is informational. Multiple monthly rows for the same combination must be combined outside the app after checking for overlapping customers.')
+    month_col = next((c for c in raw.columns if str(c).strip().lower() in ('ym', 'month', 'year_month')), None)
+    if month_col is not None:
+        st.caption('Month is informational. Check for overlapping customers before combining monthly rows.')
     st.markdown('### Metrics')
     names=list(view.metric.unique())
     x,y=st.columns(2)
@@ -404,20 +432,28 @@ def render_customer_plan():
     st.caption('Historical differences describe the supplied data; they do not establish an effect caused by the strategy. Sample counts are shown separately by Partner and option.')
     chart_data = view[view.metric.eq(primary) & view.strategy.isin([control] + tests)].copy()
     if not chart_data.empty:
+        chart_options = [control] + list(tests)
+        colors, patterns = strategy_styles([control] + sorted((option for option in options if option != control), key=str.casefold))
+        if len(chart_options) > len(STRATEGY_COLORS):
+            st.caption('For more than 24 options, patterns supplement the colors. Use the legend to focus on individual options.')
         chart_data['historical_sd'] = np.sqrt(chart_data.sample_variance)
         for title, value, label in [('Historical sample by group', 'sample_number', 'Historical sample number'),
                                     ('Historical primary metric by strategy', 'sample_mean', f'{primary} historical mean'),
                                     ('Historical variability by strategy', 'historical_sd', f'{primary} historical standard deviation')]:
             st.markdown(f'**{title}**')
-            fig=px.bar(chart_data, x='segment', y=value, color='strategy', barmode='group', facet_col='partner', facet_col_wrap=2,
-                       labels={'segment': grouping, 'strategy':'Strategy', value:label},
-                       color_discrete_sequence=['#e85959', '#16856b', '#d69a1f', '#6384c5'])
-            fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
-            fig.update_layout(height=360 if len(chart_data.partner.unique()) <= 2 else 590, margin=dict(t=40,b=45,l=30,r=20), legend_title_text='Strategy')
+            if value == 'sample_mean':
+                st.caption('Each line is a historical segment within a Partner. Lines connect selected options for comparison; they do not imply a causal effect or values between options.')
+                fig = historical_metric_chart(chart_data, grouping, primary, chart_options)
+            else:
+                fig=px.bar(chart_data, x='segment', y=value, color='strategy', pattern_shape='strategy', barmode='group', facet_col='partner', facet_col_wrap=2,
+                           labels={'segment': grouping, 'strategy':'Strategy', value:label},
+                           category_orders={'strategy': chart_options}, color_discrete_map=colors, pattern_shape_map=patterns)
+                fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
+                fig.update_layout(height=360 if len(chart_data.partner.unique()) <= 2 else 590, margin=dict(t=40,b=45,l=30,r=20), legend_title_text='Strategy')
             st.plotly_chart(fig, use_container_width=True, key=f'customer_history_chart_{value}')
     else:
         st.info('Select at least one Test option to compare historical data.')
     if st.session_state.get('customer_plan_error'):
         st.error(st.session_state.customer_plan_error)
     st.button('Get plan', type='primary', use_container_width=True, on_click=_run_plan,
-              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping))
+              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries))

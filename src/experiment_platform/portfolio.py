@@ -549,7 +549,7 @@ def business_report_html(experiment: dict[str, Any]) -> str:
 
 def portfolio_summary(experiments: list[dict[str, Any]]) -> dict[str, int | float]:
     return {
-        "running": sum(item.get("status") in {"Running", "Collecting outcomes"} for item in experiments),
+        "running": sum(item.get("status") in {"Running", "Collecting samples", "Collecting outcomes"} for item in experiments),
         "ready": sum(item.get("status") == "Ready to decide" for item in experiments),
         "attention": sum(bool(item.get("alert")) for item in experiments),
         "projected_value": float(sum(float(item.get("projected_value", 0) or 0) for item in experiments)),

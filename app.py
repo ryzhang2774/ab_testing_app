@@ -8,6 +8,7 @@ import streamlit as st
 from dataclasses import asdict, fields
 from datetime import datetime
 from src.experiment_platform.customer_ui import simple_customer_analysis
+from src.experiment_platform.time_series_simple_ui import render_time_series_analysis
 from src.experiment_platform.customer_plan_ui import render_customer_plan as render_unified_customer_plan
 
 from src.experiment_platform.customer import (
@@ -101,7 +102,7 @@ st.set_page_config(page_title="Experiment Platform", layout="wide")
 st.markdown(
     """
     <style>
-    :root {--coral:#ef4d4d; --ink:#232936; --muted:#697386; --line:#dfe4ec; --soft:#f6f8fb; --teal:#16856b; --gold:#d69a1f;}
+    :root {--coral:#006b9b; --cyan:#00aeef; --ink:#153449; --muted:#657887; --line:#d8e4eb; --soft:#f4f8fa; --teal:#007da8; --gold:#57778a;}
     .stApp {background:#ffffff; color:var(--ink);}
     .block-container {padding-top: 1.4rem; padding-bottom: 2.5rem; max-width: 1320px;}
     [data-testid="stSidebar"] {background:#f6f8fb; border-right:1px solid #e5e9f0;}
@@ -110,11 +111,11 @@ st.markdown(
     h2 {font-size:1.25rem; letter-spacing:0; color:var(--ink);}
     h3 {font-size:1.08rem; letter-spacing:0; color:var(--ink); margin-top:.3rem;}
     p, label, [data-testid="stCaptionContainer"] {color:#4f596b;}
-    [data-testid="stMetric"] {border:1px solid var(--line); border-top:3px solid #91a2bb; padding:.75rem .85rem; border-radius:6px; background:#fff; box-shadow:0 1px 2px rgba(24,35,52,.04);}
+    [data-testid="stMetric"] {border:1px solid var(--line); border-top:3px solid var(--cyan); padding:.75rem .85rem; border-radius:6px; background:#fff; box-shadow:0 1px 2px rgba(24,35,52,.04);}
     [data-testid="stMetricValue"] {font-size:1.35rem; color:var(--ink);}
     div[data-testid="stDataFrame"] {border:1px solid var(--line); border-radius:6px; overflow:hidden;}
     .stButton > button {border-radius:5px; border-color:#cfd6e1; transition:border-color .15s ease, box-shadow .15s ease, transform .15s ease;}
-    .stButton > button:hover {border-color:var(--coral); color:#c93636; box-shadow:0 2px 7px rgba(239,77,77,.12); transform:translateY(-1px);}
+    .stButton > button:hover {border-color:var(--coral); color:#00527b; box-shadow:0 2px 7px rgba(0,107,155,.12); transform:translateY(-1px);}
     .stButton > button[kind="primary"] {background:var(--coral); border-color:var(--coral); color:white;}
     .stButton > button[kind="primary"] p {color:white;}
     div[data-baseweb="tab-list"] {gap:.35rem; padding:0 .55rem; border:1px solid var(--line); border-radius:7px; background:#f8f9fb; margin:.15rem 0 1rem;}
@@ -131,7 +132,7 @@ st.markdown(
     .summary-item + .summary-item {border-left:1px solid var(--line);}
     .summary-label {font-size:.7rem; color:#7a8495; text-transform:uppercase; font-weight:700; margin-bottom:.18rem;}
     .summary-value {font-size:.88rem; color:var(--ink); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-    .strategy-banner {border-left:4px solid var(--coral); background:#fff8f7; padding:.75rem .9rem; margin:.35rem 0 1rem;}
+    .strategy-banner {border-left:4px solid var(--coral); background:#edf8fd; padding:.75rem .9rem; margin:.35rem 0 1rem;}
     .strategy-banner strong {display:block; color:var(--ink); font-size:.92rem; margin-bottom:.15rem;}
     .strategy-banner span {color:#626c7d; font-size:.82rem;}
     .arm-overview {display:flex; gap:.5rem; flex-wrap:wrap; margin:.35rem 0 .9rem;}
@@ -142,20 +143,26 @@ st.markdown(
     .business-guide {display:flex; justify-content:space-between; gap:1rem; align-items:center; border-left:4px solid #91a2bb; padding:.62rem .8rem; margin:.05rem 0 1rem; background:#f7f9fc; color:#596476; font-size:.8rem; line-height:1.45;}
     .business-guide b {flex:0 0 auto; color:var(--ink); font-size:.74rem; font-weight:750;}
     .overview-hero {position:relative; overflow:hidden; border-bottom:1px solid var(--line); padding:.55rem 0 1rem; margin:.1rem 0 1.05rem; background:#fff;}
-    .overview-hero:after {content:""; position:absolute; left:0; bottom:-1px; width:96px; height:3px; background:var(--coral);}
+    .overview-hero:after {content:""; position:absolute; left:0; bottom:-1px; width:96px; height:3px; background:var(--cyan);}
     .overview-hero h1 {font-size:2rem; margin:.05rem 0 .3rem; max-width:760px;}
     .overview-hero p {font-size:.92rem; max-width:810px; margin:0; color:#596476;}
     .overview-section-title {margin:.25rem 0 .12rem; font-size:1.05rem; font-weight:750; color:var(--ink);}
     .overview-section-copy {margin:0 0 .72rem; font-size:.82rem; color:#6c7687;}
-    .workflow-card {height:304px; border:1px solid var(--line); border-top:4px solid #91a2bb; border-radius:7px; padding:1rem 1rem .85rem; background:#fff; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;}
+    [data-testid="stHorizontalBlock"]:has(.workflow-card) [data-testid="stColumn"] > div,
+    [data-testid="stHorizontalBlock"]:has(.workflow-card) [data-testid="stColumn"] > div > div {height:100%;}
+    [data-testid="stVerticalBlock"]:has(.workflow-card) {height:100%;}
+    [data-testid="stVerticalBlock"] > [data-testid="stElementContainer"]:has(.workflow-card) {flex:1 1 auto; min-height:350px;}
+    [data-testid="stElementContainer"]:has(.workflow-card) [data-testid="stMarkdown"],
+    [data-testid="stElementContainer"]:has(.workflow-card) [data-testid="stMarkdownContainer"] {height:100%;}
+    .workflow-card {min-height:350px; height:100%; box-sizing:border-box; border:1px solid var(--line); border-top:4px solid #91a2bb; border-radius:7px; padding:1.1rem 1.15rem 1.5rem; background:#fff; transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease;}
     .workflow-card:hover {transform:translateY(-3px); box-shadow:0 10px 24px rgba(35,41,54,.09); border-color:#cdd5e1;}
-    .workflow-card.customer {border-top-color:var(--coral);}
+    .workflow-card.customer {border-top-color:var(--cyan);}
     .workflow-card.geo {border-top-color:var(--teal);}
     .workflow-card.time {border-top-color:var(--gold);}
     .workflow-card-head {display:flex; align-items:center; justify-content:space-between; gap:.7rem;}
-    .workflow-mark {display:grid; place-items:center; width:38px; height:38px; border-radius:6px; background:#fff0ef; color:#c93636; font-size:.65rem; font-weight:850;}
-    .workflow-card.geo .workflow-mark {background:#e8f6f2; color:#0d6a58;}
-    .workflow-card.time .workflow-mark {background:#fff4dd; color:#946300;}
+    .workflow-mark {display:grid; place-items:center; width:38px; height:38px; border-radius:6px; background:#e5f5fc; color:#005b88; font-size:.65rem; font-weight:850;}
+    .workflow-card.geo .workflow-mark {background:#e4f5fa; color:#006988;}
+    .workflow-card.time .workflow-mark {background:#edf2f5; color:#49677a;}
     .workflow-method {font-size:.67rem; font-weight:760; color:#7a8495; text-align:right;}
     .workflow-card h3 {font-size:1rem; line-height:1.3; margin:.7rem 0 .38rem; min-height:3.9rem;}
     .workflow-card p {font-size:.79rem; line-height:1.45; min-height:3.45rem; margin:0; color:#626d7e;}
@@ -196,13 +203,49 @@ st.markdown(
     .customer-choice h3 {margin:0 0 .45rem; font-size:1.05rem;}
     .customer-choice p {margin:0; font-size:.84rem; line-height:1.5; color:#626d7e;}
     .customer-product-bar {display:flex; align-items:center; gap:.72rem; min-height:42px;}
-    .customer-product-mark {display:grid; place-items:center; width:34px; height:34px; border:1px solid #f1b8b8; border-radius:6px; background:#fff1f1; color:#cf3737; font-size:.72rem; font-weight:850;}
+    .customer-product-mark {display:grid; place-items:center; width:34px; height:34px; border:1px solid #9fd8ee; border-radius:6px; background:#e9f7fd; color:#006b9b; font-size:.72rem; font-weight:850;}
     .customer-product-name {font-size:.9rem; font-weight:760; color:var(--ink);}
     .customer-product-context {font-size:.7rem; color:#7b8595; margin-top:.05rem;}
     .customer-page-heading {position:relative; padding:.75rem 0 1rem; border-bottom:1px solid var(--line); margin-bottom:.7rem;}
-    .customer-page-heading:after {content:""; position:absolute; left:0; bottom:-1px; width:82px; height:3px; background:var(--coral);}
+    .customer-page-heading:after {content:""; position:absolute; left:0; bottom:-1px; width:82px; height:3px; background:var(--cyan);}
     .customer-page-heading h1 {font-size:2rem; margin:0 0 .28rem;}
     .customer-page-heading p {font-size:.9rem; margin:0; color:#647084;}
+    .customer-explainer {margin:1.25rem 0 .4rem; padding:1.3rem 1.4rem 1.15rem; border:1px solid #d7e8f0; border-radius:9px; background:linear-gradient(140deg,#f7fcfe 0%,#fff 70%);}
+    .customer-explainer-top {display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1.05rem;}
+    .customer-explainer-eyebrow {color:#0077a5; font-size:.68rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase;}
+    .customer-explainer h2 {margin:.2rem 0 .22rem; font-size:1.12rem; color:#153449;}
+    .customer-explainer p {margin:0; font-size:.8rem; line-height:1.5; color:#63788a;}
+    .customer-explainer-tag {flex:none; border:1px solid #cce6f1; border-radius:20px; padding:.35rem .65rem; background:#edf8fc; color:#006b9b; font-size:.68rem; font-weight:700;}
+    .customer-flow {display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1.15rem;}
+    .customer-flow-card {position:relative; min-width:0; min-height:202px; padding:.85rem .9rem; border:1px solid #dbe9f0; border-radius:7px; background:#fff;}
+    .customer-flow-card:not(:last-child):after {content:'→'; position:absolute; z-index:1; right:-1.03rem; top:50%; display:grid; place-items:center; width:.9rem; height:1.4rem; color:#008bbc; font-weight:800; font-size:1.1rem; transform:translateY(-50%);}
+    .customer-flow-step {color:#718b9b; font-size:.65rem; font-weight:800; letter-spacing:.06em;}
+    .customer-flow-card h3 {margin:.38rem 0 .25rem; color:#153449; font-size:.88rem; line-height:1.25;}
+    .customer-flow-card p {min-height:2.3rem; color:#65798a; font-size:.73rem; line-height:1.45;}
+    .customer-flow-visual {height:66px; margin-top:.75rem; border-radius:6px; background:#f2f9fc; display:flex; align-items:center; justify-content:center;}
+    .customer-people {display:grid; grid-template-columns:repeat(5,15px); gap:7px 10px;}
+    .customer-person {width:12px; height:12px; border-radius:50%; background:#82cce8; box-shadow:0 4px 0 -1px #82cce8;}
+    .customer-person:nth-child(3n) {background:#168db9; box-shadow:0 4px 0 -1px #168db9;}
+    .customer-random {display:flex; align-items:center; gap:.65rem; color:#007ca9; font-size:1.12rem; font-weight:750;}
+    .customer-random span {display:grid; place-items:center; width:33px; height:33px; border:1px solid #b7dfea; border-radius:50%; background:#fff; color:#08769e; font-size:.68rem;}
+    .customer-arms {width:100%; display:grid; grid-template-columns:1fr 1fr; gap:.38rem; padding:.35rem;}
+    .customer-arm {border-radius:4px; padding:.38rem .28rem; background:#e2f2f9; text-align:center; color:#00638e; font-size:.68rem; font-weight:800;}
+    .customer-arm.test {background:#d6f1fb; color:#007eae;}
+    .customer-arm small {display:block; margin-top:.1rem; color:#617d8b; font-size:.58rem; font-weight:500;}
+    .customer-bars {height:44px; display:flex; align-items:flex-end; gap:7px; border-bottom:1px solid #a8c8d7; padding:0 .5rem;}
+    .customer-bars i {display:block; width:18px; border-radius:3px 3px 0 0; background:#006b9b;}
+    .customer-bars i:nth-child(2) {background:#00a4d6;} .customer-bars i:nth-child(3) {background:#80cbe3;}
+    .customer-explainer-note {margin-top:.9rem; padding-top:.75rem; border-top:1px solid #e3eef3; color:#617788; font-size:.73rem; line-height:1.45;}
+    .customer-explainer-note strong {color:#28536b;}
+    .experiment-visual-pills {display:flex; align-items:center; justify-content:center; gap:.4rem; padding:.35rem; width:100%;}
+    .experiment-visual-pills span {padding:.38rem .5rem; border:1px solid #cce5ef; border-radius:5px; background:#fff; color:#146488; font-size:.62rem; font-weight:750; text-align:center;}
+    .experiment-visual-pills span.accent {background:#d9f1fb; color:#007ca9;}
+    .experiment-visual-pills b {color:#59a8c8; font-size:.8rem;}
+    .experiment-trend {display:flex; align-items:flex-end; gap:.35rem; height:38px; border-bottom:1px solid #b7d3df; padding:0 .4rem;}
+    .experiment-trend i {display:block; width:12px; background:#8dcfe5; border-radius:2px 2px 0 0;}
+    .experiment-trend i:nth-child(4), .experiment-trend i:nth-child(5) {background:#007da8;}
+
+
     .customer-demo-actions {display:flex; align-items:center; justify-content:space-between; gap:1rem; margin:.2rem 0 .45rem;}
     .customer-demo-actions strong {font-size:.86rem; color:var(--ink);}
     .customer-demo-actions span {display:block; margin-top:.08rem; font-size:.74rem; color:#737d8e;}
@@ -292,7 +335,7 @@ st.markdown(
     .ts-section-heading {display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin:1.15rem 0 .48rem;}
     .ts-section-heading strong {font-size:.96rem; color:var(--ink);}
     .ts-section-heading span {font-size:.72rem; color:#778194;}
-    .st-key-ts_demo_plan button {background:var(--gold) !important; border-color:var(--gold) !important; color:#fff !important; font-weight:700;}
+    .st-key-ts_demo_plan button {background:#006b9b !important; border-color:#006b9b !important; color:#fff !important; font-weight:700;}
     .st-key-ts_demo_plan button p, .st-key-ts_demo_analyze button p {color:#fff !important;}
     .st-key-ts_demo_analyze button {background:var(--teal) !important; border-color:var(--teal) !important; color:#fff !important; font-weight:700;}
     .ts-data-preview-note {font-size:.74rem; color:#697386; margin:-.2rem 0 .5rem;}
@@ -382,9 +425,9 @@ st.markdown(
     .geo-section-heading {display:flex; align-items:flex-end; justify-content:space-between; gap:1rem; margin:1.15rem 0 .48rem;}
     .geo-section-heading strong {font-size:.96rem; color:var(--ink);}
     .geo-section-heading span {font-size:.72rem; color:#778194;}
-    .st-key-geo_demo_plan button {background:#d69a1f !important; border-color:#d69a1f !important; color:#fff !important; font-weight:700;}
+    .st-key-geo_demo_plan button {background:#006b9b !important; border-color:#006b9b !important; color:#fff !important; font-weight:700;}
     .st-key-geo_demo_plan button p, .st-key-geo_demo_analyze button p {color:#fff !important;}
-    .st-key-geo_demo_analyze button {background:#16856b !important; border-color:#16856b !important; color:#fff !important; font-weight:700;}
+    .st-key-geo_demo_analyze button {background:#007da8 !important; border-color:#007da8 !important; color:#fff !important; font-weight:700;}
     .geo-data-preview-note {font-size:.74rem; color:#697386; margin:-.2rem 0 .5rem;}
     .geo-entry-note {font-size:.75rem; color:#697386; text-align:center; margin:.65rem 0 0;}
     .geo-choice-v2 {display:grid; grid-template-columns:56px 1fr; column-gap:1rem; min-height:156px; border:1px solid #e1c778; border-radius:7px; padding:1.2rem 1.25rem; background:#fffdf7; box-shadow:0 7px 22px rgba(35,41,54,.06);}
@@ -459,23 +502,23 @@ st.markdown(
     .command-kpis {display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); border:1px solid var(--line); border-radius:7px; background:#fff; margin-bottom:1rem; overflow:hidden;}
     .command-kpi {position:relative; padding:.8rem 1rem .78rem 3.25rem; min-height:72px;}
     .command-kpi + .command-kpi {border-left:1px solid var(--line);}
-    .command-kpi-icon {position:absolute; left:1rem; top:1rem; display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:#e8f6f2; color:var(--teal); font-weight:850; font-size:.76rem;}
-    .command-kpi-icon.ready {background:#fff4dd; color:#ad7200;}
-    .command-kpi-icon.value {background:#fff0ef; color:#d73d3d;}
+    .command-kpi-icon {position:absolute; left:1rem; top:1rem; display:grid; place-items:center; width:30px; height:30px; border-radius:50%; background:#e4f5fa; color:var(--teal); font-weight:850; font-size:.76rem;}
+    .command-kpi-icon.ready {background:#e9f7fd; color:#006b9b;}
+    .command-kpi-icon.value {background:#edf2f5; color:#49677a;}
     .command-kpi-value {font-size:1.3rem; line-height:1.1; font-weight:780; color:var(--ink);}
     .command-kpi-label {font-size:.74rem; color:#697386; margin-top:.18rem;}
     .command-section-head {display:flex; align-items:baseline; gap:.65rem; margin:.85rem 0 .55rem;}
     .command-section-head strong {font-size:.98rem; color:var(--ink);}
     .command-section-head span {font-size:.72rem; color:#7a8495;}
-    .lifecycle-rail {display:grid; grid-template-columns:repeat(6,minmax(0,1fr)); border:1px solid var(--line); border-radius:7px; background:#fff; padding:.8rem .65rem .75rem; margin-bottom:1rem;}
+    .lifecycle-rail {display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); border:1px solid var(--line); border-radius:7px; background:#fff; padding:.8rem .65rem .75rem; margin-bottom:1rem;}
     .lifecycle-stage {position:relative; text-align:center; min-width:0;}
     .lifecycle-stage:before {content:""; position:absolute; left:0; right:0; top:27px; height:2px; background:#dfe4ec;}
     .lifecycle-stage:first-child:before {left:50%;}
     .lifecycle-stage:last-child:before {right:50%;}
     .lifecycle-name {height:20px; font-size:.68rem; font-weight:720; color:#465164; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
     .lifecycle-count {position:relative; z-index:1; display:grid; place-items:center; width:25px; height:25px; margin:.25rem auto .4rem; border-radius:50%; background:#fff; border:2px solid #aeb8c7; color:#596476; font-size:.68rem; font-weight:800;}
-    .lifecycle-stage.active .lifecycle-count {background:var(--teal); border-color:var(--teal); color:#fff; box-shadow:0 0 0 4px #e8f6f2;}
-    .lifecycle-stage.ready .lifecycle-count {background:var(--gold); border-color:var(--gold); color:#fff; box-shadow:0 0 0 4px #fff4dd;}
+    .lifecycle-stage.active .lifecycle-count {background:var(--teal); border-color:var(--teal); color:#fff; box-shadow:0 0 0 4px #e4f5fa;}
+    .lifecycle-stage.ready .lifecycle-count {background:var(--gold); border-color:var(--gold); color:#fff; box-shadow:0 0 0 4px #edf2f5;}
     .lifecycle-example {height:28px; padding:0 .25rem; font-size:.66rem; line-height:1.25; color:#778194; overflow:hidden;}
     .attention-list {border:1px solid var(--line); border-radius:7px; background:#fff; overflow:hidden;}
     .attention-item {padding:.68rem .78rem; border-left:3px solid var(--gold);}
@@ -1132,7 +1175,6 @@ def open_experiment_landing(experiment_type: str) -> None:
     st.session_state.main_page = experiment_type
     if experiment_type == "Customer":
         st.session_state.customer_intent = None
-        st.session_state.customer_workspace_interface = "Business workspace"
     elif experiment_type == "Geography":
         st.session_state.geo_intent = None
     else:
@@ -1399,7 +1441,7 @@ def restore_portfolio_experiment(experiment: dict) -> None:
             st.session_state.ts_prepared_df = pd.DataFrame()
     st.session_state.active_portfolio_id = experiment["id"]
     st.session_state.portfolio_selected_id = experiment["id"]
-    intent = "analyze" if experiment.get("latest_result") or experiment["status"] in {"Running", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"} else "plan"
+    intent = "analyze" if experiment.get("latest_result") or experiment["status"] in {"Running", "Collecting samples", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"} else "plan"
     portfolio_workspace(experiment["type"], intent)
 
 
@@ -1474,8 +1516,8 @@ def create_experiment_dialog() -> None:
 
 def lifecycle_html(experiments: list[dict]) -> str:
     stages = []
-    for status in PORTFOLIO_STATUSES:
-        matches = [item for item in experiments if item.get("status") == status]
+    for status in ["Planning", "Collecting samples", "Collecting outcomes", "Ready to decide"]:
+        matches = [item for item in experiments if ("Collecting samples" if item.get("status") == "Running" else item.get("status")) == status]
         example = matches[0]["name"] if matches else "No experiment"
         tone = "ready" if status == "Ready to decide" else "active" if matches and status not in {"Planning", "Completed"} else ""
         stages.append(
@@ -1519,6 +1561,8 @@ def render_experiment_detail(experiment: dict) -> None:
                 unsafe_allow_html=True,
             )
             st.markdown(f'**Primary metric direction:** {experiment["primary_outcome"]} · {pulse["primary_direction"]}')
+            outcome_count = experiment.get("outcomes_collected")
+            st.caption(f'Completed outcome observations: {outcome_count:,}' if outcome_count is not None else 'Completed outcome observations: not provided. Sample progress is a manual update unless connected to a data source.')
             st.markdown('<div class="interim-note">This is a monitoring signal only. The platform will not declare a winner before the planned sample and analysis are complete.</div>', unsafe_allow_html=True)
             if pulse["allocation"]:
                 st.markdown("**Traffic allocation**")
@@ -1547,24 +1591,35 @@ def render_experiment_detail(experiment: dict) -> None:
             st.caption("Save the business record here. Uploaded source files are not copied into the portfolio.")
             try:
                 launch_default = pd.Timestamp(experiment.get("planned_launch_date")).date()
+                if pd.isna(launch_default):
+                    raise ValueError("Missing launch date")
             except (TypeError, ValueError):
                 launch_default = pd.Timestamp.today().date()
             try:
                 readout_default = pd.Timestamp(experiment.get("readout_date")).date()
+                if pd.isna(readout_default):
+                    raise ValueError("Missing readout date")
             except (TypeError, ValueError):
                 readout_default = pd.Timestamp.today().date() + pd.Timedelta(days=60)
             with st.form(f'portfolio_record_{experiment["id"]}'):
                 owner_col, status_col = st.columns(2)
                 owner = owner_col.text_input("Owner", value=experiment.get("owner", ""))
-                status = status_col.selectbox("Status", PORTFOLIO_STATUSES, index=PORTFOLIO_STATUSES.index(experiment["status"]) if experiment["status"] in PORTFOLIO_STATUSES else 0)
+                stages = ["Planning", "Collecting samples", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"]
+                current_status = "Collecting samples" if experiment["status"] == "Running" else experiment["status"]
+                status = status_col.selectbox("Status", stages, index=stages.index(current_status) if current_status in stages else 0)
                 collected = st.number_input("Customers collected (manual update)", min_value=0, value=max(0, int(experiment.get("sample_collected", 0))), step=1)
+                outcome_available = st.checkbox("I have a completed outcome count", value=experiment.get("outcomes_collected") is not None)
+                outcome_count = st.number_input("Completed outcome observations", min_value=0, value=int(experiment.get("outcomes_collected") or 0), step=1, help="Customers whose measurement window is complete. Leave unchecked if unknown.")
                 launch_col, readout_col = st.columns(2)
                 launch = launch_col.date_input("Planned launch", value=launch_default)
                 readout = readout_col.date_input("Expected result", value=readout_default)
                 save_record = st.form_submit_button("Save record", type="primary")
             if save_record:
                 target = max(int(experiment.get("sample_target", 0)), 0)
-                updated = {**experiment, "owner": owner.strip() or "Unassigned", "status": status, "planned_launch_date": launch.isoformat(), "readout_date": readout.isoformat(), "sample_collected": collected, "progress": min(int(100 * collected / target), 100) if target else 0, "data_updated_at": datetime.now().isoformat(timespec="seconds")}
+                if outcome_available and outcome_count > collected:
+                    st.error("Completed outcomes cannot exceed the number of customers collected.")
+                    return
+                updated = {**experiment, "owner": owner.strip() or "Unassigned", "status": status, "planned_launch_date": launch.isoformat(), "readout_date": readout.isoformat(), "sample_collected": collected, "outcomes_collected": outcome_count if outcome_available else None, "progress": min(int(100 * collected / target), 100) if target else 0, "data_updated_at": datetime.now().isoformat(timespec="seconds")}
                 upsert_experiment(updated)
                 st.rerun()
             meta_left, meta_right = st.columns(2)
@@ -1628,39 +1683,36 @@ def show_command_center() -> None:
     if any(item["id"] in {"customer-acquisition-line", "geo-holiday-media", "customer-retention-offer", "customer-activation", "ts-search-demand", "customer-dining-offer", "ts-brand-reengagement", "geo-southeast-expansion"} for item in experiments):
         st.info("This portfolio contains example experiments. Example values are not live business results.")
     summary = portfolio_summary(experiments)
-    title_col, back_col, action_col = st.columns([3.7, 1.05, 1.25])
-    title_col.markdown(
-        '<div class="command-header"><div><h1>Experiment Command Center</h1>'
+    st.markdown(
+        '<div class="command-header"><div><h1>Monitor experiments</h1>'
         '<p>See what is running, what needs attention, and what is ready for a decision.</p></div></div>',
         unsafe_allow_html=True,
     )
-    back_col.button("Experiment chooser", use_container_width=True, key="portfolio_back_home", on_click=set_overview_mode, args=("Home",))
-    if action_col.button("New Experiment", type="primary", use_container_width=True, key="portfolio_new_experiment"):
-        create_experiment_dialog()
     st.markdown(
         f'<div class="command-kpis">'
         f'<div class="command-kpi"><div class="command-kpi-icon">RUN</div><div class="command-kpi-value">{summary["running"]}</div><div class="command-kpi-label">Experiments in market</div></div>'
         f'<div class="command-kpi"><div class="command-kpi-icon ready">NOW</div><div class="command-kpi-value">{summary["ready"]}</div><div class="command-kpi-label">Ready for a decision</div></div>'
-        f'<div class="command-kpi"><div class="command-kpi-icon value">$</div><div class="command-kpi-value">{compact_money(float(summary["projected_value"]))}</div><div class="command-kpi-label">Projected portfolio value</div></div>'
+        f'<div class="command-kpi"><div class="command-kpi-icon value">!</div><div class="command-kpi-value">{summary["attention"]}</div><div class="command-kpi-label">Needs attention</div></div>'
         f'</div>',
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="command-section-head"><strong>Experiment journey</strong><span>Every experiment, from idea to rollout</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="command-section-head"><strong>Experiment journey</strong><span>Current phase of each active experiment</span></div>', unsafe_allow_html=True)
     st.markdown(lifecycle_html(experiments), unsafe_allow_html=True)
+    st.caption("Samples and outcomes may be collected at the same time. Ready to decide means data is ready for analysis, not that an effect is significant. Completed and rollout records remain in the list below.")
 
     portfolio_col, attention_col = st.columns([3.4, 1.15])
     with portfolio_col:
         st.markdown('<div class="command-section-head"><strong>What is happening now</strong><span>Select a row for details</span></div>', unsafe_allow_html=True)
         filter_left, filter_right = st.columns(2)
-        selected_status = filter_left.selectbox("Status", ["All statuses", *PORTFOLIO_STATUSES], label_visibility="collapsed", key="portfolio_status_filter")
+        selected_status = filter_left.selectbox("Status", ["All statuses", "Planning", "Collecting samples", "Collecting outcomes", "Ready to decide", "Rolling out", "Completed"], label_visibility="collapsed", key="portfolio_status_filter")
         selected_type = filter_right.selectbox("Type", ["All types", "Customer", "Geography", "Time Series"], label_visibility="collapsed", key="portfolio_type_filter")
-        visible = [item for item in experiments if (selected_status == "All statuses" or item["status"] == selected_status) and (selected_type == "All types" or item["type"] == selected_type)]
+        visible = [item for item in experiments if (selected_status == "All statuses" or ("Collecting samples" if item["status"] == "Running" else item["status"]) == selected_status) and (selected_type == "All types" or item["type"] == selected_type)]
         table = pd.DataFrame(
             [
                 {
                     "ID": item["id"],
                     "Experiment": item["name"],
-                    "Status": item["status"],
+                    "Status": "Collecting samples" if item["status"] == "Running" else item["status"],
                     "Progress": int(item.get("progress", 0)),
                 }
                 for item in visible
@@ -1696,37 +1748,59 @@ def show_command_center() -> None:
     if selected:
         render_experiment_detail(selected)
 
-    with st.expander("Portfolio value and recent decisions", expanded=False):
-        value_col, decisions_col = st.columns([1.6, 1])
-        with value_col:
-            st.markdown("**Expected value over time**")
-            st.plotly_chart(portfolio_value_chart(pd.DataFrame(value_timeline(experiments))), use_container_width=True, key="portfolio_value_chart")
-        with decisions_col:
-            st.markdown("**Latest decisions**")
-            snapshots = [item for item in experiments if item.get("decision_snapshot")]
-            feed = "".join(
-                f'<div class="decision-feed-row"><div class="decision-dot"></div><div><b>{html.escape(item["name"])}</b>'
-                f'<span>{html.escape(item["decision_snapshot"]["decision"])} · {html.escape(item.get("action", ""))}</span></div>'
-                f'<time>{html.escape(item["decision_snapshot"]["created_at"])}</time></div>'
-                for item in snapshots[:5]
-            )
-            st.markdown(f'<div class="decision-feed">{feed}</div>', unsafe_allow_html=True)
+
+def render_command_navigation() -> None:
+    st.markdown("### Experiment Command Center")
+    columns = st.columns(3)
+    for col, label, mode, key in zip(columns, ["Choose an experiment", "Monitor experiments", "Analyze results"], ["Home", "Command Center", "Analyzer"], ["nav_chooser", "nav_monitor", "nav_analyzer"]):
+        col.button(label, key=key, use_container_width=True, type="primary" if st.session_state.get("overview_mode", "Home") == mode else "secondary", on_click=set_overview_mode, args=(mode,))
 
 
-def show_overview() -> None:
-    if st.session_state.get("overview_mode") == "Command Center":
-        show_command_center()
-        return
+def open_analysis_experiment(experiment: dict) -> None:
+    restore_portfolio_experiment(experiment)
+    st.session_state.active_portfolio_id = experiment["id"]
+    st.session_state.portfolio_selected_id = experiment["id"]
+    portfolio_workspace(experiment["type"], "analyze")
+    if experiment["type"] == "Customer":
+        for key in list(st.session_state):
+            if key.startswith("simple_"):
+                del st.session_state[key]
+        st.session_state.customer_input_mode = "Simple results"
+        plan = (experiment.get("config_payload") or {}).get("customer_plan")
+        if plan:
+            config = plan.get("config", {})
+            control = next((arm.get("name") for arm in config.get("arms", []) if arm.get("role") == "Control"), "")
+            primary = next((metric.get("name") for metric in config.get("metrics", []) if metric.get("role") == "Primary"), "")
+            st.session_state.customer_simple_settings = {"control": control, "outcome_name": primary}
 
+
+def show_experiment_analyzer() -> None:
+    st.title("Analyze results")
+    st.caption("Choose a saved experiment to open its analysis workflow. Upload the actual results there.")
     try:
         experiments = load_experiments()
     except ValueError as exc:
         st.error(str(exc))
-        experiments = []
-    if any(item["id"] in {"customer-acquisition-line", "geo-holiday-media", "customer-retention-offer", "customer-activation", "ts-search-demand", "customer-dining-offer", "ts-brand-reengagement", "geo-southeast-expansion"} for item in experiments):
-        st.caption("Portfolio preview includes demo experiments and illustrative values, not live business results.")
-    summary = portfolio_summary(experiments)
-    alerts = [item for item in experiments if item.get("alert")]
+        return
+    if not experiments:
+        st.info("There are no saved experiments yet. Choose an experiment to begin planning.")
+        return
+    labels = {e['id']: f"{e['name']} · {e['type']} · {e['status']}" for e in experiments}
+    choice = st.selectbox("Experiment", list(labels), format_func=lambda item: labels[item], key="analyzer_experiment_id")
+    experiment = next(e for e in experiments if e['id'] == choice)
+    st.caption("Opening analysis does not verify that sample size or outcome observation windows are complete.")
+    st.button("Open analysis", type="primary", on_click=open_analysis_experiment, args=(experiment,), key="open_selected_analysis")
+
+
+def show_overview() -> None:
+    render_command_navigation()
+    if st.session_state.get("overview_mode") == "Analyzer":
+        show_experiment_analyzer()
+        return
+    if st.session_state.get("overview_mode") == "Command Center":
+        show_command_center()
+        return
+
     st.markdown(
         '<section class="overview-hero"><h1>What are you trying to test?</h1>'
         '<p>Start with how the strategy can be delivered. The platform will take you to the right planning and analysis workflow.</p></section>',
@@ -1741,14 +1815,14 @@ def show_overview() -> None:
             '<section class="workflow-card customer">'
             '<div class="workflow-card-head"><div class="workflow-mark">CUST</div><div class="workflow-method">CUSTOMER EXPERIMENT</div></div>'
             '<h3>Different customers can receive different strategies</h3>'
-            '<p>Randomly assign customers or accounts to BAU and test options.</p>'
+            '<p>Randomly assign customers or accounts to Control and Test options.</p>'
             '<div class="workflow-examples"><b>Examples</b>Offers · Credit lines · Pricing · Retention</div>'
             '<div class="workflow-outcome">Plan sample and traffic. Measure lift.</div>'
             '</section>',
             unsafe_allow_html=True,
         )
         st.button(
-            "Choose Customer Experiment",
+            "Choose Customer",
             use_container_width=True,
             key="home_choose_customer",
             on_click=open_experiment_landing,
@@ -1766,7 +1840,7 @@ def show_overview() -> None:
             unsafe_allow_html=True,
         )
         st.button(
-            "Choose Geography Experiment",
+            "Choose Geography",
             use_container_width=True,
             key="home_choose_geo",
             on_click=open_experiment_landing,
@@ -1784,51 +1858,12 @@ def show_overview() -> None:
             unsafe_allow_html=True,
         )
         st.button(
-            "Choose Time Series Experiment",
+            "Choose Time Series",
             use_container_width=True,
             key="home_choose_timeseries",
             on_click=open_experiment_landing,
             args=("Time Series",),
         )
-
-    st.markdown(
-        '<div class="home-rule"><b>Fast rule:</b> Randomize people → Customer &nbsp;·&nbsp; Compare fixed markets → Geography &nbsp;·&nbsp; No control group → Time Series</div>',
-        unsafe_allow_html=True,
-    )
-
-    portfolio_copy, command_col = st.columns([4.1, 1.35])
-    portfolio_copy.markdown(
-        '<div class="home-portfolio-head"><div><strong>Your experiments</strong><span>Jump back into active work or open the full portfolio.</span></div></div>',
-        unsafe_allow_html=True,
-    )
-    command_col.button(
-        "Command Center",
-        type="primary",
-        use_container_width=True,
-        key="home_open_command_center",
-        on_click=set_overview_mode,
-        args=("Command Center",),
-    )
-    st.markdown(
-        f'<div class="home-kpis">'
-        f'<div class="home-kpi"><span>In market</span><b>{summary["running"]}</b></div>'
-        f'<div class="home-kpi"><span>Ready to decide</span><b>{summary["ready"]}</b></div>'
-        f'<div class="home-kpi"><span>Needs attention</span><b>{len(alerts)}</b></div>'
-        f'<div class="home-kpi"><span>Projected value</span><b>{compact_money(float(summary["projected_value"]))}</b></div>'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
-    recent = sorted(experiments, key=lambda item: str(item.get("updated_at", "")), reverse=True)[:4]
-    recent_rows = "".join(
-        f'<div class="home-experiment-row">'
-        f'<div class="home-experiment-name"><b>{html.escape(item["name"])}</b><span>{html.escape(item["type"])} · {html.escape(item.get("owner", "Unassigned"))}</span></div>'
-        f'<div class="home-status">{html.escape(item["status"])}</div>'
-        f'<div><div class="home-progress"><div class="home-progress-fill" style="width:{max(0, min(int(item.get("progress", 0)), 100))}%"></div></div><div class="home-experiment-next">Next: {html.escape(item.get("action", "Review experiment"))}</div></div>'
-        f'<div class="home-progress-value">{int(item.get("progress", 0))}%</div>'
-        f'</div>'
-        for item in recent
-    )
-    st.markdown(f'<div class="home-experiment-list">{recent_rows}</div>', unsafe_allow_html=True)
 
 
 def configure_metric_compact(role: str, raw_df: pd.DataFrame) -> None:
@@ -4156,6 +4191,60 @@ def start_time_series_workflow(intent: str) -> None:
     st.session_state.ts_intent = intent
 
 
+def render_experiment_explainer(kind: str) -> None:
+    """Explain the experiment design in the same visual language as Customer."""
+    visuals = {
+        'markets': '<div class="experiment-visual-pills"><span>Market A</span><span>Market B</span><span>Market C</span></div>',
+        'groups': '<div class="customer-arms"><div class="customer-arm">Control<small>Current approach</small></div><div class="customer-arm test">Test<small>New approach</small></div></div>',
+        'history': '<div class="experiment-trend"><i style="height:16px"></i><i style="height:22px"></i><i style="height:19px"></i><i style="height:28px"></i><i style="height:32px"></i></div>',
+        'timeline': '<div class="experiment-visual-pills"><span>Before</span><b>→</b><span class="accent">Launch</span><b>→</b><span>After</span></div>',
+        'comparison': '<div class="experiment-visual-pills"><span>Test change</span><b>vs</b><span class="accent">Control change</span></div>',
+        'metric': '<div class="experiment-visual-pills"><span>One shared outcome</span></div>',
+        'launch': '<div class="experiment-visual-pills"><span>Everyone</span><b>→</b><span class="accent">Same launch</span></div>',
+        'counterfactual': '<div class="experiment-visual-pills"><span>Observed</span><b>vs</b><span class="accent">Estimated baseline</span></div>',
+    }
+    if kind == 'geo':
+        title = 'How does a geographic experiment work?'
+        description = 'Compare markets using different approaches over the same period.'
+        example = 'Example: regional campaign'
+        steps = [
+            ('SELECT', 'Choose your markets', 'Start with the markets included in your experiment.', 'markets'),
+            ('GROUP', 'Identify Test and Control', 'Use your chosen Test and Control markets throughout the experiment.', 'groups'),
+            ('MEASURE', 'Track before and after', 'Measure the same outcome in both groups before and after launch.', 'timeline'),
+            ('COMPARE', 'Compare the changes', 'Compare how Test markets changed relative to Control markets.', 'comparison'),
+        ]
+        note = 'Review pre-launch trends, market differences and spillovers before interpreting the result.'
+    elif kind == 'time':
+        title = 'How does a time series experiment work?'
+        description = 'Use historical trends to assess a launch that reaches everyone at the same time.'
+        example = 'Example: national campaign'
+        steps = [
+            ('SELECT', 'Choose an outcome', 'Pick a business metric measured consistently over time.', 'metric'),
+            ('LEARN', 'Study the history', 'Use the pre-launch data to understand the existing trend.', 'history'),
+            ('LAUNCH', 'Launch to everyone', 'The campaign begins at the same time for the whole audience.', 'launch'),
+            ('COMPARE', 'Assess the change', 'Compare the observed outcome with an estimated no-launch baseline.', 'counterfactual'),
+        ]
+        note = 'A simple before-and-after comparison is descriptive. A modeled baseline depends on its assumptions and other events.'
+    else:
+        raise ValueError('Unknown experiment explainer')
+    cards = []
+    for index, (step, heading, detail, visual) in enumerate(steps, 1):
+        cards.append(
+            '<div class="customer-flow-card"><div class="customer-flow-step">' + f'{index:02d} / {html.escape(step)}' + '</div>'
+            '<h3>' + html.escape(heading) + '</h3><p>' + html.escape(detail) + '</p>'
+            '<div class="customer-flow-visual" aria-hidden="true">' + visuals[visual] + '</div></div>'
+        )
+    st.markdown(
+        '<section class="customer-explainer" aria-label="' + html.escape(title, quote=True) + '">'
+        '<div class="customer-explainer-top"><div><div class="customer-explainer-eyebrow">The experiment at a glance</div>'
+        '<h2>' + html.escape(title) + '</h2><p>' + html.escape(description) + '</p></div>'
+        '<div class="customer-explainer-tag">' + html.escape(example) + '</div></div>'
+        '<div class="customer-flow">' + ''.join(cards) + '</div>'
+        '<div class="customer-explainer-note"><strong>Before deciding:</strong> ' + html.escape(note) + '</div></section>',
+        unsafe_allow_html=True,
+    )
+
+
 def ts_landing_preview() -> None:
     """Show the time-series story before asking the user to configure the workflow."""
     cfg: TimeSeriesConfig = st.session_state.ts_config
@@ -4206,6 +4295,8 @@ def ts_landing_preview() -> None:
         start_time_series_workflow("analyze")
         st.rerun()
 
+    render_experiment_explainer('time')
+
     chart_col, summary_col = st.columns([1.75, 0.75])
     with chart_col:
         with st.container(border=True):
@@ -4237,7 +4328,7 @@ def ts_landing_preview() -> None:
             unsafe_allow_html=True,
         )
 
-    preview_columns = [column for column in raw.columns if not str(column).startswith("_")]
+    preview_columns = [column for column in raw.columns if not str(column).startswith("_") and str(column).strip().lower().replace("_", " ") != "campaign name"]
     roles = {date_col: "Date", outcome_col: "Outcome"}
     if flag_col != "None":
         roles[flag_col] = "Campaign"
@@ -5122,6 +5213,8 @@ def geo_landing_preview() -> None:
         start_geography_workflow("analyze")
         st.rerun()
 
+    render_experiment_explainer('geo')
+
     map_col, summary_col = st.columns([1.75, 0.75])
     with map_col:
         with st.container(border=True):
@@ -5622,8 +5715,8 @@ def leave_geographic_workspace() -> None:
 
 
 def render_geo_shell(intent: str | None) -> None:
-    accent = "#16856b" if intent == "analyze" else "#d69a1f"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#16856b; border-color:#16856b; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#11735f; border-color:#11735f; color:#fff;}'
+    accent = "#006b9b" if not intent else "#16856b" if intent == "analyze" else "#d69a1f"
+    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#007da8; border-color:#007da8; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#006b9b; border-color:#006b9b; color:#fff;}'
     st.markdown(
         f"""
         <style>
@@ -5704,8 +5797,8 @@ def leave_time_series_workspace() -> None:
 
 
 def render_ts_shell(intent: str | None) -> None:
-    accent = "#16856b" if intent == "analyze" else "#d69a1f"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#16856b; border-color:#16856b; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#11735f; border-color:#11735f; color:#fff;}'
+    accent = "#006b9b" if not intent else "#16856b" if intent == "analyze" else "#d69a1f"
+    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#007da8; border-color:#007da8; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#006b9b; border-color:#006b9b; color:#fff;}'
     st.markdown(
         f"""
         <style>
@@ -5768,17 +5861,7 @@ def time_series_page() -> None:
         with tabs[2]:
             ts_planning_step()
         return
-    tabs = st.tabs(["1 · Bring Data", "2 · Mark Campaign", "3 · Choose Method", "4 · See Impact", "5 · Recommendation"])
-    with tabs[0]:
-        ts_data_step()
-    with tabs[1]:
-        ts_setup_step()
-    with tabs[2]:
-        ts_analysis_step()
-    with tabs[3]:
-        ts_results_step()
-    with tabs[4]:
-        ts_decision_step()
+    render_time_series_analysis()
 
 
 def start_customer_workflow(intent: str) -> None:
@@ -5946,13 +6029,13 @@ def customer_landing_preview() -> None:
 
 def leave_customer_workspace() -> None:
     st.session_state.customer_intent = None
-    st.session_state.overview_mode = "Overview"
+    st.session_state.overview_mode = "Home"
     st.session_state.main_page = "Overview"
 
 
 def render_customer_shell(intent: str | None) -> None:
-    accent = "#16856b" if intent == "analyze" else "#ef4d4d"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#16856b; border-color:#16856b; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#11735f; border-color:#11735f; color:#fff;}'
+    accent = "#005b88" if intent == "analyze" else "#006b9b"
+    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#005b88; border-color:#005b88; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#00476b; border-color:#00476b; color:#fff;}'
     st.markdown(
         f"""
         <style>
@@ -6208,7 +6291,6 @@ def classic_customer_page() -> None:
         unsafe_allow_html=True,
     )
     if not intent:
-        st.markdown("Randomize customers or accounts across different options, plan the sample you need, and compare the results.")
         plan_col, analysis_col = st.columns(2)
         with plan_col:
             with st.container(border=True):
@@ -6220,6 +6302,28 @@ def classic_customer_page() -> None:
                 st.subheader("Analyze results")
                 st.write("Compare the outcomes of your Control and Test groups after customers have been assigned.")
                 st.button("Analyze results", use_container_width=True, key="customer_demo_analyze", on_click=start_customer_workflow, args=("analyze",))
+        st.markdown(
+            '<section class="customer-explainer" aria-label="How a customer experiment works">'
+            '<div class="customer-explainer-top"><div><div class="customer-explainer-eyebrow">The experiment at a glance</div>'
+            '<h2>How does a customer experiment work?</h2><p>Give eligible customers different strategies, then compare their outcomes.</p></div>'
+            '<div class="customer-explainer-tag">Example: credit line</div></div>'
+            '<div class="customer-flow">'
+            '<div class="customer-flow-card"><div class="customer-flow-step">01 / SELECT</div><h3>Choose your customers</h3>'
+            '<p>Start with customers or accounts eligible for the experiment.</p><div class="customer-flow-visual" aria-hidden="true">'
+            '<div class="customer-people">' + '<i class="customer-person"></i>' * 10 + '</div></div></div>'
+            '<div class="customer-flow-card"><div class="customer-flow-step">02 / ASSIGN</div><h3>Assign at random</h3>'
+            '<p>Randomly place each customer in one group.</p><div class="customer-flow-visual" aria-hidden="true">'
+            '<div class="customer-random"><span>ALL</span> ⇢ <span>C</span> <span>T</span></div></div></div>'
+            '<div class="customer-flow-card"><div class="customer-flow-step">03 / TEST</div><h3>Try the strategies</h3>'
+            '<p>Control keeps the current strategy; Tests try alternatives.</p><div class="customer-flow-visual" aria-hidden="true">'
+            '<div class="customer-arms"><div class="customer-arm">Control<small>Current option</small></div>'
+            '<div class="customer-arm test">Test(s)<small>New options</small></div></div></div></div>'
+            '<div class="customer-flow-card"><div class="customer-flow-step">04 / COMPARE</div><h3>Compare outcomes</h3>'
+            '<p>See how each Test compares with Control on your metrics.</p><div class="customer-flow-visual" aria-hidden="true">'
+            '<div class="customer-bars"><i style="height:22px"></i><i style="height:32px"></i><i style="height:39px"></i></div></div></div>'
+            '</div><div class="customer-explainer-note"><strong>Before deciding:</strong> check sample completion, assignment, balance and risk metrics as well as the main result.</div></section>',
+            unsafe_allow_html=True,
+        )
         return
     _, nav_right = st.columns([5, 1])
     if nav_right.button("Switch workflow", key="customer_switch_workflow"):
@@ -6228,35 +6332,7 @@ def classic_customer_page() -> None:
     if intent == "plan":
         render_unified_customer_plan()
         return
-    modes = ["Arm summaries", "Customer records"] if intent == "plan" else ["Simple results", "Customer records", "Arm summaries"]
-    if st.session_state.get("customer_input_mode") not in modes:
-        st.session_state.customer_input_mode = modes[0]
-    mode = st.radio("Work with", modes, format_func=lambda value: {"Arm summaries": "Summary statistics / Partners" if intent == "plan" else "Observed group summaries", "Customer records": "Detailed customer workflow", "Simple results": "3-column results (recommended)"}[value], horizontal=True, key="customer_input_mode")
-    st.session_state.customer_analysis_is_current = False
-    if mode == "Simple results":
-        simple_customer_analysis(render_customer_evidence)
-        return
-    if mode == "Arm summaries":
-        customer_summary_step(intent)
-        return
-    if intent == "plan":
-        tab_data, tab_groups, tab_metrics, tab_strategy, tab_plan = st.tabs(["1 · Bring Data", "2 · Choose Audience", "3 · Pick Outcome", "4 · Define Options", "5 · Get Plan"])
-        with tab_data:
-            customer_data_step()
-        with tab_groups:
-            customer_groups_step()
-        with tab_metrics:
-            customer_metrics_step()
-        with tab_strategy:
-            strategy_step()
-        with tab_plan:
-            customer_plan_step()
-        return
-    if st.session_state.design_config.group_plan_rows and st.session_state.strategy_config.group_arms:
-        st.info("Using the saved plan's audiences, test options, outcomes, and traffic allocation.")
-        customer_group_analysis_step()
-    else:
-        analysis_step()
+    simple_customer_analysis(render_customer_evidence)
 
 
 def customer_page() -> None:

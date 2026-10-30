@@ -52,7 +52,7 @@ The planning flow is:
 
 Customer planning supports longitudinal unit-period data and cross-sectional one-row-per-unit data. Numeric strategies can estimate arm-specific historical means and standard deviations using closest-test-value assignment, business-defined bins, or exact values. The default design sizes each treatment against control using pairwise Neyman allocation, keeps the largest pairwise control requirement, and then recalculates each treatment with that fixed shared control. Every final comparison is checked for target power. Generalized Neyman fixed ratios remain an advanced alternative. Traffic is allocated toward a common completion time.
 
-The analysis flow accepts completed randomized-test results, checks one-row-per-unit integrity, missing outcomes, assignment balance, and sample-ratio mismatch, then presents arm-level lift, uncertainty, and guardrail status. The business team makes the decision; the customer workflow no longer has an automated Decision page. A second input path accepts continuous-outcome arm summaries without customer-level records.
+The customer analysis flow accepts aggregate results from a completed randomized test and presents arm-level lift and uncertainty. The business team makes the decision; individual customer integrity, assignment balance, SRM and guardrails cannot be verified from the summary input.
 
 ### Geographic Tests
 
@@ -71,18 +71,18 @@ Analysis uses panel Difference-in-Differences with:
 
 ### Time-Series Experiments
 
-Use this workflow for campaigns or policy changes where no randomized control group exists. Weekly and monthly data are supported.
+Use this workflow for campaigns or policy changes where no randomized control group exists. Daily, weekly, and monthly data are supported.
 
 The opening page shows the full historical series, campaign timing, available pre/post observations, detected frequency, predictor availability, and raw source columns.
 
 The planning flow estimates detectable effect and campaign duration from historical pseudo-interventions. The expected campaign effect is a user-supplied business scenario, not a forecast of an unknown future effect. Results are evaluated through the longest selected duration and include calibration and limited-history safeguards.
 
-The analysis flow offers two methods:
+The analysis flow uses a single page: select a data source, inspect the preview, choose a metric, Partners, optional grouping and campaign launch date, then calculate. CSV and Excel uploads and pasted or manually entered tables are supported; Databricks is a placeholder. When multiple rows share a date, choose and confirm the aggregation appropriate for the metric and non-overlapping populations. Missing-period and model options are in Advanced settings. Both analyses run together:
 
-- **Pre-Post Analysis**: an automatically refreshed descriptive before/after comparison. It does not adjust for trend, seasonality, or concurrent changes.
-- **Structural Time Series Counterfactual**: an explicitly run state-space forecast using pre-campaign history and optional unaffected predictors. It reports expected outcome without intervention, incremental impact, uncertainty, backtesting, and model-reliability diagnostics.
+- **Before-and-after comparison**: an explicitly calculated descriptive comparison of matching-length periods. It does not adjust for trend, seasonality, or concurrent changes.
+- **Estimated impact using a model**: an explicitly run structural state-space forecast using pre-campaign history and optional unaffected predictors. It reports expected outcome without intervention, incremental impact, uncertainty, backtesting, and model-reliability diagnostics.
 
-The current structural model uses `statsmodels`; it is not a full Bayesian sampler.
+The page reports a descriptive comparison even when insufficient history prevents model fitting, and identifies the missing model explicitly. After any data or settings change, calculate again before using the result. The current structural model uses `statsmodels`; it is not a full Bayesian sampler.
 
 ## Statistical Design Notes
 
@@ -310,6 +310,34 @@ pytest -q
 ```
 
 ## Databricks App
+
+### Customer experiment results from summary statistics
+
+Customer → Analyze results uses a long-format table, one row per
+non-overlapping population × strategy × metric. Include `Strategy`, `Metric`,
+`Sample number`, `Sample mean`, and unbiased `Sample variance` (with denominator
+n−1). Optional categorical columns such as `Partner`, `FICO group`, and
+`PD score group` identify the joint population. Download the in-app CSV template
+for an example. Results first show overall charts for all selected metrics,
+then segment charts and decision insights. A downloadable results PDF includes
+the analysis settings, comparisons, insights, and calculation formulas.
+
+Confirm that rows being pooled contain distinct customers in the same
+observation window. This cannot be verified from summary data. The app pools
+counts and sample moments, including between-group variation, then uses
+Welch's test for continuous metrics and a two-proportion z-test or Fisher's
+exact test for binary metrics. Overall p-values can be Holm-adjusted across
+Tests within each metric. Subgroups and additional metrics are exploratory;
+there is no adjustment across metrics. Overall results use observed arm mixes,
+not the fixed population weights from the planning model. Summary inputs do
+not verify randomization, SRM, missing outcomes, or duplicate customer IDs.
+
+### Customer decision insights
+
+Customer analysis generates descriptive insights from the current results.
+The interface does not call a language model or expose a model endpoint button.
+Comparisons between Tests are descriptive unless separately tested; the
+insights are not a launch approval.
 
 `app.yaml` starts Streamlit on port `8000`:
 

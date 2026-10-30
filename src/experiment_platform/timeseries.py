@@ -488,13 +488,19 @@ def run_duration_power_simulation(data: pd.DataFrame, frequency: str, covariates
 def _frequency_spec(frequency: str, dates: pd.Series | None = None) -> tuple[str, int | None]:
     if frequency == "Daily":
         return "D", 7
+    parsed = pd.to_datetime(pd.Series(dates), errors="coerce").dropna().sort_values() if dates is not None else pd.Series(dtype="datetime64[ns]")
     if frequency == "Weekly":
-        return "W-SUN", 52
+        weekday = parsed.iloc[0].day_name()[:3].upper() if not parsed.empty else "SUN"
+        return f"W-{weekday}", 52
     if frequency == "Monthly":
-        return "MS", 12
+        if parsed.empty or parsed.dt.is_month_start.all():
+            return "MS", 12
+        if parsed.dt.is_month_end.all():
+            return "ME", 12
+        raise ValueError("Monthly dates must consistently use the first or last day of each month.")
     if dates is not None:
         detected, _ = detect_frequency(pd.DataFrame({"_date": dates}))
-        return _frequency_spec(detected)
+        return _frequency_spec(detected, dates) if detected in {"Daily", "Weekly", "Monthly"} else ("", None)
     return "", None
 
 
@@ -537,7 +543,7 @@ def prepare_timeseries_data(
     selected_frequency = detected if frequency in {"Auto", ""} else frequency
     if selected_frequency not in {"Daily", "Weekly", "Monthly"}:
         raise ValueError("The time series must be Daily, Weekly, or Monthly.")
-    freq_spec, _ = _frequency_spec(selected_frequency)
+    freq_spec, _ = _frequency_spec(selected_frequency, out["_date"])
     expected = pd.date_range(out["_date"].min(), out["_date"].max(), freq=freq_spec)
     missing_periods = int(len(expected.difference(pd.DatetimeIndex(out["_date"]))))
     regularized = regularize_timeseries_data(out, selected_frequency, missing_policy)
@@ -554,9 +560,11 @@ def regularize_timeseries_data(data: pd.DataFrame, frequency: str, missing_polic
         raise ValueError("Unknown missing-period policy.")
     if frequency not in {"Daily", "Weekly", "Monthly"}:
         raise ValueError("Regularization requires Daily, Weekly, or Monthly frequency.")
-    freq, _ = _frequency_spec(frequency)
+    freq, _ = _frequency_spec(frequency, data["_date"])
     values = data.set_index("_date")["_outcome"].sort_index()
     expected = pd.date_range(values.index.min(), values.index.max(), freq=freq)
+    if not pd.DatetimeIndex(values.index).isin(expected).all():
+        raise ValueError("Dates do not follow one consistent cadence. Check the date column and aggregate to daily, weekly or monthly periods.")
     out = data.set_index("_date").reindex(expected).rename_axis("_date").reset_index()
     if missing_policy == "Fail validation" and out["_outcome"].isna().any():
         raise ValueError(f"{int(out['_outcome'].isna().sum())} periods are missing from the regular time series.")
@@ -581,11 +589,14 @@ def detect_frequency(data: pd.DataFrame) -> tuple[str, int]:
     if median <= 2:
         freq, step = "Daily", "D"
     elif median <= 10:
-        freq, step = "Weekly", "W-SUN"
+        freq, step = "Weekly", f"W-{dates.iloc[0].day_name()[:3].upper()}"
     elif median <= 45:
-        freq, step = "Monthly", "MS"
+        freq = "Monthly"
+        step = "MS" if dates.dt.is_month_start.all() else "ME" if dates.dt.is_month_end.all() else None
     else:
         return "Irregular", 0
+    if step is None:
+        return freq, 0
     expected = pd.date_range(dates.min(), dates.max(), freq=step)
     missing = len(expected.difference(pd.DatetimeIndex(dates)))
     return freq, int(missing)

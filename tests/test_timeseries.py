@@ -350,3 +350,16 @@ def test_reliability_requires_multiple_major_failures_for_poor():
         10000,
     )
     assert result["overall"] == "Fair"
+
+
+def test_weekly_monday_and_month_end_dates_are_preserved():
+    for dates in [pd.date_range('2025-01-06',periods=12,freq='W-MON'), pd.date_range('2024-01-31',periods=12,freq='ME')]:
+        raw = pd.DataFrame({'date':dates, 'outcome':np.arange(len(dates)) + 10})
+        prepared = prepare_timeseries_data(raw,'date','outcome',missing_policy='Fail validation')
+        assert prepared['_date'].tolist() == dates.tolist()
+        assert prepared['_outcome'].tolist() == raw['outcome'].tolist()
+        assert detect_frequency(prepared)[1] == 0
+    bad_dates = list(pd.date_range('2025-01-06',periods=8,freq='W-MON'))
+    bad_dates[4] += pd.Timedelta(days=1)
+    with pytest.raises(ValueError, match='consistent cadence'):
+        prepare_timeseries_data(pd.DataFrame({'date':bad_dates,'value':range(8)}),'date','value')

@@ -16,6 +16,9 @@ TOP_LEVEL = ("app.py", "requirements.txt", "README.md", "app.yaml", "start_windo
 
 def package_files(root: Path) -> list[Path]:
     files = [root / name for name in TOP_LEVEL]
+    theme = root / ".streamlit" / "config.toml"
+    if theme.is_file():
+        files.append(theme)
     for directory in ("src", "tests", "scripts"):
         files.extend((root / directory).rglob("*.py"))
     files.extend((root / "sample_data").rglob("*.csv"))
