@@ -3,11 +3,37 @@ import pandas as pd
 import pytest
 from pypdf import PdfReader
 from streamlit.testing.v1 import AppTest
-from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, pdf_summary, strategy_styles, historical_metric_chart
+from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, calculate_group_plans, pdf_summary, strategy_styles, historical_metric_chart
 
 
 def _calculate(data):
     return calculate_plan(data, ['Holland','PriceLine'], list(data.segment.unique()), 'Credit line 1000', ['Credit line 2000','Credit line 3000'], 'Revolving Balance', 'NCL', 5, 'Relative %', .05, .8, True)
+
+
+def test_group_specific_strategies_use_separate_historical_cells_and_shared_family():
+    from src.experiment_platform.customer_html_report import build_html_summary
+    data = normalize_table(demo_data(), grouping='FICO group', allow_pool=True)
+    segments = list(data.segment.unique())[:2]
+    choices = {segments[0]: {'control': 'Credit line 1000', 'tests': ['Credit line 2000']},
+               segments[1]: {'control': 'Credit line 2000', 'tests': ['Credit line 3000', 'Credit line 4000']}}
+    plan = calculate_group_plans(data, ['Holland', 'PriceLine'], segments, choices, 'Revolving Balance', None, 5, 'Relative %', .05, .8, True)
+    first, second = [group['plan'] for group in plan['group_plans']]
+    assert first['family_size'] == second['family_size'] == 3
+    assert first['planning_alpha'] == pytest.approx(.05 / 3)
+    assert {r['arm'] for r in first['history']} == {'Credit line 1000', 'Credit line 2000'}
+    assert {r['arm'] for r in second['history']} == {'Credit line 2000', 'Credit line 3000', 'Credit line 4000'}
+    assert {r['segment'] for r in first['history']} == {segments[0]}
+    assert {r['segment'] for r in second['history']} == {segments[1]}
+    assert all(row['power'] >= .8 for group in (first, second) for row in group['comparisons'])
+    assert first['comparisons'][0]['baseline'] != second['comparisons'][0]['baseline']
+    plan['config']['name'] = '<script>bad</script>'
+    report = build_html_summary(plan).decode()
+    assert '&lt;script&gt;bad&lt;/script&gt;' in report and '<script>bad</script>' not in report
+    assert all(segment in report for segment in segments)
+    assert 'Credit line 4000' in report and 'Historical inputs used' in report
+    missing = data[~((data.partner == 'Holland') & (data.segment == segments[1]) & (data.strategy == 'Credit line 4000'))]
+    with pytest.raises(ValueError, match='Missing historical statistics'):
+        calculate_group_plans(missing, ['Holland', 'PriceLine'], segments, choices, 'Revolving Balance', None, 5, 'Relative %', .05, .8, True)
 
 
 def test_plan_survives_missing_package_metadata_and_pdf_dependency(monkeypatch):
@@ -37,7 +63,8 @@ def test_plan_survives_missing_package_metadata_and_pdf_dependency(monkeypatch):
     monkeypatch.setattr(customer_plan_ui, 'pdf_summary', missing_pdf)
     app.run()
     assert not app.exception
-    assert any('PDF download is unavailable' in w.value and 'reportlab' in w.value for w in app.warning)
+    assert any('PDF is unavailable' in w.value and 'reportlab' in w.value for w in app.caption)
+    assert any(button.proto.label == 'Download complete summary (HTML)' for button in app.get('download_button'))
     assert any(m.label == 'Control customers needed' for m in app.metric)
 
 
@@ -166,8 +193,15 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     assert next(s for s in app.selectbox if s.label == 'Primary metric').options == ['Revolving Balance', 'RAR', 'NCL']
     next(s for s in app.selectbox if s.label == 'Group by').set_value('PD score group').run()
     assert not app.exception
+    group_controls = [s for s in app.selectbox if s.label.startswith('Control — ')]
+    group_controls[1].set_value('Credit line 2000').run()
+    group_tests = [m for m in app.multiselect if m.label.startswith('Test options — ')]
+    group_tests[1].set_value(['Credit line 3000']).run()
     next(b for b in app.button if b.label == 'Get plan').click().run(timeout=60)
     assert not app.exception
+    group_plans = app.session_state['customer_plan_result']['group_plans']
+    assert group_plans[1]['plan']['comparisons'][0]['control'] == 'Credit line 2000'
+    assert group_plans[1]['plan']['comparisons'][0]['test'] == 'Credit line 3000'
     assert any('Total customers needed' == m.label for m in app.metric)
     assert any('Control customers needed' == m.label for m in app.metric)
     assert not any('Duration' in m.label for m in app.metric)
@@ -179,7 +213,7 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     monkeypatch.setattr(customer_plan_ui, 'pdf_summary', capture_pdf)
     app.text_input(key='customer_plan_name').set_value('Credit line test').run()
     assert not app.exception
-    assert rendered[-1] == 'Credit line test'
+    assert rendered[-1].startswith('Credit line test — ')
     next(b for b in app.button if b.label == 'Save to Your experiments').click().run()
     assert not app.exception
     assert saved[0]['sample_target'] > 0 and saved[0]['sample_collected'] == 0
@@ -188,7 +222,7 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     next(b for b in app.button if b.label == 'Back to settings').click().run()
     assert not app.exception
     assert app.radio(key='customer_plan_source').value == 'Synthetic demo'
-    assert next(s for s in app.selectbox if s.label == 'Control').value == 'Credit line 1000'
+    assert [s.value for s in app.selectbox if s.label.startswith('Control — ')][1] == 'Credit line 2000'
     assert next(s for s in app.selectbox if s.label == 'Group by').value == 'PD score group'
 
 

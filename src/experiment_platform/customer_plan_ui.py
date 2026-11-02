@@ -177,7 +177,7 @@ def prepare_history(data, partners, segments, control, tests, metrics):
     return selected[selected.strategy.isin([control]+list(tests)) & selected.metric.isin(metrics)].rename(columns={'strategy':'arm'}).drop(columns='group_by')
 
 
-def calculate_plan(data, partners, segments, control, tests, primary, guardrail, effect, effect_scale, alpha, power, multiplicity, guardrail_margin=0):
+def calculate_plan(data, partners, segments, control, tests, primary, guardrail, effect, effect_scale, alpha, power, multiplicity, guardrail_margin=0, comparison_family_size=None):
     metrics = [primary] + ([guardrail] if guardrail else [])
     history = prepare_history(data, partners, segments, control, tests, metrics)
     config = default_config()
@@ -187,10 +187,36 @@ def calculate_plan(data, partners, segments, control, tests, primary, guardrail,
     base.update(name=primary, unit='Not provided', definition='Historical customer-level metric; observation window not provided', effect=effect, effect_scale=effect_scale)
     if guardrail:
         config['metrics'].append({**base, 'name':guardrail, 'role':'Guardrail', 'direction':'Lower', 'margin':guardrail_margin or 1., 'include_in_plan':bool(guardrail_margin)})
-    plan = build_plan(config, history, code_version=code_fingerprint())
+    plan = build_plan(config, history, code_version=code_fingerprint(), comparison_family_size=comparison_family_size)
     if plan['variance_assumptions']:
         raise ValueError('Some selected options lack historical variance; complete the missing data before calculating.')
     return plan
+
+
+def calculate_group_plans(data, partners, segments, selections, primary, guardrail, effect, effect_scale, alpha, power, multiplicity, guardrail_margin=0):
+    """Size each segment independently, with one comparison family across segments."""
+    if not segments:
+        raise ValueError('Select at least one segment.')
+    for segment in segments:
+        selection = selections.get(segment, {})
+        if not selection.get('control') or not selection.get('tests'):
+            raise ValueError(f'Choose a Control and at least one Test for {segment}.')
+    family_size = sum(len(selections[s]['tests']) for s in segments) * (2 if guardrail else 1)
+    plans = []
+    for segment in segments:
+        choice = selections[segment]
+        try:
+            group_plan = calculate_plan(data, partners, [segment], choice['control'], choice['tests'], primary,
+                                        guardrail, effect, effect_scale, alpha, power, multiplicity,
+                                        guardrail_margin, comparison_family_size=family_size)
+        except (ValueError, OverflowError) as exc:
+            raise ValueError(f'{segment}: {exc}') from exc
+        plans.append({'segment': segment, 'plan': group_plan})
+    result = dict(plans[0]['plan'])
+    result['group_plans'] = plans
+    result['config'] = dict(result['config'])
+    result['targets'] = [row for group in plans for row in group['plan']['targets']]
+    return result
 
 
 def pdf_summary(plan):
@@ -198,17 +224,19 @@ def pdf_summary(plan):
     return build_design_package(plan)
 
 
-def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries):
-    if not tests:
+def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries, group_selections=None):
+    if group_selections is None and not tests:
         st.session_state.customer_plan_error = 'Choose at least one Test option.'
         return
     try:
-        plan = calculate_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin)
+        plan = (calculate_group_plans(data, partners, segments, group_selections, primary, guardrail, effect, scale, alpha, power, multiplicity, margin)
+                if group_selections is not None else
+                calculate_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin))
         plan['config']['synthetic'] = source == 'Synthetic demo'
         plan['input_source'] = source
         plan['input_grouping'] = grouping
         plan['group_boundaries'] = boundaries
-        st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping, boundaries=boundaries)
+        st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping, boundaries=boundaries, group_selections=group_selections)
         st.session_state.customer_plan_result = plan
         st.session_state.customer_plan_result_view = True
         st.session_state.customer_plan_error = ''
@@ -230,33 +258,48 @@ def render_customer_plan():
         if plan['config'].get('synthetic'):
             st.warning('Synthetic demo: these numbers are illustrative.')
         control = control_name(plan['config'])
-        roles = {arm['name']: arm['role'] for arm in plan['config']['arms']}
-        totals = pd.DataFrame(plan['arm_totals'])[['arm','recruitment_n']].rename(columns={'arm':'Option','recruitment_n':'Required customers'})
-        totals.insert(0, 'Role', totals['Option'].map(roles))
+        group_plans = plan.get('group_plans')
+        if group_plans:
+            rows = []
+            for group in group_plans:
+                roles = {arm['name']: arm['role'] for arm in group['plan']['config']['arms']}
+                rows.extend({'Group': group['segment'], 'Role': roles[row['arm']], 'Option': row['arm'], 'Required customers': row['recruitment_n']} for row in group['plan']['arm_totals'])
+            totals = pd.DataFrame(rows)
+        else:
+            roles = {arm['name']: arm['role'] for arm in plan['config']['arms']}
+            totals = pd.DataFrame(plan['arm_totals'])[['arm','recruitment_n']].rename(columns={'arm':'Option','recruitment_n':'Required customers'})
+            totals.insert(0, 'Role', totals['Option'].map(roles))
         total = int(totals['Required customers'].sum())
         totals['Allocation'] = totals['Required customers'].map(lambda n: f'{n/total:.1%}')
-        control_total = int(totals.loc[totals['Role'].eq('Control'), 'Required customers'].iloc[0])
+        control_total = int(totals.loc[totals['Role'].eq('Control'), 'Required customers'].sum())
         control_metric, total_metric = st.columns(2)
-        control_metric.metric('Control customers needed', f'{control_total:,}', help=f'Control option: {control}.')
+        control_metric.metric('Control customers needed', f'{control_total:,}', help='Sum of each group’s Control sample.' if group_plans else f'Control option: {control}.')
         total_metric.metric('Total customers needed', f'{total:,}')
-        st.caption(f'Control option: {control}. The total includes the Control and all Test options.')
+        st.caption('Each group has its own Control and Tests; sample sizes are calculated separately.' if group_plans else f'Control option: {control}. The total includes the Control and all Test options.')
         st.dataframe(totals, hide_index=True, use_container_width=True)
         m=plan['config']['metrics'][0]
         st.info(f"Primary metric: {m['name']} · MDE: {m['effect']:g} {m['effect_scale']} · Power: {plan['config']['power']:.0%} · Confidence level: {1-plan['config']['alpha']:.0%}")
-        st.caption('Historical Control counts define the assumed Partner / Segment mix. Keep this same mix across all groups. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.')
+        st.caption('Historical Control counts define the Partner mix within each group. Keep that mix across its Control and Tests. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.' if group_plans else 'Historical Control counts define the assumed Partner / Segment mix. Keep this same mix across all groups. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.')
         with st.expander('Population mix and sample detail'):
-            st.dataframe(pd.DataFrame(plan['weights']), hide_index=True, use_container_width=True)
+            st.dataframe(pd.DataFrame([w for g in group_plans for w in g['plan']['weights']] if group_plans else plan['weights']), hide_index=True, use_container_width=True)
             st.dataframe(pd.DataFrame(plan['targets'])[['partner','segment','arm','recruitment_n']], hide_index=True, use_container_width=True)
         name=st.text_input('Experiment name', value=plan['config'].get('name', 'Customer experiment'), key='customer_plan_name',
                            help='This name appears in the PDF and in your saved experiments.')
         report_plan = {**plan, 'config': {**plan['config'], 'name': name.strip() or plan['config']['name']}}
+        from .customer_html_report import build_html_summary
         a,b,c=st.columns(3)
+        a.download_button('Download complete summary (HTML)', build_html_summary(report_plan), 'experiment-design-summary.html', 'text/html', use_container_width=True)
+        pdf_plan = report_plan
+        if group_plans:
+            chosen_group = st.selectbox('Group for optional PDF', [g['segment'] for g in group_plans])
+            selected_plan = next(g['plan'] for g in group_plans if g['segment'] == chosen_group)
+            pdf_plan = {**selected_plan, 'input_grouping': plan.get('input_grouping'), 'input_source': plan.get('input_source'), 'group_boundaries': plan.get('group_boundaries'), 'config': {**selected_plan['config'], 'name': f"{name.strip() or plan['config']['name']} — {chosen_group}", 'synthetic': plan['config'].get('synthetic', False)}}
         try:
-            pdf = pdf_summary(report_plan)
+            pdf = pdf_summary(pdf_plan)
         except ModuleNotFoundError as exc:
-            a.warning(f"PDF download is unavailable because Python cannot import {exc.name or 'a required package'}. Ask your IT team to check the app's Python environment. The sample size above is still available.")
+            st.caption(f"PDF is unavailable because {exc.name or 'a required package'} is not installed. The complete HTML summary is available above.")
         else:
-            a.download_button('Download design package (PDF)', pdf, 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
+            b.download_button('Download group PDF' if group_plans else 'Download design package (PDF)', pdf, 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
         b.download_button('Download sample sizes', totals.to_csv(index=False), 'sample-size-plan.csv', 'text/csv', use_container_width=True)
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
@@ -423,10 +466,32 @@ def render_customer_plan():
     options=list(view.strategy.unique())
     if len(options)<2:
         st.warning('Provide historical statistics for at least two Strategy / Option values.'); return
-    a,b=st.columns(2)
-    control=a.selectbox('Control', options, index=options.index(draft.get('control')) if draft.get('control') in options else 0)
-    choices=[x for x in options if x != control]
-    tests=b.multiselect('Test options', choices, default=[x for x in draft.get('tests', choices[:1]) if x in choices])
+    separate = st.checkbox('Set Control and Test options separately for each group', value=draft.get('group_selections', True) is not None,
+                           help='Calculate a separate sample size for each group, using its own historical data and selected strategies.')
+    group_selections = None
+    if separate:
+        st.caption('Choose the Control and Tests available in each group. Selected Partners must have historical statistics for those options.')
+        group_selections = {}
+        saved_groups = draft.get('group_selections') or {}
+        for segment in segments:
+            st.markdown(f'**{segment}**')
+            group_options = list(view[view.segment.eq(segment) & view.metric.eq(primary)].strategy.unique())
+            if len(group_options) < 2:
+                st.warning(f'{segment} needs historical statistics for at least two strategies.'); return
+            previous = saved_groups.get(segment, {})
+            a, b = st.columns(2)
+            key = fingerprint({'group': grouping, 'segment': segment})[:16]
+            selected_control = a.selectbox(f'Control — {segment}', group_options, index=group_options.index(previous.get('control')) if previous.get('control') in group_options else 0, key='customer_control_' + key)
+            available_tests = [option for option in group_options if option != selected_control]
+            selected_tests = b.multiselect(f'Test options — {segment}', available_tests, default=[option for option in previous.get('tests', available_tests[:1]) if option in available_tests], key='customer_tests_' + key)
+            group_selections[segment] = {'control': selected_control, 'tests': selected_tests}
+        control = group_selections[segments[0]]['control']
+        tests = list(dict.fromkeys(option for selection in group_selections.values() for option in selection['tests']))
+    else:
+        a,b=st.columns(2)
+        control=a.selectbox('Control', options, index=options.index(draft.get('control')) if draft.get('control') in options else 0)
+        choices=[x for x in options if x != control]
+        tests=b.multiselect('Test options', choices, default=[x for x in draft.get('tests', choices[:1]) if x in choices])
     mde_col, scale_col=st.columns(2)
     scales=['Relative %','Absolute']
     scale=scale_col.selectbox('MDE type', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
@@ -440,9 +505,13 @@ def render_customer_plan():
         margin=st.number_input('Guardrail maximum tolerated deterioration (absolute units; 0 = monitoring only)', min_value=0.,value=float(draft.get('margin',0.))) if guardrail else 0.
     st.markdown('### Historical data visualizations')
     st.caption('Historical differences describe the supplied data; they do not establish an effect caused by the strategy. Sample counts are shown separately by Partner and option.')
-    chart_data = view[view.metric.eq(primary) & view.strategy.isin([control] + tests)].copy()
+    chart_data = view[view.metric.eq(primary)].copy()
+    if group_selections is not None:
+        chart_data = chart_data[chart_data.apply(lambda row: row['strategy'] in [group_selections[row['segment']]['control']] + group_selections[row['segment']]['tests'], axis=1)]
+    else:
+        chart_data = chart_data[chart_data.strategy.isin([control] + tests)]
     if not chart_data.empty:
-        chart_options = [control] + list(tests)
+        chart_options = list(dict.fromkeys(([control] + list(tests)) if group_selections is None else [option for selection in group_selections.values() for option in [selection['control']] + selection['tests']]))
         colors, patterns = strategy_styles([control] + sorted((option for option in options if option != control), key=str.casefold))
         if len(chart_options) > len(STRATEGY_COLORS):
             st.caption('For more than 24 options, patterns supplement the colors. Use the legend to focus on individual options.')
@@ -466,4 +535,4 @@ def render_customer_plan():
     if st.session_state.get('customer_plan_error'):
         st.error(st.session_state.customer_plan_error)
     st.button('Get plan', type='primary', use_container_width=True, on_click=_run_plan,
-              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries))
+              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries, group_selections))

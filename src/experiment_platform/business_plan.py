@@ -98,7 +98,7 @@ def variance_df(parts: list[float], ns: list[int]) -> tuple[float, float]:
     return variance, variance ** 2 / denom if denom > 0 else math.inf
 
 
-def build_plan(config: dict, raw_history: pd.DataFrame, version: int = 1, code_version: str = "unavailable") -> dict:
+def build_plan(config: dict, raw_history: pd.DataFrame, version: int = 1, code_version: str = "unavailable", comparison_family_size: int | None = None) -> dict:
     c = validate_config(config)
     history = validate_history(raw_history, c)
     weights = population_weights(history, c)
@@ -113,6 +113,10 @@ def build_plan(config: dict, raw_history: pd.DataFrame, version: int = 1, code_v
     metrics = planned_metrics(c)
     blocks = [s for s in scopes(c, weights) if s["confirmatory"]]
     family = len(tests) * len(confirmatory_metrics(c)) * len(blocks)
+    if comparison_family_size is not None:
+        if comparison_family_size < family:
+            raise ValueError('The comparison family cannot be smaller than the comparisons in this plan.')
+        family = comparison_family_size
     alpha = c["alpha"] / family if c["multiplicity"] else c["alpha"]
     lookup = history.set_index(["partner", "segment", "arm", "metric"])
     assumed = set()
