@@ -500,7 +500,8 @@ def render_customer_plan():
         a,b=st.columns(2)
         alpha=a.number_input('False positive rate (alpha)', min_value=.001,max_value=.2,value=float(draft.get('alpha',.05)),step=.01,format='%.3f')
         power=b.number_input('Detection chance (power)', min_value=.5,max_value=.99,value=float(draft.get('power',.8)),step=.05)
-        multiplicity=st.checkbox('Protect against multiple comparisons', value=draft.get('multiplicity',True))
+        multiplicity=st.checkbox('Protect against multiple comparisons (Bonferroni)', value=draft.get('multiplicity',False),
+                                 help='Adjust the significance level across planned comparisons. Without this protection, the chance of at least one false positive increases when comparing multiple Tests.')
         st.caption('Default: pairwise Neyman allocation with a shared Control; historical Control customer counts determine the population mix across arms.')
         margin=st.number_input('Guardrail maximum tolerated deterioration (absolute units; 0 = monitoring only)', min_value=0.,value=float(draft.get('margin',0.))) if guardrail else 0.
     st.markdown('### Historical data visualizations')

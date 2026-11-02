@@ -172,7 +172,7 @@ def _setup(b):
             c["multiplicity"] = z.checkbox("Protect multiple comparisons", bool(c["multiplicity"]))
             c["srm_alpha"] = a.number_input("SRM diagnostic threshold", .00001, .1, float(c["srm_alpha"]), format="%.5f")
             c["smd_threshold"] = z.number_input("SMD reference line", .01, 2., float(c["smd_threshold"]), step=.01)
-            c["allocation"] = st.selectbox("Allocation method", ["Recommended", "Business fixed"], index=["Recommended","Business fixed"].index(c["allocation"]), help="Recommended: pairwise Neyman, largest shared Control, then solve each Test again.")
+            c["allocation"] = st.selectbox("Allocation method", ["Recommended", "Business fixed"], index=["Recommended","Business fixed"].index(c["allocation"]), help="Recommended: pairwise Neyman, largest shared Control, then apply each Test's SD ratio.")
             # Always render assumptions so changing a selectbox inside a form needs only one submit.
             allocation_rows = st.data_editor(pd.DataFrame([{"arm": a["name"], "allocation_weight": c["fixed_shares"].get(a["name"],1.), "test_sd_multiplier": c.get("test_sd_multipliers",{}).get(a["name"],1.)} for a in c["arms"]]), hide_index=True, key="bv2_allocation_grid", disabled=["arm"], use_container_width=True)
             c["fixed_shares"] = dict(zip(allocation_rows.arm, allocation_rows.allocation_weight))

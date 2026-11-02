@@ -172,7 +172,7 @@ def build_design_package(plan: dict) -> bytes:
          's² is historical variance, n is the planned analyzable sample and each v is one variance component in V.'),
         ('D. Neyman ratio and shared Control',
          'Test / Control starting ratio = √(Σ w<sub>h</sub> × s<sub>Test,h</sub><super>2</super>) / √(Σ w<sub>h</sub> × s<sub>Control,h</sub><super>2</super>)',
-         'Size each Test against Control; keep the largest Control requirement, then recalculate each Test and verify the final integer sample sizes.'),
+         'Size each Test against Control; keep the largest Control requirement. Set each Test N to that Control N multiplied by its starting ratio, round up, and verify the final sample sizes.'),
         ('E. Power and comparison protection',
          'Noncentrality = effect / √V<br/>Adjusted alpha = alpha / number of comparisons in the family',
          'A noncentral t distribution is used for primary-metric power. The alpha adjustment applies only when protection is enabled. Guardrail planning uses its margin and one-sided non-inferiority power with a conservative critical value.'),

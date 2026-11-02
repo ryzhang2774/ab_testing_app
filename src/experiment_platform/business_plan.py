@@ -234,12 +234,9 @@ def build_plan(config: dict, raw_history: pd.DataFrame, version: int = 1, code_v
                 pair_targets[arm] = (nc, nt)
                 pairwise.append({"scope": block["name"], "test": arm, "pair_control_n": nc, "pair_test_n": nt, "neyman_ratio": ratio})
             counts = {control: max(nc for nc, _ in pair_targets.values())}
-            for arm, (_, nt) in pair_targets.items():
-                def satisfies(n):
-                    candidate = {a: min_total for a in arm_names}
-                    candidate.update({control: counts[control], arm: n})
-                    return all(r["power"] >= c["power"] for r in details(candidate) if r["test"] == arm)
-                counts[arm] = find_min(satisfies, nt)
+            for arm in tests:
+                ratio = effective_sd[arm] / effective_sd[control]
+                counts[arm] = max(min_total, math.ceil(counts[control] * ratio))
         verified = details(counts)
         if any(r["power"] + 1e-10 < c["power"] for r in verified):
             raise ValueError("Rounded allocation failed final power verification; no plan has been saved.")

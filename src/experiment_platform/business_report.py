@@ -111,7 +111,7 @@ def build_pdf(plan: dict, snapshot: dict | None = None, stage: str = "Build test
     story.append(para(f"Recruitment duration: {plan['recruitment_weeks']:.6g} weeks. Recruitment end: {plan['recruitment_end']}. Earliest mature readout: {plan['earliest_readout']}. Within maximum recruitment duration: {plan['within_max_duration']}." if plan["targets"] else "Sample targets and recruitment calendar have not been calculated."))
     table(plan["targets"], ["partner", "segment", "arm", "analyzable_n", "recruitment_n", "expected_share"])
     heading("Pairwise Neyman and shared-control calculation")
-    story.append(para("First solve each Test versus Control using the Primary metric SD ratio and all included metric constraints. Take the largest pairwise Control N. Fix it, solve each Test again, then verify all final integer stratum counts. Business-fixed allocation instead scales its declared ratios."))
+    story.append(para("First solve each Test versus Control using the Primary metric SD ratio and all included metric constraints. Take the largest pairwise Control N. Multiply it by each Test's SD ratio and round up; then verify all final integer stratum counts. Business-fixed allocation instead scales its declared ratios."))
     table(plan["pairwise"])
     table(plan["comparisons"], ["scope", "metric", "test", "control_n", "test_n", "detectable_change_or_margin", "planning_alpha", "power", "variance_of_difference", "degrees_of_freedom"])
     if snapshot:

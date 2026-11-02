@@ -40,6 +40,6 @@ def build_html_summary(plan):
 {''.join(sections)}
 <section><h2>Calculation method</h2><p>Each Test is compared with its group's Control. Control historical counts determine Partner weights within the group. The relative MDE is applied to the weighted Control mean.</p>
 <p>Variance of difference = sum over Partners of weight² × (Control variance / Control N + Test variance / Test N). Welch degrees of freedom and a noncentral t distribution determine power.</p>
-<p>Pairwise Neyman allocation starts from the Test-to-Control standard deviation ratio. The largest required Control is shared within that group, then each Test is recalculated and checked. If enabled, Bonferroni protection covers the comparison family across the selected groups.</p>
+<p>Pairwise Neyman allocation starts from the Test-to-Control standard deviation ratio. The largest required Control is shared within that group. Each Test N is the shared Control N multiplied by its ratio, rounded up; the final sample sizes are checked. If enabled, Bonferroni protection covers the comparison family across the selected groups.</p>
 <p>Required recruitment N = analyzable N / (1 − missing-outcome fraction), rounded up separately for each cell. Historical variance and MDE assumptions do not establish a causal effect.</p></section>
 <section><h2>Reproducibility</h2><p>Calculation time: {text(plan.get('saved_at', 'Not recorded'))}; source: {text(plan.get('input_source', 'Not recorded'))}. Retain the source data and review assumptions before launch.</p></section></body></html>'''.encode('utf-8')

@@ -1,4 +1,5 @@
 import io
+import math
 import pandas as pd
 import pytest
 from pypdf import PdfReader
@@ -8,6 +9,22 @@ from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_sum
 
 def _calculate(data):
     return calculate_plan(data, ['Holland','PriceLine'], list(data.segment.unique()), 'Credit line 1000', ['Credit line 2000','Credit line 3000'], 'Revolving Balance', 'NCL', 5, 'Relative %', .05, .8, True)
+
+
+def test_shared_control_keeps_neyman_ratios_for_all_tests():
+    rows = [('250', 120, 47729.07, 23627), ('2000', 199.34, 155682.07, 43962),
+            ('3500', 323.23, 466854.65, 88513), ('7000', 405.80, 874489.39, 30874)]
+    data = pd.DataFrame([{'partner':'Partner', 'segment':'Group', 'strategy':arm, 'metric':'Metric',
+                          'sample_mean':mean, 'sample_variance':variance, 'sample_number':n, 'group_by':'FICO'}
+                         for arm, mean, variance, n in rows])
+    plan = calculate_plan(data, ['Partner'], ['Group'], '250', ['2000','3500','7000'], 'Metric', None, 20, 'Relative %', .05, .8, True)
+    totals = {r['arm']: r['analyzable_n'] for r in plan['arm_totals']}
+    control_n = max(r['pair_control_n'] for r in plan['pairwise'])
+    assert control_n == totals['250'] == 4582
+    for arm, _, variance, _ in rows[1:]:
+        assert totals[arm] == math.ceil(control_n * math.sqrt(variance / rows[0][2]))
+    assert sum(totals.values()) == 46802
+    assert all(row['power'] >= .8 for row in plan['comparisons'])
 
 
 def test_group_specific_strategies_use_separate_historical_cells_and_shared_family():
@@ -179,6 +196,7 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     app.button(key='customer_demo_plan').click().run()
     assert not app.exception
     assert app.radio(key='customer_plan_source').value == 'Synthetic demo'
+    assert not next(c for c in app.checkbox if c.label == 'Protect against multiple comparisons (Bonferroni)').value
     assert not app.exception
     assert any('Choose your grouping column' in item.value for item in app.markdown)
     assert any('Data preview' in item.value for item in app.markdown)
