@@ -6,7 +6,7 @@ sum(w_h**2 * s_h**2 / n_h), without a between-stratum variance term.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from importlib.metadata import version as package_version
+from importlib.metadata import PackageNotFoundError, version as package_version
 import math
 import platform
 import numpy as np
@@ -17,6 +17,18 @@ from .business_config import control_name, effect_size, fingerprint, utc_now, va
 from .business_data import validate_history
 
 LIMIT = 20_000_000
+VERSION_UNAVAILABLE = "Package metadata unavailable"
+
+
+def runtime_versions() -> dict[str, str]:
+    """Record available versions without making metadata a planning dependency."""
+    versions = {"python": platform.python_version()}
+    for package in ("numpy", "pandas", "scipy", "statsmodels", "streamlit", "reportlab"):
+        try:
+            versions[package] = package_version(package)
+        except PackageNotFoundError:
+            versions[package] = VERSION_UNAVAILABLE
+    return versions
 
 
 def clean_records(frame: pd.DataFrame) -> list[dict]:
@@ -257,7 +269,7 @@ def build_plan(config: dict, raw_history: pd.DataFrame, version: int = 1, code_v
     return {"schema_version": 2, "version": version, "saved_at": utc_now(), "config": c,
             "config_fingerprint": fingerprint(c), "history": clean_records(history), "weights": weights,
             "data_fingerprint": fingerprint(clean_records(history)), "code_version": code_version,
-            "runtime_versions":{"python":platform.python_version(),**{p:package_version(p) for p in ("numpy","pandas","scipy","statsmodels","streamlit","reportlab")}},
+            "runtime_versions": runtime_versions(),
             "targets": clean_records(target_frame), "arm_totals": clean_records(arm_totals),
             "comparisons": comparisons, "pairwise": pairwise,
             "variance_assumptions": [{"arm": a, "partner": p, "segment": s, "metric": m, "source": source} for a,p,s,m,source in sorted(assumed)],

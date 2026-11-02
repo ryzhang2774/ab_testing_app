@@ -10,6 +10,37 @@ def _calculate(data):
     return calculate_plan(data, ['Holland','PriceLine'], list(data.segment.unique()), 'Credit line 1000', ['Credit line 2000','Credit line 3000'], 'Revolving Balance', 'NCL', 5, 'Relative %', .05, .8, True)
 
 
+def test_plan_survives_missing_package_metadata_and_pdf_dependency(monkeypatch):
+    from importlib.metadata import PackageNotFoundError
+    from src.experiment_platform import business_plan, customer_plan_ui
+
+    actual_version = business_plan.package_version
+    def missing_metadata(name):
+        if name == 'reportlab':
+            raise PackageNotFoundError(name)
+        return actual_version(name)
+    monkeypatch.setattr(business_plan, 'package_version', missing_metadata)
+    app = AppTest.from_file('app.py', default_timeout=60).run()
+    app.button(key='home_choose_customer').click().run()
+    app.button(key='customer_demo_plan').click().run()
+    next(b for b in app.button if b.label == 'Get plan').click().run(timeout=60)
+    assert not app.exception
+    assert any(m.label == 'Control customers needed' for m in app.metric)
+    assert any('reportlab' in w.value and 'version information' in w.value for w in app.warning)
+    plan = app.session_state['customer_plan_result']
+    assert plan['runtime_versions']['reportlab'] == business_plan.VERSION_UNAVAILABLE
+    assert plan['runtime_versions']['numpy'] == actual_version('numpy')
+    assert plan['arm_totals']
+
+    def missing_pdf(_plan):
+        raise ModuleNotFoundError("No module named 'reportlab'", name='reportlab')
+    monkeypatch.setattr(customer_plan_ui, 'pdf_summary', missing_pdf)
+    app.run()
+    assert not app.exception
+    assert any('PDF download is unavailable' in w.value and 'reportlab' in w.value for w in app.warning)
+    assert any(m.label == 'Control customers needed' for m in app.metric)
+
+
 def test_many_credit_lines_have_distinct_styles_and_plausible_demo():
     names = [f'Credit line {1000 * i}' for i in range(1, 31)]
     colors, patterns = strategy_styles(names)

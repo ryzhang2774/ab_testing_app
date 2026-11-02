@@ -222,6 +222,11 @@ def render_customer_plan():
     if st.session_state.get('customer_plan_result_view'):
         plan = st.session_state['customer_plan_result']
         st.markdown('#### Your sample size plan')
+        from .business_plan import VERSION_UNAVAILABLE
+        missing_versions = [name for name, version in plan.get('runtime_versions', {}).items() if version == VERSION_UNAVAILABLE]
+        if missing_versions:
+            st.warning('The plan was calculated, but package version information could not be recorded for: '
+                       + ', '.join(missing_versions) + '. Ask your IT team to check the app’s Python environment.')
         if plan['config'].get('synthetic'):
             st.warning('Synthetic demo: these numbers are illustrative.')
         control = control_name(plan['config'])
@@ -246,7 +251,12 @@ def render_customer_plan():
                            help='This name appears in the PDF and in your saved experiments.')
         report_plan = {**plan, 'config': {**plan['config'], 'name': name.strip() or plan['config']['name']}}
         a,b,c=st.columns(3)
-        a.download_button('Download design package (PDF)', pdf_summary(report_plan), 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
+        try:
+            pdf = pdf_summary(report_plan)
+        except ModuleNotFoundError as exc:
+            a.warning(f"PDF download is unavailable because Python cannot import {exc.name or 'a required package'}. Ask your IT team to check the app's Python environment. The sample size above is still available.")
+        else:
+            a.download_button('Download design package (PDF)', pdf, 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
         b.download_button('Download sample sizes', totals.to_csv(index=False), 'sample-size-plan.csv', 'text/csv', use_container_width=True)
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
