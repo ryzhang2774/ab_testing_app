@@ -67,7 +67,14 @@ def test_validation_blocks_bad_variance_duplicates_and_monthly_snapshots():
         normalize_summary(pd.DataFrame([{**row,'Sample SD':3}]))
 
 
-def test_summary_demo_and_ui_support_multiple_metrics():
+def test_summary_demo_and_ui_support_multiple_metrics(monkeypatch):
+    import builtins
+    original_import = builtins.__import__
+    def without_reportlab(name, *args, **kwargs):
+        if name == 'reportlab' or name.startswith('reportlab.'):
+            raise ModuleNotFoundError("No module named 'reportlab'", name='reportlab')
+        return original_import(name, *args, **kwargs)
+    monkeypatch.setattr(builtins, '__import__', without_reportlab)
     demo = summary_demo()
     data, _ = normalize_summary(demo)
     assert data.sample_number.min() >= 2
@@ -100,7 +107,7 @@ def test_summary_demo_and_ui_support_multiple_metrics():
     assert not app.exception
     assert set(app.session_state.summary_analyses) == {'Revolving Balance','RAR','NCL'}
     assert app.text_input(key='summary_report_name').value == 'Customer experiment'
-    assert any(x.proto.label == 'Download final report (PDF)' for x in app.get('download_button'))
+    assert any(x.proto.label == 'Download final report (HTML)' for x in app.get('download_button'))
     assert len(app.get('plotly_chart')) == 12
     charts = [json.loads(chart.proto.spec) for chart in app.get('plotly_chart')]
     assert charts[3]['layout']['yaxis']['range'] == charts[4]['layout']['yaxis']['range'] == charts[5]['layout']['yaxis']['range']
@@ -111,6 +118,8 @@ def test_summary_demo_and_ui_support_multiple_metrics():
     segments = labels.index('### Results by FICO group')
     decisions = labels.index('### Decision insights')
     assert overall < segments < decisions
+    fico_labels = [x for x in labels if x.startswith('**FICO ')]
+    assert fico_labels[:3] == ['**FICO 650–699**', '**FICO 700–749**', '**FICO 750+**']
     assert not any('Additional metric (exploratory)' in label for label in labels)
     for metric in ['Revolving Balance', 'RAR', 'NCL']:
         assert any(metric in label for label in labels[overall:segments])

@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 from scipy import stats
+import statsmodels.api as sm
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.statespace.structural import UnobservedComponents
 
@@ -705,6 +706,31 @@ def run_pre_post_analysis(
     }
 
 
+def pre_post_hac_test(data: pd.DataFrame, result: dict, alpha: float = .05) -> dict:
+    """Exploratory mean-change test with autocorrelation-robust standard errors."""
+    before = data[data['_date'].between(result['pre_start'], result['pre_end'])]['_outcome'].astype(float)
+    after = data[data['_date'].between(result['post_start'], result['post_end'])]['_outcome'].astype(float)
+    unavailable = {'available': False, 'reason': 'At least 8 observations in each period are needed for this exploratory autocorrelation-robust test.'}
+    if len(before) < 8 or len(after) < 8:
+        return unavailable
+    values = np.r_[before.to_numpy(), after.to_numpy()]
+    if not np.isfinite(values).all():
+        return {'available': False, 'reason': 'Values must be complete and finite.'}
+    indicator = np.r_[np.zeros(len(before)), np.ones(len(after))]
+    lag = max(1, min(int(4 * (len(values) / 100) ** (2 / 9)), len(before) - 1, len(after) - 1))
+    try:
+        model = sm.OLS(values, sm.add_constant(indicator)).fit(cov_type='HAC', cov_kwds={'maxlags': lag}, use_t=True)
+        se, p = float(model.bse[1]), float(model.pvalues[1])
+        ci = model.conf_int(alpha=alpha)[1]
+        if not np.isfinite([se, p, *ci]).all() or se <= 1e-12:
+            return {'available': False, 'reason': 'The data do not provide a stable standard error.'}
+        return {'available': True, 'p_value': p, 'significant': bool(p < alpha), 'alpha': alpha,
+                'ci': (float(ci[0]), float(ci[1])), 'standard_error': se, 'lags': lag,
+                'method': 'Two-sided mean-change regression with Newey–West HAC standard errors'}
+    except (ValueError, ArithmeticError, np.linalg.LinAlgError):
+        return {'available': False, 'reason': 'The exploratory significance test could not be estimated reliably.'}
+
+
 def _seasonal_period(frequency: str, seasonality: str, n_pre: int) -> int | None:
     if seasonality == "None":
         return None
@@ -851,12 +877,19 @@ def fit_bsts_model(
     if not 0 < credible_interval < 1:
         raise ValueError("Prediction interval must be between 0 and 1.")
     pre, post = intervention_periods(data, intervention_date, campaign_end_date)
-    if len(pre) < 20:
-        raise ValueError("At least 20 pre-intervention observations are required.")
+    if len(pre) < 12:
+        raise ValueError("At least 12 pre-intervention observations are required.")
     if len(post) < 2:
         raise ValueError("At least two post-intervention observations are required.")
     covariates = covariates or []
+    if len(pre) < 12 + 3 * len(covariates):
+        raise ValueError('Short histories need at least 12 pre-intervention observations plus 3 per comparison signal.')
+    short_history = len(pre) < 20
+    if short_history:
+        seasonality, local_trend = 'None', False
     fitted, frame, period, valid_covariates, warnings = _fit_structural(pre, post, frequency, seasonality, covariates, local_trend, credible_interval)
+    if short_history:
+        warnings.insert(0, 'Short history (12–19 pre-periods): using a simpler local-level model without seasonality. The estimate is exploratory; collect more history and validate before a decision.')
     if not _model_is_stable(fitted, frame):
         raise RuntimeError("The structural model did not converge. Try a simpler trend or seasonality setting.")
     alpha = 1 - credible_interval

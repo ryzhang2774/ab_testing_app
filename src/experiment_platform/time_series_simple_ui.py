@@ -2,6 +2,7 @@
 from datetime import datetime
 from io import BytesIO
 from html import escape
+import re
 
 import numpy as np
 import pandas as pd
@@ -13,10 +14,48 @@ from .charts import time_series_line, pre_post_bar, bsts_counterfactual_chart, t
 from .portfolio import configuration_fingerprint
 from .customer_demo import PARTNERS, FICO_GROUPS
 from .timeseries import (infer_timeseries_columns, prepare_timeseries_data, predictor_candidates,
-                         run_pre_post_analysis, fit_bsts_model, data_fingerprint, method_config_fingerprint,
+                         run_pre_post_analysis, pre_post_hac_test, fit_bsts_model, data_fingerprint, method_config_fingerprint,
                          humanize_column_name)
 
 SEGMENTS = FICO_GROUPS
+
+
+def infer_period_boundary(frame, date_col):
+    """Recognize explicit pre/post flags and reject ambiguous or conflicting labels."""
+    names = {'campaign_flag', 'intervention_flag', 'post_flag', 'post_treatment', 'is_post', 'pre_post', 'prepost',
+             'pre_post_flag', 'pre_post_label', 'before_after', 'period', 'period_label', 'phase',
+             'campaign_period', 'treatment_period', 'pre_post_period'}
+    candidates = []
+    for col in frame:
+        name = re.sub(r'[^a-z0-9]+', '_', str(col).strip().lower()).strip('_')
+        if name not in names:
+            continue
+        if name in {'period', 'phase', 'period_label'}:
+            values = set(frame[col].dropna().astype(str).str.strip().str.lower())
+            if not values.intersection({'pre', 'post', 'before', 'after', 'pre campaign', 'post campaign'}):
+                continue
+        candidates.append(col)
+    if not candidates:
+        return None, None
+    if len(candidates) > 1:
+        raise ValueError('More than one pre/post label column was found. Keep one unambiguous column.')
+    col = candidates[0]
+    raw = frame[col].fillna('').astype(str).str.strip().str.lower().str.replace(r'[_\-]+', ' ', regex=True).str.replace(r'\s+', ' ', regex=True)
+    mapping = {'0': 0, '0.0': 0, 'false': 0, 'pre': 0, 'before': 0, 'pre campaign': 0, 'before campaign': 0,
+               'pre intervention': 0, 'pre treatment': 0, 'pre period': 0,
+               '1': 1, '1.0': 1, 'true': 1, 'post': 1, 'after': 1, 'post campaign': 1, 'after campaign': 1,
+               'post intervention': 1, 'post treatment': 1, 'post period': 1}
+    labels = raw.map(mapping)
+    dates = safe_datetime_series(frame, date_col)
+    if labels.isna().any() or dates.isna().any():
+        raise ValueError(f'{col}: use complete pre/post or 0/1 labels and valid dates.')
+    labeled = pd.DataFrame({'date': dates, 'post': labels})
+    if (labeled.groupby('date')['post'].nunique() > 1).any():
+        raise ValueError(f'{col}: the same date contains both pre and post labels.')
+    pre, post = labeled[labeled.post.eq(0)], labeled[labeled.post.eq(1)]
+    if pre.empty or post.empty or pre.date.max() >= post.date.min():
+        raise ValueError(f'{col}: labels must contain a pre period followed by a post period without switching back.')
+    return col, post.date.min().date()
 
 
 @st.cache_data(show_spinner=False)
@@ -184,10 +223,14 @@ def render_time_series_analysis():
     default_metric = inferred['outcome'] if inferred['outcome'] in numeric else numeric[0]
     a,b = st.columns(2)
     date_col = a.selectbox('Date column',date_candidates,index=date_candidates.index(default_date),key='ts_simple_date')
-    metrics = [c for c in numeric if c != date_col and not any(x in str(c).lower() for x in ('flag','true_effect','true_impact'))]
+    try:
+        flag, _ = infer_period_boundary(frame, date_col)
+    except ValueError as exc:
+        st.error(f'Pre/post labels: {exc}'); return
+    flag = flag or 'None'
+    metrics = [c for c in numeric if c != date_col and c != flag and not any(x in str(c).lower() for x in ('flag','true_effect','true_impact'))]
     if not metrics: st.warning('Choose a numeric outcome column.'); return
     metric = b.selectbox('Metric',metrics,index=metrics.index(default_metric) if default_metric in metrics else 0,key='ts_simple_metric')
-    flag = inferred['campaign_flag'] if inferred['campaign_flag'] in columns else 'None'
     dims = _grouping_columns(frame,date_col,metric,flag)
     partner = next((c for c in dims if str(c).lower()=='partner'),None)
     selected = frame.copy()
@@ -234,13 +277,17 @@ def render_time_series_analysis():
             if not confirmed: st.info('Confirm how the rows are combined before calculating.'); return
     else: aggregation = None
     min_date,max_date = dates.min().date(),dates.max().date()
-    default_launch = None
-    if source=='Synthetic demo' and flag!='None':
-        launch_dates = dates[pd.to_numeric(selected[flag],errors='coerce').fillna(0)>0]
-        if not launch_dates.empty: default_launch = launch_dates.min().date()
-    prior_launch = st.session_state.get('ts_simple_launch')
-    if prior_launch is not None and not min_date <= prior_launch <= max_date: st.session_state.pop('ts_simple_launch',None)
-    launch = st.date_input('Campaign launch date',value=default_launch,min_value=min_date,max_value=max_date,key='ts_simple_launch')
+    try:
+        _, inferred_launch = infer_period_boundary(selected, date_col)
+    except ValueError as exc:
+        st.error(f'Pre/post labels: {exc}'); return
+    if inferred_launch:
+        launch = inferred_launch
+        st.info(f'Pre/post labels detected in {flag}. The first post-period begins {launch}; earlier dates are pre-period.')
+    else:
+        prior_launch = st.session_state.get('ts_simple_launch')
+        if prior_launch is not None and not min_date <= prior_launch <= max_date: st.session_state.pop('ts_simple_launch',None)
+        launch = st.date_input('Campaign launch date',value=None,min_value=min_date,max_value=max_date,key='ts_simple_launch')
     if launch is None: st.info('Choose the campaign launch date.'); return
     st.caption('Both a before-and-after comparison and a modeled estimate will be calculated. The model needs sufficient history.')
     with st.expander('Advanced settings'):
@@ -301,6 +348,7 @@ def render_time_series_analysis():
                 if end: scope_post = scope_post[scope_post['_date']<=pd.Timestamp(end)]
                 try:
                     pp = run_pre_post_analysis(data,cfg.intervention_date,cfg.campaign_end_date,comparison_metric='Average per period',comparison_window='Symmetric',symmetric_periods=min(len(scope_pre),len(scope_post)))
+                    pp['significance_test'] = pre_post_hac_test(data, pp, alpha=1-interval)
                 except ValueError as exc:
                     bundle.append({'name':name,'data':data,'prepost':None,'model':None,'error':str(exc)}); continue
                 try:
@@ -350,6 +398,13 @@ def render_time_series_analysis():
             st.warning('Not calculated: '+str(item['error'])); continue
         _insight_card(_decision_insight(label,item['prepost'],item['model'],item['error'],None if index == 0 else item['name']))
     st.caption('A before-and-after change is descriptive. The model is conditional on pre-launch patterns and unaffected signals; neither result alone proves causality or approves a decision.')
+    with st.expander('How these results are calculated'):
+        st.write('Before-and-after compares equal-length windows. Lift = (after average − before average) / before average. The exploratory significance test uses a two-sided mean-change regression with Newey–West autocorrelation-robust errors; it does not account for trend, seasonality, other events or multiple segments.')
+        st.write('The structural model fits the pre-period and estimates the outcome without the campaign. Impact = actual − estimated baseline; model lift = total impact / estimated baseline total. Intervals depend on the model assumptions. Check the validation, seasonal coverage and unaffected signals before drawing conclusions.')
+    from .time_series_html_report import build_analysis_html
+    st.download_button('Download analysis report (HTML)', build_analysis_html(bundle,cfg,source,group,label),
+                       'time-series-analysis.html', 'text/html', key='ts_analysis_html')
+    st.caption('Open the report in a browser and use Print → Save as PDF if needed.')
 
 
 def _render_scope(item,label,cfg,group,is_overall):
@@ -364,9 +419,19 @@ def _render_scope(item,label,cfg,group,is_overall):
     st.caption(f"Matching before/after windows: {pp['pre_observations']} / {pp['post_observations']} periods; {pp['pre_start'].date()}–{pp['pre_end'].date()} and {pp['post_start'].date()}–{pp['post_end'].date()}.")
     chart_key = configuration_fingerprint({'scope':name,'group':group,'overall':is_overall})[:14]
     if model is not None:
+        st.markdown('**Structural time-series counterfactual**')
         low,high = model['prediction_interval']
         relative = _safe_pct(model['relative_impact']) if model['expected_total']>0 else 'Unavailable'
         st.caption(f"Model estimate: {model['cumulative_impact']:+,.2f} ({relative}) · {model['interval_level']:.0%} model interval: {low:+,.2f} to {high:+,.2f} · Validation: {model.get('reliability','Review')}")
+        actual, expected = model['observed_total'], model['expected_total']
+        x,y,z = st.columns(3)
+        x.metric('Actual outcome (campaign period)', f'{actual:,.2f}')
+        y.metric('Estimated without campaign', f'{expected:,.2f}')
+        z.metric('Estimated lift vs baseline', relative)
+        period = model.get('seasonal_period')
+        season_note = str(period) + ' ' + data.attrs['frequency'].lower() + ' periods per cycle' if period else 'not included'
+        if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
+        st.caption(f"Model seasonality: {season_note} · Comparison signals: {', '.join(model.get('covariates', [])) or 'none'}.")
         st.markdown('**Actual vs estimated without campaign**')
         context = timeseries_chart_context(data,cfg.intervention_date,cfg.campaign_end_date)
         st.plotly_chart(bsts_counterfactual_chart(data,model['result'],cfg.intervention_date,label,context),use_container_width=True,key='ts_simple_model_'+chart_key)
@@ -379,7 +444,11 @@ def _render_scope(item,label,cfg,group,is_overall):
         st.warning('Model estimate unavailable: '+str(item['error']))
         st.plotly_chart(time_series_line(data,cfg.intervention_date,label),use_container_width=True,key='ts_simple_history_'+chart_key)
     st.markdown('**Before-and-after comparison**')
-    st.plotly_chart(pre_post_bar(pp['pre_value'],pp['post_value'],label),use_container_width=True,key='ts_simple_prepost_'+chart_key)
+    test = pp.get('significance_test', {'available': False, 'reason': 'Not calculated.'})
+    st.plotly_chart(pre_post_bar(pp['pre_value'],pp['post_value'],label,test),use_container_width=True,key='ts_simple_prepost_'+chart_key)
+    st.caption('The before-and-after test is exploratory. It uses autocorrelation-robust standard errors but does not adjust for trend, seasonality, concurrent events or multiple segments and cannot establish causality.')
+    if not test.get('available'):
+        st.caption('Significance unavailable: ' + test.get('reason', 'Not enough data.'))
     with st.expander(f'Detailed statistics · {name}'):
         st.json({k:str(v) if isinstance(v,pd.Timestamp) else v for k,v in pp.items()})
         if model is not None: st.dataframe(model['result'],hide_index=True,use_container_width=True)

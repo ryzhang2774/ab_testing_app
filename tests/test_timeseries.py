@@ -95,6 +95,17 @@ def test_bsts_requires_enough_pre_history():
         fit_bsts_model(prepared, "2025-02-01", "Weekly")
 
 
+def test_short_history_uses_simpler_model_and_flags_uncertainty():
+    rng = np.random.default_rng(11)
+    dates = pd.date_range('2025-01-01', periods=18, freq='W')
+    data = prepare_timeseries_data(pd.DataFrame({'date':dates, 'outcome':100+rng.normal(0,5,18)}), 'date', 'outcome')
+    result = fit_bsts_model(data, dates[12].isoformat(), 'Weekly', draws=100, seasonality='Auto', local_trend=True)
+    assert result['pre_observations'] == 12 and result['seasonal_period'] is None
+    assert result['model_specification']['level'] == 'local level'
+    assert any('Short history' in warning and 'exploratory' in warning for warning in result['warnings'])
+    assert result['reliability'] != 'Good'
+
+
 def test_structural_model_respects_end_date_and_interval_level():
     prepared = prepare_timeseries_data(time_series_campaign(), "date", "applications")
     result = fit_bsts_model(prepared, "2025-07-06", "Weekly", campaign_end_date="2025-09-28", credible_interval=0.8, seed=99)

@@ -13,6 +13,7 @@ from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import historical_demo
 from .customer_palette import STRATEGY_COLORS, strategy_styles
+from .customer_grouping import ordered_groups
 from .portfolio import load_experiments, upsert_experiment
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
@@ -23,7 +24,7 @@ def demo_data():
 def historical_metric_chart(data, grouping, primary, options):
     """Compare ordered options within each Partner and segment, keeping gaps visible."""
     partners = list(data.partner.unique())
-    segments = list(data.segment.unique())
+    segments = ordered_groups(data.segment.unique(), grouping)
     index = pd.MultiIndex.from_product([partners, segments, options], names=['partner', 'segment', 'strategy'])
     rows = data.set_index(['partner', 'segment', 'strategy']).reindex(index).reset_index()
     fig = px.line(rows, x='strategy', y='sample_mean', color='segment', line_group='segment',
@@ -36,6 +37,21 @@ def historical_metric_chart(data, grouping, primary, options):
     fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
     fig.update_layout(height=360 if len(partners) <= 2 else 590, margin=dict(t=40, b=70, l=30, r=20),
                       legend_title_text=grouping)
+    return fig
+
+
+def historical_bar_chart(data, grouping, value, label, options, colors, patterns):
+    """Use shared categorical slots across Partners, even for numeric-looking labels."""
+    segments = ordered_groups(data.segment.unique(), grouping)
+    fig = px.bar(data, x='segment', y=value, color='strategy', pattern_shape='strategy', barmode='group',
+                 facet_col='partner', facet_col_wrap=2,
+                 labels={'segment': grouping, 'strategy':'Strategy', value:label},
+                 category_orders={'strategy':options, 'segment':segments, 'partner':list(dict.fromkeys(data.partner))},
+                 color_discrete_map=colors, pattern_shape_map=patterns)
+    fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
+    fig.update_xaxes(type='category', categoryorder='array', categoryarray=segments)
+    fig.update_layout(height=360 if len(data.partner.unique()) <= 2 else 590,
+                      margin=dict(t=40,b=45,l=30,r=20), legend_title_text='Strategy')
     return fig
 
 
@@ -219,11 +235,6 @@ def calculate_group_plans(data, partners, segments, selections, primary, guardra
     return result
 
 
-def pdf_summary(plan):
-    from .customer_report import build_design_package
-    return build_design_package(plan)
-
-
 def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries, group_selections=None):
     if group_selections is None and not tests:
         st.session_state.customer_plan_error = 'Choose at least one Test option.'
@@ -289,17 +300,7 @@ def render_customer_plan():
         from .customer_html_report import build_html_summary
         a,b,c=st.columns(3)
         a.download_button('Download complete summary (HTML)', build_html_summary(report_plan), 'experiment-design-summary.html', 'text/html', use_container_width=True)
-        pdf_plan = report_plan
-        if group_plans:
-            chosen_group = st.selectbox('Group for optional PDF', [g['segment'] for g in group_plans])
-            selected_plan = next(g['plan'] for g in group_plans if g['segment'] == chosen_group)
-            pdf_plan = {**selected_plan, 'input_grouping': plan.get('input_grouping'), 'input_source': plan.get('input_source'), 'group_boundaries': plan.get('group_boundaries'), 'config': {**selected_plan['config'], 'name': f"{name.strip() or plan['config']['name']} — {chosen_group}", 'synthetic': plan['config'].get('synthetic', False)}}
-        try:
-            pdf = pdf_summary(pdf_plan)
-        except ModuleNotFoundError as exc:
-            st.caption(f"PDF is unavailable because {exc.name or 'a required package'} is not installed. The complete HTML summary is available above.")
-        else:
-            b.download_button('Download group PDF' if group_plans else 'Download design package (PDF)', pdf, 'experiment-design-package.pdf', 'application/pdf', use_container_width=True)
+        st.caption('Open the HTML report in a browser; use Print → Save as PDF if needed.')
         b.download_button('Download sample sizes', totals.to_csv(index=False), 'sample-size-plan.csv', 'text/csv', use_container_width=True)
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
@@ -428,7 +429,7 @@ def render_customer_plan():
                 raw = bin_group_column(raw, grouping, boundaries)
             except ValueError as exc:
                 st.warning(str(exc)); return
-        st.caption(f'Grouping by the column {grouping}. Available values: ' + ', '.join(str(value) for value in raw[grouping].dropna().unique()[:12]))
+        st.caption(f'Grouping by the column {grouping}. Available values: ' + ', '.join(str(value) for value in ordered_groups(raw[grouping].dropna().unique(), grouping)[:12]))
     allow_pool = source == 'Synthetic demo'
     if not is_legacy and source != 'Synthetic demo':
         normalized = _canonical_input(raw, metric_default)
@@ -446,7 +447,7 @@ def render_customer_plan():
         data=normalize_table(raw,metric_default,grouping=grouping,allow_pool=allow_pool)
     except ValueError as exc:
         st.warning(str(exc)); return
-    available=list(data[data.partner.isin(partners)].segment.unique())
+    available=ordered_groups(data[data.partner.isin(partners)].segment.unique(), grouping)
     segments=st.multiselect('Segments to include', available, default=[s for s in draft.get('segments', available) if s in available])
     view=data[data.partner.isin(partners)&data.segment.isin(segments)]
     if view.empty:
@@ -525,11 +526,7 @@ def render_customer_plan():
                 st.caption('Each line is a historical segment within a Partner. Lines connect selected options for comparison; they do not imply a causal effect or values between options.')
                 fig = historical_metric_chart(chart_data, grouping, primary, chart_options)
             else:
-                fig=px.bar(chart_data, x='segment', y=value, color='strategy', pattern_shape='strategy', barmode='group', facet_col='partner', facet_col_wrap=2,
-                           labels={'segment': grouping, 'strategy':'Strategy', value:label},
-                           category_orders={'strategy': chart_options}, color_discrete_map=colors, pattern_shape_map=patterns)
-                fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
-                fig.update_layout(height=360 if len(chart_data.partner.unique()) <= 2 else 590, margin=dict(t=40,b=45,l=30,r=20), legend_title_text='Strategy')
+                fig=historical_bar_chart(chart_data, grouping, value, label, chart_options, colors, patterns)
             st.plotly_chart(fig, use_container_width=True, key=f'customer_history_chart_{value}')
     else:
         st.info('Select at least one Test option to compare historical data.')

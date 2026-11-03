@@ -23,7 +23,7 @@ VERSION_UNAVAILABLE = "Package metadata unavailable"
 def runtime_versions() -> dict[str, str]:
     """Record available versions without making metadata a planning dependency."""
     versions = {"python": platform.python_version()}
-    for package in ("numpy", "pandas", "scipy", "statsmodels", "streamlit", "reportlab"):
+    for package in ("numpy", "pandas", "scipy", "statsmodels", "streamlit"):
         try:
             versions[package] = package_version(package)
         except PackageNotFoundError:

@@ -843,10 +843,20 @@ def _add_shared_intervention_context(fig, context: dict) -> None:
         fig.add_vrect(x0=launch, x1=end, fillcolor="#b42318", opacity=0.05, line_width=0, annotation_text="Campaign period", annotation_position="top left")
 
 
-def pre_post_bar(pre_value: float, post_value: float, label: str):
+def pre_post_bar(pre_value: float, post_value: float, label: str, test: dict | None = None):
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=["Before Campaign", "After Campaign"], y=[pre_value, post_value], marker_color=["#68707a", "#2457a6"]))
-    fig.update_layout(template="plotly_white", height=280, margin=dict(l=20, r=20, t=30, b=20), yaxis_title=label)
+    fig.add_trace(go.Bar(x=["Before Campaign", "After Campaign"], y=[pre_value, post_value], marker_color=["#68707a", "#2457a6"],
+                         text=[f'Average {pre_value:,.2f}', f'Average {post_value:,.2f}'], textposition='outside', cliponaxis=False))
+    if test is not None:
+        lift = f'{(post_value-pre_value)/pre_value:+.1%}' if pre_value > 0 else 'unavailable'
+        if test.get('available'):
+            p = test['p_value']
+            label_text = ('Statistically significant' if test['significant'] else 'Not statistically significant') + (f' · p={p:.3f}' if p >= .001 else ' · p<0.001')
+        else:
+            label_text = 'Significance unavailable'
+        fig.add_annotation(x=.5, y=1.19, xref='paper', yref='paper', showarrow=False,
+                           text=f'Lift {lift}  |  {label_text}', font=dict(size=13))
+    fig.update_layout(template="plotly_white", height=320, margin=dict(l=20, r=20, t=75 if test is not None else 30, b=20), yaxis_title=label)
     return fig
 
 

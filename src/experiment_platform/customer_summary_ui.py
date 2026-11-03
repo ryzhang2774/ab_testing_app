@@ -13,6 +13,7 @@ from .customer_palette import strategy_styles
 from .customer_summary_results import normalize_summary, calculate_summary
 from .portfolio import configuration_fingerprint
 from .customer_results_report import build_results_report
+from .customer_grouping import ordered_groups
 
 
 @st.cache_data(show_spinner=False)
@@ -177,8 +178,8 @@ def render_summary_analysis(source):
         binary = audit['metric_type'] == 'Binary'
         key = configuration_fingerprint({'metric':metric})[:12]
         overall_rows = _result_rows(overall,'Overall',audit['metric_type'],data,'strategy',metric,control,None,alpha)
-        segment_rows = [(str(label), result, _result_rows(result,label,audit['metric_type'],data,'strategy',metric,control,group,alpha))
-                        for label,result in subgroups.items()]
+        segment_rows = [(str(label), subgroups[label], _result_rows(subgroups[label],label,audit['metric_type'],data,'strategy',metric,control,group,alpha))
+                        for label in ordered_groups(subgroups.keys(), group)]
         group_details = pd.concat([rows for _,_,rows in segment_rows],ignore_index=True) if segment_rows else overall_rows.iloc[0:0]
         context = decision_context(overall_rows,group_details,metric,control,directions[metric],alpha,protection,source=='Synthetic demo',binary=binary)
         prepared.append({'metric':metric,'overall':overall,'overall_rows':overall_rows,'segments':segment_rows,
@@ -232,10 +233,15 @@ def render_summary_analysis(source):
     st.caption('Confirm randomization, SRM, sample completion, balance, missing outcomes and guardrails before deciding. Test-to-Test differences are descriptive.')
 
     st.markdown('### Final report')
-    st.caption('Download a shareable report with all selected metrics and segment comparisons.')
+    st.caption('Download an HTML report with the inputs, results and calculation methods. Open it in a browser and use Print → Save as PDF if needed.')
     report_name = st.text_input('Experiment name for the report', value='Customer experiment', key='summary_report_name')
+    input_columns = dimensions + ['strategy', 'metric', 'metric_type', 'sample_mean', 'sample_variance', 'sample_number']
+    if any(item['binary'] for item in prepared): input_columns.append('success_count')
+    input_data = data.loc[data.metric.isin(selected_metrics), input_columns].astype(object)
+    input_data = input_data.where(pd.notna(input_data), None)
     report = {'name':report_name, 'source':source, 'input_format':'Summary statistics', 'synthetic':source == 'Synthetic demo',
               'control':control, 'partners':chosen if partners else [], 'group_by':None if group == groups[0] else group, 'alpha':alpha, 'protection':protection,
-              'calculated_at':st.session_state.get('summary_result_timestamp'), 'fingerprint':fingerprint, 'metrics':report_metrics}
-    st.download_button('Download final report (PDF)', build_results_report(report), 'customer-experiment-results-report.pdf',
-                       'application/pdf', key='summary_pdf_download')
+              'calculated_at':st.session_state.get('summary_result_timestamp'), 'fingerprint':fingerprint, 'metrics':report_metrics,
+              'input_columns':input_columns, 'input_rows':input_data.to_dict('records')}
+    st.download_button('Download final report (HTML)', build_results_report(report), 'customer-experiment-results-report.html',
+                       'text/html', key='summary_html_download')

@@ -14,7 +14,6 @@ from src.experiment_platform.business_demo import demo_config, demo_history, dem
 from src.experiment_platform.business_data import read_table, validate_history, prepare_records, prepare_summaries
 from src.experiment_platform.business_plan import build_plan, exploratory_protocol, variance_df
 from src.experiment_platform.business_analysis import analyze, monitor, srm_check, balance_check
-from src.experiment_platform.business_report import build_pdf
 from src.experiment_platform.business_store import save_protocol, next_version, import_protocol
 
 
@@ -233,6 +232,8 @@ def test_append_only_versions_import_recomputes_and_report_matches_snapshot(demo
     bundle=prepare_records(demo_records(),p["config"],"2026-10-26")
     snapshot=analyze(p,bundle)
     stamp=snapshot["updated_at"]
+    pytest.importorskip('reportlab', reason='legacy PDF export is optional')
+    from src.experiment_platform.business_report import build_pdf
     pdf=build_pdf(p,snapshot,"Analyze results")
     reader=PdfReader(BytesIO(pdf))
     text="\n".join(page.extract_text() for page in reader.pages)

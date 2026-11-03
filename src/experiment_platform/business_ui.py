@@ -513,17 +513,11 @@ def _analysis_view(plan, bundle, snapshot):
 def _downloads(plan, snapshot, stage, key):
     with st.expander("Download calculation memo & reproducible inputs"):
         st.caption("Uses the same saved calculation as this page. Individual customer IDs are excluded.")
-        cache_key = fingerprint({"plan":plan,"snapshot":snapshot,"stage":stage})
-        if st.button("Prepare PDF memo", key=f"bv2_pdf_prepare_{key}"):
-            try:
-                from .business_report import build_pdf
-                with st.spinner("Building the calculation memorandum…"):
-                    st.session_state.bv2_pdf = {"key":cache_key,"bytes":build_pdf(plan,snapshot,stage)}
-            except (ImportError, ValueError) as exc:
-                st.error(f"PDF generation failed: {exc}. Install the pinned requirements on the app server.")
-        pdf = st.session_state.get("bv2_pdf",{})
-        if pdf.get("key") == cache_key:
-            st.download_button("Download PDF memo",pdf["bytes"],file_name=f"customer-v{plan['version']}-{key}.pdf",mime="application/pdf",key=f"bv2_pdf_download_{key}")
+        memo = ('<!doctype html><html lang="en"><meta charset="utf-8"><title>Experiment calculation memo</title>'
+                '<body><h1>Experiment calculation memo</h1><p>Stage: ' + html.escape(stage) + '</p>'
+                '<h2>Plan and assumptions</h2><pre>' + html.escape(json.dumps(plan, ensure_ascii=False, indent=2, default=str)) + '</pre>'
+                '<h2>Analysis snapshot</h2><pre>' + html.escape(json.dumps(snapshot, ensure_ascii=False, indent=2, default=str)) + '</pre></body></html>')
+        st.download_button("Download calculation memo (HTML)",memo.encode('utf-8'),file_name=f"customer-v{plan['version']}-{key}.html",mime="text/html",key=f"bv2_html_{key}")
         label="Download setup JSON" if plan.get("kind")=="setup_draft" else "Download exploratory protocol JSON" if plan.get("retrospective") else "Download frozen protocol JSON"
         st.download_button(label,json.dumps(plan,ensure_ascii=False,allow_nan=False,indent=2).encode(),file_name=f"customer-protocol-v{plan['version']}.json",mime="application/json",key=f"bv2_json_{key}")
         rows = snapshot.get("results",snapshot["summaries"]) if snapshot else plan["targets"]

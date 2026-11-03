@@ -2,9 +2,10 @@ import io
 import math
 import pandas as pd
 import pytest
-from pypdf import PdfReader
 from streamlit.testing.v1 import AppTest
-from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, calculate_group_plans, pdf_summary, strategy_styles, historical_metric_chart
+from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, calculate_group_plans, strategy_styles, historical_metric_chart, historical_bar_chart
+from src.experiment_platform.customer_html_report import build_html_summary
+from src.experiment_platform.customer_grouping import ordered_groups
 
 
 def _calculate(data):
@@ -53,13 +54,13 @@ def test_group_specific_strategies_use_separate_historical_cells_and_shared_fami
         calculate_group_plans(missing, ['Holland', 'PriceLine'], segments, choices, 'Revolving Balance', None, 5, 'Relative %', .05, .8, True)
 
 
-def test_plan_survives_missing_package_metadata_and_pdf_dependency(monkeypatch):
+def test_plan_survives_missing_package_metadata_and_does_not_require_reportlab(monkeypatch):
     from importlib.metadata import PackageNotFoundError
     from src.experiment_platform import business_plan, customer_plan_ui
 
     actual_version = business_plan.package_version
     def missing_metadata(name):
-        if name == 'reportlab':
+        if name == 'statsmodels':
             raise PackageNotFoundError(name)
         return actual_version(name)
     monkeypatch.setattr(business_plan, 'package_version', missing_metadata)
@@ -69,19 +70,15 @@ def test_plan_survives_missing_package_metadata_and_pdf_dependency(monkeypatch):
     next(b for b in app.button if b.label == 'Get plan').click().run(timeout=60)
     assert not app.exception
     assert any(m.label == 'Control customers needed' for m in app.metric)
-    assert any('reportlab' in w.value and 'version information' in w.value for w in app.warning)
+    assert any('statsmodels' in w.value and 'version information' in w.value for w in app.warning)
     plan = app.session_state['customer_plan_result']
-    assert plan['runtime_versions']['reportlab'] == business_plan.VERSION_UNAVAILABLE
+    assert plan['runtime_versions']['statsmodels'] == business_plan.VERSION_UNAVAILABLE
+    assert 'reportlab' not in plan['runtime_versions']
     assert plan['runtime_versions']['numpy'] == actual_version('numpy')
     assert plan['arm_totals']
 
-    def missing_pdf(_plan):
-        raise ModuleNotFoundError("No module named 'reportlab'", name='reportlab')
-    monkeypatch.setattr(customer_plan_ui, 'pdf_summary', missing_pdf)
-    app.run()
-    assert not app.exception
-    assert any('PDF is unavailable' in w.value and 'reportlab' in w.value for w in app.caption)
     assert any(button.proto.label == 'Download complete summary (HTML)' for button in app.get('download_button'))
+    assert not any('PDF' in button.proto.label for button in app.get('download_button'))
     assert any(m.label == 'Control customers needed' for m in app.metric)
 
 
@@ -113,6 +110,18 @@ def test_historical_line_chart_orders_options_and_keeps_missing_cells_separate()
     assert fig.layout.yaxis.title.text == 'Revolving Balance historical mean'
 
 
+def test_fico_bar_axes_are_categorical_and_ordered_with_sparse_partner_cells():
+    data = pd.DataFrame([{'partner':p, 'segment':segment, 'strategy':strategy, 'sample_number':n}
+                         for p, segment, strategy, n in [('A','750+','Control',10), ('A','650–699','Test',20),
+                                                        ('B','700–749','Control',30), ('B','750+','Test',40)]])
+    colors, patterns = strategy_styles(['Control', 'Test'])
+    fig = historical_bar_chart(data, 'FICO group', 'sample_number', 'Historical sample', ['Control','Test'], colors, patterns)
+    assert list(fig.layout.xaxis.categoryarray) == ['650–699', '700–749', '750+']
+    assert fig.layout.xaxis.type == 'category' and fig.layout.barmode == 'group'
+    assert ordered_groups(['750+', '650–699', '700–749'], 'FICO group') == ['650–699', '700–749', '750+']
+    assert ordered_groups(['High', 'Low'], 'PD score') == ['High', 'Low']
+
+
 def test_strategies_are_required_and_shared_control_is_calculated():
     data=normalize_table(demo_data(), grouping='FICO group', allow_pool=True)
     plan=_calculate(data)
@@ -123,13 +132,10 @@ def test_strategies_are_required_and_shared_control_is_calculated():
     with pytest.raises(ValueError, match='Missing historical statistics.*Holland'):
         _calculate(incomplete)
     plan['config']['synthetic'] = True
-    pdf = pdf_summary(plan)
-    assert pdf.startswith(b'%PDF')
-    contents = '\n'.join(page.extract_text() for page in PdfReader(io.BytesIO(pdf)).pages)
-    for text in ['Experiment Design Package', 'Sample size recommendation', 'Statistical settings', 'Calculation formulas', 'Credit line 1000', 'Calculation verification', 'Welch-Satterthwaite', 'Neyman', 'Historical inputs', 'Reproducibility']:
+    contents = build_html_summary(plan).decode()
+    for text in ['Experiment design summary', 'Credit line 1000', 'Comparison verification', 'Calculation method', 'Neyman', 'Historical inputs', 'Reproducibility']:
         assert text in contents
-    assert all(symbol in contents for symbol in ['Σ', '√', '−', '×'])
-    assert 'SYNTHETIC DEMO' in contents
+    assert 'Synthetic demo' in contents
     assert f"{next(r['recruitment_n'] for r in plan['arm_totals'] if r['arm'] == 'Credit line 1000'):,}" in contents
 
 
@@ -223,15 +229,9 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     assert any('Total customers needed' == m.label for m in app.metric)
     assert any('Control customers needed' == m.label for m in app.metric)
     assert not any('Duration' in m.label for m in app.metric)
-    rendered = []
-    real_pdf_summary = customer_plan_ui.pdf_summary
-    def capture_pdf(plan):
-        rendered.append(plan['config']['name'])
-        return real_pdf_summary(plan)
-    monkeypatch.setattr(customer_plan_ui, 'pdf_summary', capture_pdf)
     app.text_input(key='customer_plan_name').set_value('Credit line test').run()
     assert not app.exception
-    assert rendered[-1].startswith('Credit line test — ')
+    assert any(x.proto.label == 'Download complete summary (HTML)' for x in app.get('download_button'))
     next(b for b in app.button if b.label == 'Save to Your experiments').click().run()
     assert not app.exception
     assert saved[0]['sample_target'] > 0 and saved[0]['sample_collected'] == 0
@@ -273,7 +273,7 @@ def test_pasted_data_uses_actual_grouping_columns():
     assert next(m for m in app.multiselect if m.label == 'Segments to include').options == ['Low']
 
 
-def test_pdf_uses_only_selected_inputs_and_updates_for_new_data():
+def test_html_uses_only_selected_inputs_and_updates_for_new_data():
     raw = pd.DataFrame([
         {'Partner': partner, 'FICO group': fico, 'PD band': pd_band, 'Strategy': arm,
          'Metric': metric, 'Sample mean': mean, 'Sample variance': variance, 'Sample number': 100}
@@ -285,7 +285,7 @@ def test_pdf_uses_only_selected_inputs_and_updates_for_new_data():
     first = calculate_plan(first_data, ['Holland'], ['FICO A'], 'Control 1000', ['Test 2000'],
                            'Revolving Balance', None, 5, 'Absolute', .05, .8, True)
     first['input_grouping'] = 'FICO group'
-    first_text = '\n'.join(page.extract_text() for page in PdfReader(io.BytesIO(pdf_summary(first))).pages)
+    first_text = build_html_summary(first).decode()
     assert all(value in first_text for value in ['Holland', 'FICO A', 'Revolving Balance', 'Control 1000', 'Test 2000'])
     assert all(value not in first_text for value in ['Princess', 'FICO B', 'PD low', 'RAR', 'Unused 3000'])
     assert {row['metric'] for row in first['history']} == {'Revolving Balance'}
@@ -298,7 +298,7 @@ def test_pdf_uses_only_selected_inputs_and_updates_for_new_data():
     second = calculate_plan(second_data, ['Princess'], ['PD high'], 'Control 1000', ['Test 2000'],
                             'RAR', None, 5, 'Absolute', .05, .8, True)
     second['input_grouping'] = 'PD band'
-    second_text = '\n'.join(page.extract_text() for page in PdfReader(io.BytesIO(pdf_summary(second))).pages)
+    second_text = build_html_summary(second).decode()
     assert all(value in second_text for value in ['Princess', 'PD high', 'RAR', '4,321', '2,500'])
     assert all(value not in second_text for value in ['Holland', 'FICO A', 'FICO B', 'Revolving Balance', 'Unused 3000'])
     assert first['data_fingerprint'] != second['data_fingerprint']

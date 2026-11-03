@@ -2,7 +2,9 @@ import numpy as np
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
-from src.experiment_platform.time_series_simple_ui import analysis_demo, _make_series, _decision_insight
+from src.experiment_platform.time_series_simple_ui import analysis_demo, _make_series, _decision_insight, infer_period_boundary
+from src.experiment_platform.timeseries import run_pre_post_analysis, pre_post_hac_test
+from src.experiment_platform.charts import pre_post_bar
 
 
 def enter_analysis():
@@ -22,7 +24,7 @@ def test_synthetic_demo_and_both_analyses_are_shown():
     assert not any(radio.label == 'Analysis method' for radio in app.radio)
     assert app.selectbox(key='ts_simple_metric').value == 'applications'
     assert app.selectbox(key='ts_simple_group').value == 'No segment breakdown'
-    assert app.date_input(key='ts_simple_launch').value.isoformat() == '2025-07-06'
+    assert any('Pre/post labels detected' in item.value for item in app.info)
     preview = app.dataframe[0].value
     assert {'Partner','Segment'}.issubset(preview.columns) and 'campaign_name' not in preview.columns
     app.button(key='ts_simple_calculate').click().run(timeout=120)
@@ -30,6 +32,7 @@ def test_synthetic_demo_and_both_analyses_are_shown():
     assert app.session_state.ts_prepost_result['causal'] is False
     assert app.session_state.ts_bsts_result['pre_observations'] >= 20
     assert len(app.get('plotly_chart')) == 2
+    assert any(b.proto.label == 'Download analysis report (HTML)' for b in app.get('download_button'))
     texts = ' '.join(x.value for x in app.markdown)
     assert 'Before-and-after comparison' in texts and 'RESULT INSIGHTS' in texts
     assert 'no-campaign baseline' in texts and 'descriptive' in texts
@@ -52,7 +55,7 @@ def test_real_pasted_data_requires_launch_and_reports_model_limit():
     app.button(key='ts_simple_calculate').click().run(timeout=90)
     assert not app.exception and app.session_state.ts_bsts_result is None
     assert app.session_state.ts_prepost_result['pre_observations'] == 6
-    assert any('Model estimate unavailable' in w.value and '20 pre' in w.value for w in app.warning)
+    assert any('Model estimate unavailable' in w.value and '12 pre' in w.value for w in app.warning)
     app.selectbox(key='ts_simple_metric').set_value('Costs').run()
     assert any('Calculate results again' in w.value for w in app.warning)
     assert not app.get('plotly_chart')
@@ -104,6 +107,49 @@ def test_aggregation_preserves_shared_signals_and_rejects_divergent():
     frame.loc[0,'signal'] = -1
     with pytest.raises(ValueError,match='one identical unaffected signal'):
         _make_series(frame,'date','value','Sum',['signal'],'Fail validation')
+
+
+def test_pre_post_detection_and_conflicting_labels():
+    frame = pd.DataFrame({'Date': pd.date_range('2025-01-01', periods=4, freq='D'), 'pre_post':['Pre','before','Post','after']})
+    assert infer_period_boundary(frame, 'Date') == ('pre_post', pd.Timestamp('2025-01-03').date())
+    bad = frame.copy(); bad.loc[3, 'pre_post'] = 'pre'
+    with pytest.raises(ValueError, match='followed by a post'):
+        infer_period_boundary(bad, 'Date')
+    duplicated = pd.concat([frame, frame.iloc[[0]].assign(pre_post='post')])
+    with pytest.raises(ValueError, match='same date'):
+        infer_period_boundary(duplicated, 'Date')
+    unrelated = pd.DataFrame({'Date':frame.Date, 'period':['Q1']*4})
+    assert infer_period_boundary(unrelated, 'Date') == (None, None)
+
+
+def test_uploaded_pre_post_column_sets_launch_automatically():
+    app = enter_analysis()
+    app.radio(key='ts_simple_source').set_value('Upload file').run()
+    app.radio(key='ts_simple_input_mode').set_value('Enter or paste data').run()
+    app.radio(key='ts_simple_input_style').set_value('Paste CSV / tab-separated').run()
+    dates = pd.date_range('2025-01-01', periods=12, freq='D')
+    content = 'Date,Revenue,pre_post\n' + ''.join(f"{d.date()},{100+i},{'pre' if i < 6 else 'post'}\n" for i,d in enumerate(dates))
+    app.text_area(key='ts_simple_paste').set_value(content).run()
+    assert not app.exception
+    assert any('first post-period begins 2025-01-07' in m.value for m in app.info)
+    assert not any(x.key == 'ts_simple_launch' for x in app.date_input)
+    app.button(key='ts_simple_calculate').click().run(timeout=90)
+    assert not app.exception
+    assert app.session_state.ts_prepost_result['pre_observations'] == 6
+
+
+def test_pre_post_test_handles_autocorrelation_and_short_data():
+    rng = np.random.default_rng(12)
+    df = pd.DataFrame({'_date':pd.date_range('2025-01-01', periods=40, freq='D'),
+                       '_outcome':np.r_[rng.normal(100,3,20),rng.normal(120,3,20)]})
+    pp = run_pre_post_analysis(df, '2025-01-21', comparison_window='Symmetric', symmetric_periods=20)
+    result = pre_post_hac_test(df, pp)
+    assert result['available'] and result['significant'] and result['p_value'] < .05
+    fig = pre_post_bar(pp['pre_value'], pp['post_value'], 'Sales', result)
+    assert any('Statistically significant' in a.text and 'Lift' in a.text for a in fig.layout.annotations)
+    short = df.iloc[:12]
+    short_pp = run_pre_post_analysis(short, '2025-01-07', comparison_window='Symmetric', symmetric_periods=6)
+    assert not pre_post_hac_test(short, short_pp)['available']
 
 
 def test_insight_tracks_data_and_does_not_invent_a_model():

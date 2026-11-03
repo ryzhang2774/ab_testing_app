@@ -4508,16 +4508,22 @@ def ts_plan_setup_step() -> None:
         st.info("Load historical time-series data before defining a planned campaign.")
         return
     min_date, historical_end = data["_date"].min().date(), data["_date"].max().date()
+    launch_signature = data_fingerprint(data)
+    previous_launch_signature = st.session_state.get('ts_plan_launch_data_signature')
+    if previous_launch_signature is not None and previous_launch_signature != launch_signature:
+        cfg.planned_launch_date = ''
+        st.session_state.pop('ts_plan_launch_date', None)
+    st.session_state.ts_plan_launch_data_signature = launch_signature
     offsets = {"Daily": pd.Timedelta(days=1), "Weekly": pd.Timedelta(days=7), "Monthly": pd.DateOffset(months=1)}
     default_launch = bounded_date(cfg.planned_launch_date, min_date, historical_end + pd.Timedelta(days=730), historical_end + offsets.get(cfg.frequency, pd.Timedelta(days=7)))
-    launch = st.date_input("When do you plan to launch?", value=default_launch, min_value=min_date, max_value=historical_end + pd.Timedelta(days=730))
+    launch = st.date_input("When do you plan to launch?", value=default_launch, min_value=min_date, max_value=historical_end + pd.Timedelta(days=730), key='ts_plan_launch_date')
     cfg.planned_launch_date = launch.isoformat()
     detected, _ = detect_frequency(data)
     cfg.frequency = detected
     unit = {"Daily": "day", "Weekly": "week", "Monthly": "month"}.get(cfg.frequency, "period")
     st.markdown(f"**Historical Data Window**  \n{format_business_date(min_date)} – {format_business_date(historical_end)}")
     st.markdown(f"**Data Frequency**  \n{cfg.frequency}")
-    st.caption(f"Planned campaign launch: {format_business_date(launch)} · Historical data available for planning: {len(data):,} observations")
+    st.caption(f"Default launch is the next {unit} after the final historical observation; adjust it if your actual launch differs. Planned launch: {format_business_date(launch)} · Historical observations: {len(data):,}")
     st.info(f"The planner uses only observations before the planned launch. Ramp-up and stable measurement settings are configured in Detectability & Duration.")
     st.plotly_chart(time_series_line(data, "", humanize_column_name(cfg.outcome_column), planned_launch_date=cfg.planned_launch_date), use_container_width=True, key="ts_plan_launch_history")
 
@@ -4848,6 +4854,7 @@ def ts_planning_step() -> None:
         cfg.seasonality = st.selectbox("Seasonality", ["Auto", "None", "Weekly", "Monthly", "Annual"], index=["Auto", "None", "Weekly", "Monthly", "Annual"].index(cfg.seasonality), key="ts_plan_seasonality")
         cfg.local_trend = st.checkbox("Use Local Linear Trend", value=cfg.local_trend, key="ts_plan_local_trend")
         st.caption("Predictors can reduce long-horizon counterfactual uncertainty when they are stable, unaffected by the campaign, and available after launch.")
+    st.caption('Planning power currently targets a one-sided increase. The analysis model reports a two-sided interval, so its detection chance can differ from this planning estimate.')
     current_plan_fingerprint = planning_config_fingerprint(planning_data, cfg, effect_type, planning_effect, effect_pattern, int(ramp), alpha, target_power, int(maximum))
     if st.session_state.ts_duration_plan and st.session_state.ts_duration_plan_fingerprint != current_plan_fingerprint:
         st.warning("Duration estimate out of date. Update the inputs and calculate a new estimate.")
@@ -5077,6 +5084,10 @@ def ts_planning_step() -> None:
             st.caption(f"Target false-positive rate: {alpha:.0%}. A historical p-value below 0.05 indicates evidence of excess false alarms; a large raw percentage alone is not treated as failure when only a few origins are available.")
     with st.expander("How this recommendation was calculated (advanced)", expanded=False):
         st.write(f"One observation is one {cfg.frequency.lower()} aggregate. The planner uses {validation_mode.lower()} validation. Pseudo-launches use a consistent model specification and at least {plan.get('minimum_training_observations', 0)} pre-launch observations. Calibration origins determine a one-sided critical threshold for a planned positive effect; separate held-out origins estimate false-positive rate and power. Sparse historical false alarms are evaluated with an exact binomial test. Correlated no-campaign forecast paths are reused to evaluate assumed effects and to solve for the minimum detectable effect at each duration. When history is too short for structural validation, the planner switches to a labeled analytical approximation using detrended residual variance and autocorrelation. A supplied effect is a scenario, not a forecast. When simulation intervals are available, the lower bound must clear the target before a duration is recommended. Every candidate through the selected maximum duration is evaluated. Required Time-Series Sample means post-launch time points, not customers or transactions.")
+    from src.experiment_platform.time_series_html_report import build_plan_html
+    st.download_button('Download planning report (HTML)', build_plan_html(plan, planning_data, cfg),
+                       'time-series-plan.html', 'text/html', key='ts_plan_html')
+    st.caption('Open the report in a browser and use Print → Save as PDF if needed.')
 
 
 def ts_decision_step() -> None:
@@ -5853,12 +5864,11 @@ def time_series_page() -> None:
         st.session_state.ts_intent = None
         st.rerun()
     if intent == "plan":
-        tabs = st.tabs(["1 · Bring Data", "2 · Set Launch", "3 · Get Recommendation"])
+        tabs = st.tabs(["1 · Experiment setup", "2 · Get plan"])
         with tabs[0]:
             ts_data_step()
-        with tabs[1]:
             ts_plan_setup_step()
-        with tabs[2]:
+        with tabs[1]:
             ts_planning_step()
         return
     render_time_series_analysis()

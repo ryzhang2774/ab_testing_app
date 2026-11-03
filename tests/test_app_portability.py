@@ -52,6 +52,31 @@ def test_timeseries_plan_failure_is_actionable_not_an_app_exception():
     assert app.session_state.ts_duration_plan is None
 
 
+def test_timeseries_plan_combines_setup_and_downloads_html():
+    source = Path('app.py').read_text()
+    fast_planner = '''from src.experiment_platform.timeseries import _analytical_duration_plan
+def run_duration_power_simulation(data, frequency, covariates, seasonality, local_trend, interval, effect, effect_type, target_power, maximum_duration, ramp_period, **kwargs):
+    return _analytical_duration_plan(data, [4, 8], effect, effect_type, target_power, kwargs.get('alpha', .05), ramp_period, kwargs.get('effect_pattern', 'constant'))
+
+'''
+    source = source.replace('init_state()\nwith st.sidebar:', fast_planner + 'init_state()\nwith st.sidebar:')
+    app = AppTest.from_string(source, default_timeout=60).run()
+    app.session_state.main_page = 'Time Series'
+    app.session_state.ts_intent = 'plan'
+    app.session_state.ts_config.data_source = 'Synthetic Demo'
+    app.run()
+    assert not app.exception
+    assert [tab.label for tab in app.get('tab')] == ['1 · Experiment setup', '2 · Get plan']
+    data = app.session_state.ts_prepared_df
+    assert pd.Timestamp(app.session_state.ts_config.planned_launch_date) > data['_date'].max()
+    new_launch = (pd.Timestamp(app.session_state.ts_config.planned_launch_date) + pd.Timedelta(days=7)).date()
+    app.date_input(key='ts_plan_launch_date').set_value(new_launch).run()
+    assert app.session_state.ts_config.planned_launch_date == new_launch.isoformat()
+    app.button(key='ts_plan_calculate').click().run(timeout=90)
+    assert not app.exception and not app.error
+    assert any(x.proto.label == 'Download planning report (HTML)' for x in app.get('download_button'))
+
+
 def test_switching_timeseries_to_empty_upload_clears_prepared_data():
     app = AppTest.from_file("app.py", default_timeout=45).run()
     app.session_state.main_page = "Time Series"
