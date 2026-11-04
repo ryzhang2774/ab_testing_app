@@ -1750,10 +1750,18 @@ def show_command_center() -> None:
 
 
 def render_command_navigation() -> None:
-    st.markdown("### Experiment Command Center")
-    columns = st.columns(3)
-    for col, label, mode, key in zip(columns, ["Choose an experiment", "Monitor experiments", "Analyze results"], ["Home", "Command Center", "Analyzer"], ["nav_chooser", "nav_monitor", "nav_analyzer"]):
-        col.button(label, key=key, use_container_width=True, type="primary" if st.session_state.get("overview_mode", "Home") == mode else "secondary", on_click=set_overview_mode, args=(mode,))
+    with st.container(key="studio_masthead"):
+        brand, *tabs = st.columns([2.5, 1.25, 1.25, 1], vertical_alignment="center")
+        brand.markdown('<div class="studio-brand"><i aria-hidden="true"></i>Experiment Platform</div>', unsafe_allow_html=True)
+        destinations = (
+            ("Choose an experiment", "Home", "nav_chooser"),
+            ("Monitor experiments", "Command Center", "nav_monitor"),
+            ("Analyze results", "Analyzer", "nav_analyzer"),
+        )
+        for tab, (label, mode, key) in zip(tabs, destinations):
+            active = st.session_state.get("overview_mode", "Home") == mode
+            tab.button(label, key=key, use_container_width=True, type="primary" if active else "secondary",
+                       on_click=set_overview_mode, args=(mode,))
 
 
 def open_analysis_experiment(experiment: dict) -> None:
@@ -1802,68 +1810,22 @@ def show_overview() -> None:
         return
 
     st.markdown(
-        '<section class="overview-hero"><h1>What are you trying to test?</h1>'
-        '<p>Start with how the strategy can be delivered. The platform will take you to the right planning and analysis workflow.</p></section>',
+        '<header class="studio-lead"><h1>Choose an<br>experiment</h1>'
+        '<p>Who receives the strategy? Use the way it reaches customers to choose a design.</p></header>',
         unsafe_allow_html=True,
     )
-    st.markdown('<div class="overview-section-title">Choose the situation that matches your business</div>', unsafe_allow_html=True)
-    st.markdown('<div class="overview-section-copy">You do not need to choose a statistical method first.</div>', unsafe_allow_html=True)
+    with st.container(key="design_directory"):
+        st.markdown('<div class="studio-index"><span>Design</span><span>When to use it</span>'
+                    '<span>Example</span></div>', unsafe_allow_html=True)
+        designs = (
+            ("01", "Customer", "Randomly assign customers to Control and Test strategies.", "Credit lines", "home_choose_customer", "Customer"),
+            ("02", "Geography", "Compare Test and Control markets over the same period.", "Regional media", "home_choose_geo", "Geography"),
+            ("03", "Time series", "Launch the same change for everyone at once.", "National campaigns", "home_choose_timeseries", "Time Series"),
+        )
+        for number, name, situation, example, key, workspace in designs:
+            st.button(f"`{number}` **{name}** {situation} *{example}*", key=key, use_container_width=True,
+                      on_click=open_experiment_landing, args=(workspace,))
 
-    customer_col, geo_col, time_col = st.columns(3)
-    with customer_col:
-        st.markdown(
-            '<section class="workflow-card customer">'
-            '<div class="workflow-card-head"><div class="workflow-mark">CUST</div><div class="workflow-method">CUSTOMER EXPERIMENT</div></div>'
-            '<h3>Different customers can receive different strategies</h3>'
-            '<p>Randomly assign customers or accounts to Control and Test options.</p>'
-            '<div class="workflow-examples"><b>Examples</b>Offers · Credit lines · Pricing · Retention</div>'
-            '<div class="workflow-outcome">Plan sample and traffic. Measure lift.</div>'
-            '</section>',
-            unsafe_allow_html=True,
-        )
-        st.button(
-            "Choose Customer",
-            use_container_width=True,
-            key="home_choose_customer",
-            on_click=open_experiment_landing,
-            args=("Customer",),
-        )
-    with geo_col:
-        st.markdown(
-            '<section class="workflow-card geo">'
-            '<div class="workflow-card-head"><div class="workflow-mark">GEO</div><div class="workflow-method">GEOGRAPHIC TEST</div></div>'
-            '<h3>Different markets can receive different plans</h3>'
-            '<p>Compare fixed Test and Control markets supplied by the business.</p>'
-            '<div class="workflow-examples"><b>Examples</b>Regional media · Market launches · Branch programs</div>'
-            '<div class="workflow-outcome">Plan timing. Measure incremental impact.</div>'
-            '</section>',
-            unsafe_allow_html=True,
-        )
-        st.button(
-            "Choose Geography",
-            use_container_width=True,
-            key="home_choose_geo",
-            on_click=open_experiment_landing,
-            args=("Geography",),
-        )
-    with time_col:
-        st.markdown(
-            '<section class="workflow-card time">'
-            '<div class="workflow-card-head"><div class="workflow-mark">TIME</div><div class="workflow-method">TIME SERIES</div></div>'
-            '<h3>Everyone sees the same launch at the same time</h3>'
-            '<p>Measure a shared launch when no randomized control group exists.</p>'
-            '<div class="workflow-examples"><b>Examples</b>National campaigns · Policy changes · Releases</div>'
-            '<div class="workflow-outcome">Plan duration. Estimate impact over time.</div>'
-            '</section>',
-            unsafe_allow_html=True,
-        )
-        st.button(
-            "Choose Time Series",
-            use_container_width=True,
-            key="home_choose_timeseries",
-            on_click=open_experiment_landing,
-            args=("Time Series",),
-        )
 
 
 def configure_metric_compact(role: str, raw_df: pd.DataFrame) -> None:

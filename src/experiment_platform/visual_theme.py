@@ -1,66 +1,63 @@
-"""Desktop presentation layer for the experiment workspace."""
+"""Shared desktop styling for the experiment platform."""
 BUSINESS_STYLE = """
 <style>
 .stApp {
-  --ink:#142f47; --muted:#54687a; --line:#ced9e1; --soft:#f3f6f8;
-  --coral:#12547b; --teal:#226b79; --gold:#536b81; --cyan:#00aeef;
-  --heading-blue:#007bac; --section-blue:#00729f;
-  background:#f5f7f9; color:var(--ink);
-  font-family:Inter,"Segoe UI",Arial,sans-serif;
+  --blue:#0079b6; --cyan:#00aeef; --ink:#263644; --muted:#536a79;
+  --line:#c9dce5; --wash:#edf7fb; --display:Georgia,"Times New Roman",serif;
+  color:var(--ink); background:white; font-family:"Segoe UI",Arial,sans-serif;
 }
-.stApp .block-container {max-width:1320px;padding:2rem clamp(2rem,4vw,4rem) 4rem}
-.stApp [data-testid="stSidebar"] {background:#ecf1f4;border-right:1px solid var(--line)}
-.stApp [data-testid="stSidebar"] h1 {font-size:1.35rem;font-weight:700;letter-spacing:-.035em}
-.stApp :is(.overview-hero,.customer-page-heading,.ts-page-heading,.geo-page-heading) {
-  padding:clamp(1.5rem,3vw,2.75rem); background:#eff7fb; color:var(--ink);
-  border:1px solid #cddfea;border-left:4px solid var(--cyan);border-radius:8px;margin:1rem 0 1.5rem;
-}
-.stApp .overview-hero::after {display:none}
-.stApp :is(.overview-hero,.customer-page-heading,.ts-page-heading,.geo-page-heading) h1 {
-  color:var(--heading-blue);font-family:inherit;font-weight:630;font-size:clamp(2rem,3.2vw,3rem);
-  letter-spacing:-.045em;line-height:1.12;margin:0 0 .65rem;
-}
-.stApp :is(.overview-hero,.customer-page-heading,.ts-page-heading,.geo-page-heading) p {
-  color:#425e71;font-size:1rem;line-height:1.55;margin:0;max-width:72ch
-}
-.stApp :is(h1,h2,h3,.overview-section-title,.ts-panel-title,.geo-panel-title) {
-  color:var(--section-blue);
-}
-.stApp .overview-section-title {font-size:1.18rem;letter-spacing:-.02em}
-.stApp .overview-section-copy {font-size:.9rem;margin-bottom:1rem;color:var(--muted)}
-.stApp .workflow-card {
-  border:1px solid var(--line); border-top:3px solid #77b4ce; border-radius:8px;
-  padding:1.4rem; background:white; box-shadow:0 2px 6px #142f4708;
-}
-.stApp .workflow-card:hover {transform:none;border-color:#62b5d9}
-.stApp .workflow-card-head {padding-bottom:1rem;border-bottom:1px solid var(--line)}
-.stApp .workflow-card .workflow-mark {background:#e6f5fc;color:var(--section-blue);border-radius:4px;padding:.35rem;width:auto;height:auto;min-width:2.8rem;letter-spacing:.06em}
-.stApp .workflow-method {color:#476478;font-size:.7rem;letter-spacing:.06em}
-.stApp .workflow-card h3 {font-size:1.32rem;font-weight:620;letter-spacing:-.025em;line-height:1.25;margin:1.1rem 0 .6rem}
-.stApp .workflow-card p {font-size:.94rem;color:#445a6b;line-height:1.5}
-.stApp .workflow-examples,.stApp .workflow-outcome {font-size:.83rem;line-height:1.45}
-.stApp .workflow-outcome {margin-top:auto;padding-top:.85rem;color:#284960}
-.stApp :is(.st-key-home_choose_customer,.st-key-home_choose_geo,.st-key-home_choose_timeseries) button {
-  color:white;background:var(--section-blue);border-color:var(--section-blue);border-radius:6px;min-height:2.75rem
-}
-.stApp .stButton button:hover {transform:none}
-.stApp [data-testid="stMetric"] {border:1px solid var(--line);border-radius:6px;padding:1rem 1.15rem;box-shadow:none;background:white}
-.stApp [data-testid="stMetricValue"],.stApp .command-kpi-value {font-variant-numeric:tabular-nums;letter-spacing:-.045em}
-.stApp :is(.command-kpis,.attention-list,.lifecycle-rail,.customer-explainer,.insight-card) {border-color:var(--line);border-radius:8px;background:white}
-.stApp :is(.customer-product-bar,.geo-product-bar,.ts-product-bar) {border-bottom:1px solid var(--line);background:transparent}
-.stApp :is(.customer-product-mark,.ts-product-mark,.geo-product-mark) {background:#e3f2f8;color:#155876;border-radius:5px}
-.stApp [data-baseweb="tab-list"] {background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:0}
-.stApp [data-baseweb="input"],.stApp [data-baseweb="select"] > div {background:#fff;border-radius:5px}
-.stApp [data-testid="stExpander"] {background:white;border-radius:6px}
-.stApp :is(.customer-flow-card,.business-guide,.strategy-banner) {border-color:#cddae3;background:#f2f6f8}
-.stApp .stButton button {white-space:normal}
-.stApp .workflow-card-head {flex-wrap:wrap}
-.stApp .workflow-method {text-align:left}
-@media(max-width:1000px){
-  .stApp .block-container {padding-left:1.4rem;padding-right:1.4rem}
-  .stApp .workflow-card {padding:1rem}
-  .stApp .workflow-card h3 {font-size:1.1rem}
-}
-@media(prefers-reduced-motion:reduce){.stApp .workflow-card,.stApp .stButton button{transition:none}}
+.stApp .block-container {max-width:1440px;padding:2.6rem clamp(2rem,5vw,5rem) 4rem}
+.stApp [data-testid="stSidebar"] {background:#f5fafc;border-right:1px solid var(--line)}
+.studio-brand {display:flex;align-items:center;gap:.8rem;color:var(--ink);
+  font:600 clamp(1.25rem,2vw,1.65rem) var(--display);letter-spacing:-.045em}
+.studio-brand i {display:block;width:1.45rem;height:1rem;transform:skew(-19deg);
+  background:repeating-linear-gradient(90deg,var(--cyan) 0 4px,transparent 4px 8px)}
+.st-key-studio_masthead {border-bottom:1px solid var(--blue);padding-bottom:.6rem}
+.stApp .st-key-studio_masthead button {border:0;border-bottom:2px solid transparent;
+  border-radius:0;background:white;box-shadow:none;transform:none;min-height:2.8rem}
+.stApp .st-key-studio_masthead button p {color:var(--muted);font-weight:550}
+.stApp .st-key-studio_masthead button:is([kind="primary"],:hover) {background:white;border-color:var(--cyan)}
+.stApp .st-key-studio_masthead button:is([kind="primary"],:hover) p {color:var(--blue)}
+.studio-lead {display:grid;grid-template-columns:52% 1fr;align-items:center;
+  padding:clamp(2rem,4vw,4rem) 1.2rem clamp(1.8rem,4vw,3.5rem)}
+.stApp .studio-lead h1 {padding:0;color:var(--blue);font:normal clamp(3.7rem,6.6vw,6.7rem)/.96 var(--display);letter-spacing:-.056em}
+.stApp .studio-lead p {margin:0;max-width:25ch;color:var(--ink);
+  font:normal clamp(1.35rem,2.15vw,2.2rem)/1.24 var(--display);letter-spacing:-.025em}
+.st-key-design_directory {--tracks:3em minmax(0,1.15fr) minmax(0,1.4fr) minmax(0,.9fr) 1.5em;
+  gap:.5rem;border-bottom:1px solid var(--blue);padding-bottom:1.35rem}
+.studio-index,.stApp .st-key-design_directory button p {
+  display:grid;grid-template-columns:var(--tracks);align-items:center;column-gap:1rem;
+  text-align:left;padding:0 clamp(.8rem,1.7vw,1.65rem)}
+.studio-index {padding-bottom:.8rem;border-bottom:1px solid var(--blue);
+  color:var(--muted);font-size:.83rem;letter-spacing:.03em}
+.studio-index span:first-child {grid-column:2}
+.stApp .st-key-design_directory button {display:block;width:100%;padding:0;border:0;border-radius:0;
+  background:var(--wash);box-shadow:none;transform:none}
+.stApp .st-key-design_directory button:hover {background:#dff2fa}
+.stApp .st-key-design_directory button:focus-visible {outline:2px solid var(--blue);outline-offset:2px}
+.stApp .st-key-design_directory button p {min-height:clamp(5.3rem,7vw,7rem);
+  color:var(--ink);font-size:clamp(.92rem,1.18vw,1.15rem);line-height:1.4}
+.stApp .st-key-design_directory button p code {color:var(--blue);background:none;padding:0;
+  font:normal 1.8rem var(--display);border:0;border-right:1px solid #a4d5e9;border-radius:0}
+.stApp .st-key-design_directory button p strong {color:var(--blue);
+  font:normal clamp(1.55rem,2.8vw,2.9rem)/1.1 var(--display);letter-spacing:-.045em}
+.stApp .st-key-design_directory button p em {font-style:normal;border-left:1px solid #bdddea;padding-left:1rem}
+.stApp .st-key-design_directory button p::after {content:"→";font:normal 1.6rem Arial;color:var(--blue)}
+.stApp :is(.customer-page-heading,.geo-page-heading,.ts-page-heading) {
+  display:grid;grid-template-columns:52% 1fr;align-items:center;padding:2rem 0;
+  border-bottom:1px solid var(--blue);margin-bottom:1.2rem}
+.stApp :is(.customer-page-heading,.geo-page-heading,.ts-page-heading)::after {display:none}
+.stApp :is(.customer-page-heading,.geo-page-heading,.ts-page-heading) h1,
+.stApp [data-testid="stHeading"] h1 {color:var(--blue);font:normal clamp(2.4rem,4vw,4.5rem)/1.06 var(--display);letter-spacing:-.05em}
+.stApp :is(.customer-page-heading,.geo-page-heading,.ts-page-heading) p {color:var(--muted);font-size:1rem;line-height:1.5}
+.stApp :is(.customer-product-mark,.geo-product-mark,.ts-product-mark) {border-radius:0;color:var(--blue);background:var(--wash)}
+.stApp :is(.customer-explainer,.command-kpis,.lifecycle-rail,.attention-list) {
+  border-radius:0;box-shadow:none;background:white;border:0;border-block:1px solid var(--line)}
+.stApp .customer-flow-card {border:none;border-left:1px solid var(--line);border-radius:0;background:white}
+.stApp :is(.ts-panel-title,.geo-panel-title,h2,h3) {color:#0073a6}
+.stApp [data-testid="stMetric"] {background:var(--wash);border:0;border-top:1px solid var(--blue);border-radius:0;box-shadow:none}
+.stApp [data-testid="stMetricValue"] {font-variant-numeric:tabular-nums}
+.stApp [data-baseweb="tab-list"] {background:white;border:0;border-bottom:1px solid var(--line);border-radius:0}
+.stApp [data-testid="stExpander"] {border-radius:3px;background:white}
 </style>
 """
