@@ -97,7 +97,7 @@ from src.experiment_platform.portfolio import PORTFOLIO_STATUSES, build_rollout_
 from src.experiment_platform.timeseries import TimeSeriesConfig, build_business_interpretation, build_timeseries_preview, campaign_decision_date, classify_calibration, config_fingerprint, data_fingerprint, detect_frequency, duplicate_timestamp_count, duration_power_status, fit_bsts_model, humanize_column_name, incremental_outcome_label, infer_timeseries_columns, method_config_fingerprint, planning_config_fingerprint, planning_durations, prepare_timeseries_data, predictor_candidates, probability_positive_label, projected_operational_exposure, run_duration_power_simulation, run_pre_post_analysis
 
 
-st.set_page_config(page_title="Experiment Platform", layout="wide")
+st.set_page_config(page_title="Experiment Platform", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown(
     """
@@ -6376,3 +6376,7 @@ if st.session_state.get("pending_workspace_save"):
         st.toast(f'Saved {saved["name"]} - config v{saved["config_version"]}')
     except (ValueError, OSError) as exc:
         st.error(f"Could not save the experiment: {exc}")
+
+# Keep the shared visual theme after each workspace's own styles.
+from src.experiment_platform.visual_theme import BUSINESS_STYLE
+st.markdown(BUSINESS_STYLE, unsafe_allow_html=True)
