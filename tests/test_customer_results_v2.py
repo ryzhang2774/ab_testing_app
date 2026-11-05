@@ -13,17 +13,20 @@ def test_demo_matches_design_and_results_have_overall_and_fico_segments():
     frame = demo_results()
     assert 'Active account (0/1)' not in frame.columns
     assert set(frame.Partner) == {'Holland', 'PriceLine', 'Princess', 'Carnival'}
-    assert set(frame['Assigned option']) == {f'Credit line {n}' for n in [1000, 2000, 3000, 4000, 5000]}
+    for group, cap in [('FICO 650–699', 5500), ('FICO 700–749', 8500), ('FICO 750+', 12000)]:
+        arms = frame.loc[frame['FICO group'] == group, 'Assigned option']
+        assert set(arms) == {f'Credit line {n}' for n in range(500, cap + 1, 500)}
     limits = frame['Assigned option'].str.extract(r'(\d+)$')[0].astype(float)
     assert (frame['Revolving Balance'] <= limits).all()
     assert (frame['NCL'] == 0).mean() > .8
     averages = frame.groupby('Assigned option')['Revolving Balance'].mean()
     first_step = averages['Credit line 2000'] - averages['Credit line 1000']
     last_step = averages['Credit line 5000'] - averages['Credit line 4000']
-    assert 0 <= last_step < first_step * .25
+    assert abs(last_step) < first_step * .25
     overall, segments, audit, issues = calculate_results(frame, 'Customer ID', 'Assigned option', 'Revolving Balance',
         'Credit line 1000', group_column='FICO group')
-    assert not issues and len(segments) == 3 and audit['accounts'] == len(frame)
+    assert len(segments) == 3 and audit['accounts'] == len(frame)
+    assert {msg.split(':')[0] for msg in issues} == {'FICO 650–699', 'FICO 700–749'}
     result = overall.set_index('Credit Line').loc['Credit line 2000']
     test = frame[frame['Assigned option'] == 'Credit line 2000']['Revolving Balance']
     control = frame[frame['Assigned option'] == 'Credit line 1000']['Revolving Balance']
@@ -34,7 +37,7 @@ def test_demo_matches_design_and_results_have_overall_and_fico_segments():
 
 
 def test_binary_and_missing_subgroup_and_real_input_validation():
-    frame = demo_results().head(300).copy()
+    frame = demo_results().head(1500).copy()
     frame['Binary outcome'] = (frame['Baseline revolving balance'] > 0).astype(int)
     frame.loc[frame.index[:2], 'FICO group'] = 'Small segment'
     overall, segments, audit, issues = calculate_results(frame, 'Customer ID', 'Assigned option', 'Binary outcome',

@@ -1,24 +1,23 @@
 from streamlit.testing.v1 import AppTest
-from src.experiment_platform import portfolio
 
 
-def test_chooser_monitor_analyzer_navigation(monkeypatch):
-    monkeypatch.setattr(portfolio, 'load_experiments', lambda: [portfolio.normalize_experiment(row) for row in portfolio.seed_experiments()])
+def test_home_has_only_experiment_entries_and_workspace_analysis():
     app = AppTest.from_file('app.py', default_timeout=60).run()
     assert not app.exception
-    assert app.button(key='home_choose_customer')
-    assert not any('Your experiments' in item.value for item in app.markdown)
-    app.button(key='nav_monitor').click().run()
+    for key in ('home_choose_customer', 'home_choose_geo', 'home_choose_timeseries'):
+        assert app.button(key=key)
+        assert any(button.key == f'rail_{key}' for button in app.sidebar.button)
+    keys = {button.key for button in app.button}
+    assert 'nav_monitor' not in keys
+    assert 'nav_analyzer' not in keys
+    app.button(key='rail_home_choose_customer').click().run()
     assert not app.exception
-    content=' '.join(item.value for item in app.markdown)
-    assert 'Collecting samples' in content and 'Collecting outcomes' in content
-    assert 'Projected portfolio value' not in content
-    app.button(key='nav_analyzer').click().run()
-    assert not app.exception
-    app.button(key='open_selected_analysis').click().run()
+    app.button(key='rail_Customer_analyze').click().run()
     assert not app.exception
     assert app.session_state.customer_intent == 'analyze'
-    assert any(item.label == 'Data source' for item in app.radio)
+    app.button(key='nav_chooser').click().run()
+    assert not app.exception
+    assert app.button(key='home_choose_customer')
 
 
 def test_customer_entry_explains_randomized_flow_and_keeps_workflows():
@@ -45,7 +44,7 @@ def test_geo_and_time_landing_explain_workflows_and_keep_navigation():
          'How does a time series experiment work?', ['Choose an outcome', 'Study the history', 'Launch to everyone', 'Assess the change']),
     ]:
         app = AppTest.from_file('app.py', default_timeout=90).run()
-        app.button(key=chooser).click().run(timeout=90)
+        app.button(key=f'rail_{chooser}').click().run(timeout=90)
         assert not app.exception
         explainer = next(item.value for item in app.markdown if title in item.value and '<section' in item.value)
         assert all(phrase in explainer for phrase in phrases)

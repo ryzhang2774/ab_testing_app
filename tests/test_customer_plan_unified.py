@@ -69,7 +69,7 @@ def test_plan_survives_missing_package_metadata_and_does_not_require_reportlab(m
     app.button(key='customer_demo_plan').click().run()
     next(b for b in app.button if b.label == 'Get plan').click().run(timeout=60)
     assert not app.exception
-    assert any(m.label == 'Control customers needed' for m in app.metric)
+    assert any(m.label == 'Total customers needed' for m in app.metric)
     assert any('statsmodels' in w.value and 'version information' in w.value for w in app.warning)
     plan = app.session_state['customer_plan_result']
     assert plan['runtime_versions']['statsmodels'] == business_plan.VERSION_UNAVAILABLE
@@ -79,7 +79,7 @@ def test_plan_survives_missing_package_metadata_and_does_not_require_reportlab(m
 
     assert any(button.proto.label == 'Download complete summary (HTML)' for button in app.get('download_button'))
     assert not any('PDF' in button.proto.label for button in app.get('download_button'))
-    assert any(m.label == 'Control customers needed' for m in app.metric)
+    assert not any(m.label == 'Control customers needed' for m in app.metric)
 
 
 def test_many_credit_lines_have_distinct_styles_and_plausible_demo():
@@ -88,6 +88,10 @@ def test_many_credit_lines_have_distinct_styles_and_plausible_demo():
     assert len(set(colors[name] for name in names[:24])) == 24
     assert colors[names[0]] == colors[names[24]] and patterns[names[0]] != patterns[names[24]]
     demo = demo_data()
+    for group, cap in [('FICO 650–699', 5500), ('FICO 700–749', 8500), ('FICO 750+', 12000)]:
+        expected = {f'Credit line {n}' for n in range(500, cap + 1, 500)}
+        for _, cell in demo[demo['FICO group'].eq(group)].groupby(['Partner', 'PD score group', 'Metric']):
+            assert set(cell.Strategy) == expected
     balance = demo[demo.Metric.eq('Revolving Balance')]
     limits = balance.Strategy.str.extract(r'(\d+)$')[0].astype(float)
     assert (balance['Sample mean'].reset_index(drop=True) <= limits.reset_index(drop=True)).all()
@@ -105,9 +109,55 @@ def test_historical_line_chart_orders_options_and_keeps_missing_cells_separate()
     high = next(trace for trace in fig.data if trace.name == 'High')
     assert list(high.x) == ['Control', 'Test A', 'Test B']
     assert high.y[0] == 10 and pd.isna(high.y[1]) and high.y[2] == 30
+    marked = historical_metric_chart(data, 'FICO group', 'Revolving Balance', ['Control', 'Test A', 'Test B'],
+                                     {'High': {'control':'Test B', 'tests':['Control']},
+                                      'Low': {'control':'Control', 'tests':['Test A']}})
+    assert list(next(t for t in marked.data if t.name == 'High').text) == ['Test', 'Historical only', 'Control']
+    assert list(next(t for t in marked.data if t.name == 'Low').text) == ['Control', 'Test', 'Historical only']
     assert high.connectgaps is False
-    assert fig.layout.xaxis.title.text == 'Control and Test options'
+    assert fig.layout.xaxis.title.text == 'Historical strategy'
     assert fig.layout.yaxis.title.text == 'Revolving Balance historical mean'
+
+
+def test_overall_chart_weights_customers_and_partner_view_has_no_assignment_guides():
+    from src.experiment_platform.customer_plan_ui import overall_metric_chart, pool_statistics
+    history = pd.DataFrame([
+        ('A', 'Low', '1000', 10, 4, 90), ('B', 'Low', '1000', 20, 8, 10),
+        ('A', 'High', '1000', 31, 6, 100), ('A', 'Low', '2000', 25, 9, 20),
+    ], columns=['partner','segment','strategy','sample_mean','sample_variance','sample_number'])
+    pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
+    fig = overall_metric_chart(history, pooled, 'FICO group', 'Balance', ['1000','2000'])
+    assert list(fig.data[0].y) == [21, 25]
+    assert list(fig.data[0].customdata) == [200, 20]
+    by_partner = historical_metric_chart(history, 'FICO group', 'Balance', ['1000','2000'])
+    for chart in (fig, by_partner):
+        assert not chart.layout.shapes
+        assert all(trace.text is None for trace in chart.data)
+
+
+def test_group_charts_keep_each_groups_control_and_tests_separate():
+    from src.experiment_platform.customer_plan_ui import group_metric_charts, pool_statistics
+    options = ['1000', '2000', '3500', '7000']
+    groups = ['750+', '650–699']
+    history = pd.DataFrame([(p, group, strategy, mean, 9, n)
+                            for group in groups for strategy in options
+                            for p, mean, n in [('A', 10, 90), ('B', 30, 10)]],
+                           columns=['partner','segment','strategy','sample_mean','sample_variance','sample_number'])
+    pooled = pool_statistics(history, ['segment','strategy']).assign(partner='All selected Partners')
+    selected = {'650–699': {'control':'1000', 'tests':['2000']},
+                '750+': {'control':'2000', 'tests':['3500','7000']}}
+    def panels():
+        return dict(group_metric_charts(pooled, 'FICO group', 'Balance', options, selected))
+    figures = panels()
+    assert list(figures) == groups[::-1]
+    for group, fig in figures.items():
+        choice = selected[group]
+        assert len(fig.data) == 1 and list(fig.data[0].y) == [12] * 4
+        assert {(s.x0, s.line.color) for s in fig.layout.shapes} == (
+            {(choice['control'], '#657887')} | {(x, '#006DE3') for x in choice['tests']})
+    selected['750+']['tests'] = ['7000']
+    assert [s.x0 for s in panels()['750+'].layout.shapes] == ['2000','7000']
+    assert [s.x0 for s in panels()['650–699'].layout.shapes] == ['1000','2000']
 
 
 def test_fico_bar_axes_are_categorical_and_ordered_with_sparse_partner_cells():
@@ -115,7 +165,7 @@ def test_fico_bar_axes_are_categorical_and_ordered_with_sparse_partner_cells():
                          for p, segment, strategy, n in [('A','750+','Control',10), ('A','650–699','Test',20),
                                                         ('B','700–749','Control',30), ('B','750+','Test',40)]])
     colors, patterns = strategy_styles(['Control', 'Test'])
-    fig = historical_bar_chart(data, 'FICO group', 'sample_number', 'Historical sample', ['Control','Test'], colors, patterns)
+    fig = historical_bar_chart(data, 'segment', 'FICO group', 'sample_number', 'Historical sample', ['Control','Test'], colors, patterns)
     assert list(fig.layout.xaxis.categoryarray) == ['650–699', '700–749', '750+']
     assert fig.layout.xaxis.type == 'category' and fig.layout.barmode == 'group'
     assert ordered_groups(['750+', '650–699', '700–749'], 'FICO group') == ['650–699', '700–749', '750+']
@@ -213,7 +263,17 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     assert group_select.value == 'FICO group'
     assert not app.exception
     assert next(m for m in app.multiselect if m.label == 'Segments to include').options == ['FICO 650–699', 'FICO 700–749', 'FICO 750+']
-    assert len(app.get('plotly_chart')) == 3
+    chart_tabs = [tab for tab in app.tabs if tab.label in ('Overall', 'By FICO group', 'By Partner')]
+    assert [tab.label for tab in chart_tabs] == ['Overall', 'By FICO group', 'By Partner']
+    import json
+    for tab in chart_tabs:
+        assert not tab.get('expander')
+        charts = tab.get('plotly_chart')
+        bars = [json.loads(chart.proto.spec) for chart in charts if json.loads(chart.proto.spec)['data'][0]['type'] == 'bar']
+        expected_axis = {'Overall': 'Strategy', 'By FICO group': 'FICO group', 'By Partner': 'Partner'}[tab.label]
+        assert [fig['layout']['xaxis']['title']['text'] for fig in bars] == [expected_axis] * 2
+        guides = [json.loads(chart.proto.spec)['layout'].get('shapes', []) for chart in charts]
+        assert sum(bool(lines) for lines in guides) == (3 if tab.label == 'By FICO group' else 0)
     assert next(s for s in app.selectbox if s.label == 'Primary metric').options == ['Revolving Balance', 'RAR', 'NCL']
     next(s for s in app.selectbox if s.label == 'Group by').set_value('PD score group').run()
     assert not app.exception
@@ -227,7 +287,20 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     assert group_plans[1]['plan']['comparisons'][0]['control'] == 'Credit line 2000'
     assert group_plans[1]['plan']['comparisons'][0]['test'] == 'Credit line 3000'
     assert any('Total customers needed' == m.label for m in app.metric)
-    assert any('Control customers needed' == m.label for m in app.metric)
+    expected = {g['segment']: sum(row['recruitment_n'] for row in g['plan']['arm_totals']) for g in group_plans}
+    summary = next(d.value for d in app.dataframe if 'option_0' in d.value.columns).set_index('group')
+    assert summary.total.to_dict() == {**expected, 'All selected groups': sum(expected.values())}
+    arms = sorted({arm['arm'] for g in group_plans for arm in g['plan']['arm_totals']},
+                  key=lambda name: int(name.split()[-1]))
+    for i, arm in enumerate(arms):
+        arm_total = 0
+        for g in group_plans:
+            roles = {row['name']: row['role'] for row in g['plan']['config']['arms']}
+            count = next((row['recruitment_n'] for row in g['plan']['arm_totals'] if row['arm'] == arm), 0)
+            assert summary.loc[g['segment'], f'option_{i}'] == (f'{count:,} · {roles[arm]}' if count else '—')
+            arm_total += count
+        assert summary.loc['All selected groups', f'option_{i}'] == f'{arm_total:,}'
+    assert next(m.value for m in app.metric if m.label == 'Total customers needed') == f'{sum(expected.values()):,}'
     assert not any('Duration' in m.label for m in app.metric)
     app.text_input(key='customer_plan_name').set_value('Credit line test').run()
     assert not app.exception
@@ -255,6 +328,21 @@ def test_numeric_score_bins_are_explicit_and_preserve_cells():
     assert result.sample_number.sum() == 90
     assert list(result.segment) == ['<= 10', '10 to 20', '> 20']
     assert list(result.sample_number) == [33, 30, 27]
+
+
+def test_uploaded_group_candidates_and_existing_segment_column():
+    raw = pd.DataFrame({
+        'Partner':['A', 'A'], 'Region':['North', 'South'], 'PDScore':[1, 2],
+        'FICOGroup':['700+', '700+'], 'Segment':['New', 'Existing'],
+        'Customer ID':['a', 'b'], 'Historical Average':[3, 4], 'SampleSize':[10, 15],
+        'Snapshot Date':['2024-01-01'] * 2, 'Empty':[None, None],
+        'Strategy / Option':['1000'] * 2, 'Sample mean':[3, 4],
+        'Sample variance':[1, 1], 'Sample number':[10, 15],
+    })
+    assert [label for label, _ in grouping_columns(raw)] == ['FICOGroup', 'PDScore', 'Segment', 'Region']
+    result = normalize_table(raw, grouping='FICOGroup', allow_pool=True)
+    assert result.segment.tolist() == ['700+']
+    assert result.sample_number.tolist() == [25]
 
 
 def test_pasted_data_uses_actual_grouping_columns():

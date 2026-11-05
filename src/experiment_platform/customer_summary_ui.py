@@ -7,7 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from .business_data import read_table
-from .customer_demo import customer_demo_results
+from .customer_demo import customer_demo_results, demo_credit_line_caption
 from .customer_decision import decision_context, rule_based_decision
 from .customer_palette import strategy_styles
 from .customer_summary_results import normalize_summary, calculate_summary
@@ -21,7 +21,7 @@ def summary_demo():
     """Summarize the population-specific credit-line response demo."""
     # All rows summarize distinct experimental units within a metric; the
     # underlying simulated records are not retained in the resulting dataset.
-    frame = customer_demo_results(n=72000)
+    frame = customer_demo_results(n=144000)
     keys = ['Partner','FICO group','PD score group','Assigned option']
     rows = []
     for metric in ['Revolving Balance','RAR','NCL']:
@@ -38,6 +38,7 @@ def render_summary_analysis(source):
     demo = summary_demo()
     if source == 'Synthetic demo':
         frame = demo
+        st.caption('Credit line ranges vary by FICO group. At higher limits, the overall average represents a different mix of customers. Use the FICO group results to compare strategies within an eligible group.')
     else:
         st.download_button('Download summary CSV template', demo.head(12).to_csv(index=False), 'customer-results-summary-template.csv', 'text/csv', key='summary_template')
         st.caption('Provide strategy, metric, sample mean, sample variance and sample number. Partner and grouping columns are optional.')
@@ -64,7 +65,12 @@ def render_summary_analysis(source):
                     st.error(f'Could not read pasted data: {exc}'); return
     st.markdown('**Data preview**')
     visible_columns = [col for col in frame.columns if frame[col].notna().any() and frame[col].fillna('').astype(str).str.strip().ne('').any()]
-    st.dataframe(frame.loc[:, visible_columns].head(12), hide_index=True, use_container_width=True)
+    preview = frame.loc[:, visible_columns]
+    if source == 'Synthetic demo':
+        st.caption(demo_credit_line_caption())
+        st.dataframe(preview, height=300, hide_index=True, use_container_width=True)
+    else:
+        st.dataframe(preview.head(12), hide_index=True, use_container_width=True)
     try: data, dimensions = normalize_summary(frame)
     except ValueError as exc:
         st.warning(str(exc)); return
@@ -136,6 +142,9 @@ def render_summary_analysis(source):
     options = data[data.metric.eq(primary)].strategy.drop_duplicates().tolist()
     if len(options)<2: st.warning('Provide at least two strategies for the primary metric.'); return
     preferred_control = next((x for x in options if x.lower() in {'control','bau','current','credit line 1000'}),None)
+    if source == 'Synthetic demo':
+        options.sort(key=lambda strategy: int(strategy.rsplit(' ', 1)[-1]))
+        preferred_control = options[0]
     control = st.selectbox('Control strategy',options,index=options.index(preferred_control) if preferred_control else None,
                            placeholder='Choose the Control strategy',key='summary_control')
     if control is None: st.info('Choose which strategy is Control.'); return

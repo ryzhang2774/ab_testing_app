@@ -2,16 +2,17 @@
 from __future__ import annotations
 
 from io import BytesIO
+import re
 import numpy as np
 import pandas as pd
 import streamlit as st
 import plotly.express as px
 
-from .business_config import control_name, default_config, fingerprint
+from .business_config import default_config, fingerprint
 from .business_data import canonical, read_table
 from .business_plan import build_plan
 from .business_store import code_fingerprint
-from .customer_demo import historical_demo
+from .customer_demo import demo_credit_line_caption, historical_demo
 from .customer_palette import STRATEGY_COLORS, strategy_styles
 from .customer_grouping import ordered_groups
 from .portfolio import load_experiments, upsert_experiment
@@ -21,7 +22,18 @@ def demo_data():
     return historical_demo()
 
 
-def historical_metric_chart(data, grouping, primary, options):
+def historical_strategy_order(values):
+    """Order credit limits by amount; keep uploaded order for other strategies."""
+    options = list(dict.fromkeys(values))
+    amounts = [re.fullmatch(r'(?:credit line\s*)?\$?(\d[\d,]*(?:\.\d+)?)', label.strip(), re.I)
+               for label in options]
+    if all(amounts):
+        return [option for _, option in sorted(zip(
+            (float(match[1].replace(',', '')) for match in amounts), options))]
+    return options
+
+
+def historical_metric_chart(data, grouping, primary, options, selections=None):
     """Compare ordered options within each Partner and segment, keeping gaps visible."""
     partners = list(data.partner.unique())
     segments = ordered_groups(data.segment.unique(), grouping)
@@ -30,28 +42,79 @@ def historical_metric_chart(data, grouping, primary, options):
     fig = px.line(rows, x='strategy', y='sample_mean', color='segment', line_group='segment',
                   facet_col='partner', facet_col_wrap=2, markers=True,
                   category_orders={'strategy': options, 'segment': segments, 'partner': partners},
-                  labels={'strategy': 'Control and Test options', 'segment': grouping,
+                  hover_data=['sample_number'] if 'sample_number' in rows else None,
+                  labels={'strategy': 'Historical strategy', 'sample_number': 'Historical customers', 'segment': grouping,
                           'sample_mean': f'{primary} historical mean', 'partner': 'Partner'},
                   color_discrete_sequence=STRATEGY_COLORS)
+    fig.update_xaxes(type='category', categoryorder='array', categoryarray=options)
     fig.update_traces(connectgaps=False)
+    guides = {}
+    for trace in fig.data:
+        if selections is None:
+            continue
+        choice = selections.get(trace.name, {})
+        roles = ['Control' if arm == choice.get('control') else
+                 'Test' if arm in choice.get('tests', ()) else 'Historical only' for arm in trace.x]
+        trace.update(connectgaps=False, text=roles,
+                     hovertemplate=trace.hovertemplate + '<br>%{text}',
+                     marker=dict(symbol=[{'Control':'square','Test':'diamond','Historical only':'circle'}[r] for r in roles],
+                                 size=[11 if r != 'Historical only' else 6 for r in roles],
+                                 color=[{'Control':'#657887','Test':'#006DE3','Historical only':'#AAB8C2'}[r] for r in roles]))
+        for arm, mean, role in zip(trace.x, trace.y, roles):
+            if pd.notna(mean):
+                guides.setdefault((trace.xaxis, trace.yaxis, arm), set()).add(role)
+    for (xaxis, yaxis, arm), roles in guides.items():
+        # A panel-wide guide should never imply the same choice for groups
+        # that use this strategy differently. Their point markers remain local.
+        if roles not in ({'Control'}, {'Test'}):
+            continue
+        color = '#006DE3' if roles == {'Test'} else '#657887'
+        fig.add_shape(type='line', xref=xaxis, yref=f'{yaxis} domain',
+                      x0=arm, x1=arm, y0=0, y1=1, layer='below',
+                      line=dict(color=color, width=1.6, dash='dash'))
     fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
     fig.update_layout(height=360 if len(partners) <= 2 else 590, margin=dict(t=40, b=70, l=30, r=20),
                       legend_title_text=grouping)
     return fig
 
 
-def historical_bar_chart(data, grouping, value, label, options, colors, patterns):
-    """Use shared categorical slots across Partners, even for numeric-looking labels."""
-    segments = ordered_groups(data.segment.unique(), grouping)
-    fig = px.bar(data, x='segment', y=value, color='strategy', pattern_shape='strategy', barmode='group',
-                 facet_col='partner', facet_col_wrap=2,
-                 labels={'segment': grouping, 'strategy':'Strategy', value:label},
-                 category_orders={'strategy':options, 'segment':segments, 'partner':list(dict.fromkeys(data.partner))},
+def group_metric_charts(pooled, grouping, primary, options, selections):
+    """One panel per selected group, with only that group's assignment guides."""
+    for group in ordered_groups(pooled.segment.unique(), grouping):
+        rows = pooled.loc[pooled.segment.eq(group)]
+        eligible = set(rows.strategy)
+        positions = [i for i, option in enumerate(options) if option in eligible]
+        group_options = options[positions[0]:positions[-1] + 1]
+        fig = historical_metric_chart(rows, grouping, primary, group_options,
+                                      {group: selections.get(group, {})})
+        fig.layout.annotations = ()
+        fig.update_layout(showlegend=False, height=285, margin=dict(t=10, b=50, l=20, r=10))
+        yield group, fig
+
+
+def overall_metric_chart(history, pooled, grouping, primary, options):
+    fig = historical_metric_chart(pooled, grouping, primary, options)
+    total = pool_statistics(history, ['strategy']).set_index('strategy').reindex(options)
+    fig.add_scatter(x=options, y=total.sample_mean, customdata=total.sample_number,
+                    name='Overall (all selected groups)', mode='lines+markers',
+                    line=dict(color='#00395D', width=4), connectgaps=False,
+                    hovertemplate='%{x}<br>Overall mean: %{y:,.2f}<br>Historical customers: %{customdata:,}<extra></extra>')
+    fig.data = (fig.data[-1], *fig.data[:-1])
+    fig.layout.annotations = ()
+    return fig
+
+
+def historical_bar_chart(data, dimension, axis_label, value, label, options, colors, patterns):
+    categories = options if dimension == 'strategy' else ordered_groups(data[dimension].unique(), axis_label)
+    fig = px.bar(data, x=dimension, y=value, color='strategy', pattern_shape='strategy', barmode='group',
+                 labels={'strategy': 'Strategy', dimension: axis_label, value: label},
+                 category_orders={'strategy': options, dimension: categories},
                  color_discrete_map=colors, pattern_shape_map=patterns)
-    fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
-    fig.update_xaxes(type='category', categoryorder='array', categoryarray=segments)
-    fig.update_layout(height=360 if len(data.partner.unique()) <= 2 else 590,
-                      margin=dict(t=40,b=45,l=30,r=20), legend_title_text='Strategy')
+    fig.update_xaxes(type='category', categoryorder='array', categoryarray=categories)
+    fig.update_layout(height=320, margin=dict(t=10, b=45, l=30, r=20),
+                      showlegend=dimension != 'strategy', legend_title_text='Strategy')
+    if dimension == 'strategy':
+        fig.update_layout(barmode='overlay')  # One bar centered on each strategy label.
     return fig
 
 
@@ -68,18 +131,26 @@ def _canonical_input(frame, default_metric='Primary metric'):
 def grouping_columns(frame):
     """Prefer common business dimensions while allowing other categorical columns."""
     d = _canonical_input(frame)
-    reserved = {'partner', 'strategy', 'metric', 'sample_mean', 'sample_variance', 'sample_number', 'sample_sd',
-                'group_by', 'ym', 'month', 'year_month', 'date', 'snapshot_date', 'historical_start', 'historical_end', 'successes'}
+    reserved = {'partner', 'strategy', 'metric', 'group by', 'arm', 'option',
+                'credit line', 'treatment', 'successes', 'n', 'ym', 'month',
+                'year month', 'historical start', 'historical end', 'number', 'sample size',
+                'account number', 'customer number', 'standard deviation', 'standard error'}
+    excluded_words = {'id', 'uuid', 'identifier', 'mean', 'avg', 'average', 'variance', 'var',
+                      'sd', 'std', 'stdev', 'stddev', 'count', 'date', 'timestamp'}
+    preferred_words = {'fico', 'pd', 'segment', 'group', 'band', 'tier', 'score', 'risk'}
     candidates = []
     for original, col in zip(frame.columns, d.columns):
-        if col in reserved or col.endswith('_id') or col == 'id':
+        # Match business headers regardless of spaces, underscores, case or punctuation.
+        header = re.sub(r'([A-Z])([A-Z][a-z])', r'\1 \2', str(original))
+        header = re.sub(r'([a-z0-9])([A-Z])', r'\1 \2', header)
+        words = re.findall(r'[a-z0-9]+', header.casefold())
+        name = ' '.join(words)
+        if (col in {'partner', 'strategy', 'metric', 'group_by', 'sample_mean', 'sample_variance', 'sample_number', 'sample_sd'}
+                or name in reserved or excluded_words.intersection(words)
+                or name in {'sample number', 'observed n'} or d[col].isna().all()):
             continue
-        series = d[col].dropna()
-        # Keep numeric scores available; the UI requests bins for continuous values.
-        if len(series) == 0:
-            continue
-        preferred = any(x in col for x in ('segment', 'fico', 'risk', 'group', 'band', 'score'))
-        candidates.append((0 if preferred else 1, str(original), col))
+        rank = 0 if 'fico' in words else 1 if preferred_words.intersection(words) else 2
+        candidates.append((rank, str(original), col))
     return [(label, col) for _, label, col in sorted(candidates, key=lambda x: x[0])]
 
 
@@ -153,8 +224,7 @@ def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', groupi
         if grouping not in mapping:
             raise ValueError('Choose an available grouping column.')
         dimensions = [col for _, col in candidates]
-        d = d.rename(columns={mapping[grouping]: 'segment'})
-        dimensions = ['segment'] + [c for c in dimensions if c != mapping[grouping] and d[c].notna().all()]
+        dimensions = [c for c in dimensions if c == mapping[grouping] or d[c].notna().all()]
         d['group_by'] = grouping
     for col in list(dict.fromkeys(['partner', 'group_by', 'strategy', 'metric'] + dimensions)):
         if d[col].isna().any() or d[col].astype(str).str.strip().eq('').any():
@@ -169,6 +239,8 @@ def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', groupi
     full_keys = list(dict.fromkeys(['partner', 'group_by', 'strategy', 'metric'] + dimensions))
     if d.duplicated(full_keys).any():
         raise ValueError('Duplicate historical combinations. Do not add monthly rows when the same customers can appear more than once; provide non-overlapping summaries.')
+    if not legacy:
+        d['segment'] = d[mapping[grouping]]
     keys = ['partner', 'group_by', 'segment', 'strategy', 'metric']
     if d.duplicated(keys).any():
         if not allow_pool:
@@ -268,26 +340,38 @@ def render_customer_plan():
                        + ', '.join(missing_versions) + '. Ask your IT team to check the app’s Python environment.')
         if plan['config'].get('synthetic'):
             st.warning('Synthetic demo: these numbers are illustrative.')
-        control = control_name(plan['config'])
         group_plans = plan.get('group_plans')
-        if group_plans:
-            rows = []
-            for group in group_plans:
-                roles = {arm['name']: arm['role'] for arm in group['plan']['config']['arms']}
-                rows.extend({'Group': group['segment'], 'Role': roles[row['arm']], 'Option': row['arm'], 'Required customers': row['recruitment_n']} for row in group['plan']['arm_totals'])
-            totals = pd.DataFrame(rows)
-        else:
-            roles = {arm['name']: arm['role'] for arm in plan['config']['arms']}
-            totals = pd.DataFrame(plan['arm_totals'])[['arm','recruitment_n']].rename(columns={'arm':'Option','recruitment_n':'Required customers'})
-            totals.insert(0, 'Role', totals['Option'].map(roles))
-        total = int(totals['Required customers'].sum())
-        totals['Allocation'] = totals['Required customers'].map(lambda n: f'{n/total:.1%}')
-        control_total = int(totals.loc[totals['Role'].eq('Control'), 'Required customers'].sum())
-        control_metric, total_metric = st.columns(2)
-        control_metric.metric('Control customers needed', f'{control_total:,}', help='Sum of each group’s Control sample.' if group_plans else f'Control option: {control}.')
-        total_metric.metric('Total customers needed', f'{total:,}')
-        st.caption('Each group has its own Control and Tests; sample sizes are calculated separately.' if group_plans else f'Control option: {control}. The total includes the Control and all Test options.')
-        st.dataframe(totals, hide_index=True, use_container_width=True)
+        targets = pd.DataFrame(plan['targets'])
+        grouping = plan.get('input_grouping') or 'Group'
+        counts = targets.groupby(['segment', 'arm'], sort=False)['recruitment_n'].sum()
+        groups = ordered_groups(targets.segment.unique(), grouping)
+        options = historical_strategy_order(targets.arm.unique())
+        group_configs = {g['segment']: g['plan']['config'] for g in group_plans or []}
+        table_rows, allocation_rows = [], []
+        total = int(counts.sum())
+        for group in groups:
+            roles = {a['name']: a['role'] for a in group_configs.get(group, plan['config'])['arms']}
+            group_counts = counts.loc[group]
+            row = {'group': group, 'total': int(group_counts.sum())}
+            for i, option in enumerate(options):
+                if option not in group_counts:
+                    row[f'option_{i}'] = '—'
+                    continue
+                n = int(group_counts[option])
+                row[f'option_{i}'] = f'{n:,} · {roles[option]}'
+                allocation_rows.append({'Group': group, 'Role': roles[option], 'Option': option,
+                                        'Required customers': n, 'Allocation': f'{n/total:.1%}'})
+            table_rows.append(row)
+        by_option = counts.groupby(level='arm').sum()
+        table_rows.append({'group': 'All selected groups', 'total': total,
+                           **{f'option_{i}': f'{by_option[option]:,}' for i, option in enumerate(options)}})
+        st.metric('Total customers needed', f'{total:,}')
+        st.markdown(f'**Required customers by {grouping} and strategy**')
+        st.caption('Each cell shows how many customers to assign. A dash means the strategy is outside that group’s plan.')
+        st.dataframe(pd.DataFrame(table_rows), hide_index=True, use_container_width=True,
+                     column_config={'group': grouping, 'total': 'Total customers',
+                                    **{f'option_{i}': option for i, option in enumerate(options)}})
+        totals = pd.DataFrame(allocation_rows)
         m=plan['config']['metrics'][0]
         st.info(f"Primary metric: {m['name']} · MDE: {m['effect']:g} {m['effect_scale']} · Power: {plan['config']['power']:.0%} · Confidence level: {1-plan['config']['alpha']:.0%}")
         st.caption('Historical Control counts define the Partner mix within each group. Keep that mix across its Control and Tests. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.' if group_plans else 'Historical Control counts define the assumed Partner / Segment mix. Keep this same mix across all groups. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.')
@@ -332,7 +416,8 @@ def render_customer_plan():
         st.info('Synthetic example: credit line strategies, FICO groups and PD score groups. Metrics are simplified illustrations, not calibrated portfolio estimates.')
         raw=demo_data()
         st.markdown('**Data preview**')
-        st.dataframe(raw.iloc[np.linspace(0, len(raw) - 1, 12, dtype=int)], hide_index=True, use_container_width=True)
+        st.caption(demo_credit_line_caption())
+        st.dataframe(raw, height=300, hide_index=True, use_container_width=True)
         st.caption('Demo rows within each Strategy and Metric represent non-overlapping customers.')
     else:
         st.download_button('Download CSV template', demo_data().head(6).to_csv(index=False), 'customer-history-template.csv', 'text/csv')
@@ -409,7 +494,9 @@ def render_customer_plan():
     left,right=st.columns(2)
     partner_options = list(input_data['partner'].astype(str).str.strip().unique())
     partners=left.multiselect('Partners', partner_options, default=[p for p in draft.get('partners', partner_options) if p in partner_options])
-    default_group = draft.get('grouping') if draft.get('grouping') in groups else ('FICO group' if source == 'Synthetic demo' and 'FICO group' in groups else None)
+    default_group = draft.get('grouping')
+    if default_group not in groups:
+        default_group = next((g for g in groups if 'fico' in g.casefold()), groups[0] if len(groups) == 1 else None)
     grouping=right.selectbox('Group by', groups, index=groups.index(default_group) if default_group else None,
                              placeholder='Choose a column, such as FICO group or PD score group')
     if grouping is None:
@@ -463,40 +550,91 @@ def render_customer_plan():
     guardrail_options = ['None']+[n for n in names if n != primary]
     guardrail=y.selectbox('Guardrail metric (optional)', guardrail_options, index=guardrail_options.index(draft.get('guardrail')) if draft.get('guardrail') in guardrail_options else 0)
     guardrail=None if guardrail=='None' else guardrail
-    st.markdown('### Control and test options')
-    options=list(view.strategy.unique())
-    if len(options)<2:
-        st.warning('Provide historical statistics for at least two Strategy / Option values.'); return
-    separate = st.checkbox('Set Control and Test options separately for each group', value=draft.get('group_selections', True) is not None,
-                           help='Calculate a separate sample size for each group, using its own historical data and selected strategies.')
-    group_selections = None
-    if separate:
-        st.caption('Choose the Control and Tests available in each group. Selected Partners must have historical statistics for those options.')
-        group_selections = {}
+    history = view.loc[view.metric.eq(primary)].copy()
+    options = historical_strategy_order(history.strategy.unique())
+    st.markdown('### Review historical strategies')
+    group_view = f'By {grouping}'
+    overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
+    pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
+    colors, patterns = strategy_styles(options)
+
+    def historical_details(data, dimension, axis_label, scope_label):
+        chart_data = data.assign(historical_sd=np.sqrt(data.sample_variance))
+        for value, label in [('sample_number', 'Historical sample count'),
+                             ('historical_sd', f'{primary} standard deviation')]:
+            st.markdown(f'**{label} · {scope_label}**')
+            fig = historical_bar_chart(chart_data, dimension, axis_label, value, label, options, colors, patterns)
+            st.plotly_chart(fig, use_container_width=True, key=f'customer_history_{dimension}_{value}')
+
+    with overall_tab:
+        st.caption(f'The bold line shows the overall mean of {primary} across selected Partners and groups. '
+                   f'The other lines show group means. Choose Control and Tests in the {group_view} tab.')
+        st.plotly_chart(overall_metric_chart(history, pooled, grouping, primary, options),
+                        use_container_width=True, key='customer_history_overall')
+        historical_details(pool_statistics(history, ['strategy']), 'strategy', 'Strategy', 'Overall')
+    with partner_tab:
+        st.caption(f'Compare historical {primary} within each Partner. Each line follows one group.')
+        st.plotly_chart(historical_metric_chart(history, grouping, primary, options),
+                        use_container_width=True, key='customer_history_partner')
+        historical_details(pool_statistics(history, ['partner', 'strategy']), 'partner', 'Partner', 'By Partner')
+
+    with group_tab:
+        st.caption('Choose the current strategy as Control and the alternatives as Tests. '
+                   'Dashed lines mark Control (gray square) and Tests (blue diamonds).')
+        separate = st.checkbox('Set Control and Test options separately for each group',
+                               value=draft.get('group_selections', True) is not None)
         saved_groups = draft.get('group_selections') or {}
-        for segment in segments:
+        selections = {}
+        chart_columns = {}
+        if not separate:
+            left, right = st.columns(2)
+            control = left.selectbox('Control', options,
+                                     index=options.index(draft['control']) if draft.get('control') in options else 0)
+            choices = [option for option in options if option != control]
+            tests = right.multiselect('Test options', choices,
+                                      default=[x for x in draft.get('tests', choices[:1]) if x in choices])
+
+        for segment in ordered_groups(segments, grouping):
             st.markdown(f'**{segment}**')
-            group_options = list(view[view.segment.eq(segment) & view.metric.eq(primary)].strategy.unique())
+            if not separate:
+                selections[segment] = {'control': control, 'tests': tests}
+                chart_columns[segment] = st.container()
+                continue
+            chart_columns[segment], settings = st.columns([2, 1], gap='medium')
+            group_options = historical_strategy_order(history.loc[history.segment.eq(segment), 'strategy'])
             if len(group_options) < 2:
-                st.warning(f'{segment} needs historical statistics for at least two strategies.'); return
+                settings.warning('This group needs history for at least two strategies.')
+                selections[segment] = {'control': None, 'tests': []}
+                continue
             previous = saved_groups.get(segment, {})
-            a, b = st.columns(2)
             key = fingerprint({'group': grouping, 'segment': segment})[:16]
-            selected_control = a.selectbox(f'Control — {segment}', group_options, index=group_options.index(previous.get('control')) if previous.get('control') in group_options else 0, key='customer_control_' + key)
+            selected_control = settings.selectbox(
+                f'Control — {segment}', group_options, key='customer_control_' + key,
+                index=group_options.index(previous['control']) if previous.get('control') in group_options else 0)
             available_tests = [option for option in group_options if option != selected_control]
-            selected_tests = b.multiselect(f'Test options — {segment}', available_tests, default=[option for option in previous.get('tests', available_tests[:1]) if option in available_tests], key='customer_tests_' + key)
-            group_selections[segment] = {'control': selected_control, 'tests': selected_tests}
-        control = group_selections[segments[0]]['control']
-        tests = list(dict.fromkeys(option for selection in group_selections.values() for option in selection['tests']))
-    else:
-        a,b=st.columns(2)
-        control=a.selectbox('Control', options, index=options.index(draft.get('control')) if draft.get('control') in options else 0)
-        choices=[x for x in options if x != control]
-        tests=b.multiselect('Test options', choices, default=[x for x in draft.get('tests', choices[:1]) if x in choices])
+            selected_tests = settings.multiselect(
+                f'Test options — {segment}', available_tests, key='customer_tests_' + key,
+                default=[option for option in previous.get('tests', available_tests[:1]) if option in available_tests])
+            selections[segment] = {'control': selected_control, 'tests': selected_tests}
+
+        for i, (segment, fig) in enumerate(group_metric_charts(pooled, grouping, primary, options, selections)):
+            chart_columns[segment].plotly_chart(fig, use_container_width=True, key=f'customer_history_group_{i}')
+        historical_details(pooled, 'segment', grouping, group_view)
+
+    group_selections = selections if separate else None
+    if separate:
+        control = selections[segments[0]]['control']
+        tests = list(dict.fromkeys(option for selection in selections.values() for option in selection['tests']))
+    if len(options) < 2:
+        st.warning('Provide historical statistics for at least two strategies for the primary metric.')
+        return
     mde_col, scale_col=st.columns(2)
     scales=['Relative %','Absolute']
     scale=scale_col.selectbox('MDE type', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
-    effect=mde_col.number_input('Minimum detectable effect (MDE)', min_value=0.001, value=float(draft.get('effect',5.0)), help='Smallest change worth detecting, not a prediction of the outcome.')
+    effect = mde_col.number_input('Minimum detectable effect (MDE)', min_value=0.001,
+                                  value=float(draft.get('effect', 5.0)),
+                                  step=1.0 if scale == 'Relative %' else 0.01,
+                                  help='Smallest change worth detecting, not a prediction of the outcome.')
     with st.expander('Advanced settings'):
         a,b=st.columns(2)
         alpha=a.number_input('False positive rate (alpha)', min_value=.001,max_value=.2,value=float(draft.get('alpha',.05)),step=.01,format='%.3f')
@@ -505,32 +643,10 @@ def render_customer_plan():
                                  help='Adjust the significance level across planned comparisons. Without this protection, the chance of at least one false positive increases when comparing multiple Tests.')
         st.caption('Default: pairwise Neyman allocation with a shared Control; historical Control customer counts determine the population mix across arms.')
         margin=st.number_input('Guardrail maximum tolerated deterioration (absolute units; 0 = monitoring only)', min_value=0.,value=float(draft.get('margin',0.))) if guardrail else 0.
-    st.markdown('### Historical data visualizations')
-    st.caption('Historical differences describe the supplied data; they do not establish an effect caused by the strategy. Sample counts are shown separately by Partner and option.')
-    chart_data = view[view.metric.eq(primary)].copy()
-    if group_selections is not None:
-        chart_data = chart_data[chart_data.apply(lambda row: row['strategy'] in [group_selections[row['segment']]['control']] + group_selections[row['segment']]['tests'], axis=1)]
-    else:
-        chart_data = chart_data[chart_data.strategy.isin([control] + tests)]
-    if not chart_data.empty:
-        chart_options = list(dict.fromkeys(([control] + list(tests)) if group_selections is None else [option for selection in group_selections.values() for option in [selection['control']] + selection['tests']]))
-        colors, patterns = strategy_styles([control] + sorted((option for option in options if option != control), key=str.casefold))
-        if len(chart_options) > len(STRATEGY_COLORS):
-            st.caption('For more than 24 options, patterns supplement the colors. Use the legend to focus on individual options.')
-        chart_data['historical_sd'] = np.sqrt(chart_data.sample_variance)
-        for title, value, label in [('Historical sample by group', 'sample_number', 'Historical sample number'),
-                                    ('Historical primary metric by strategy', 'sample_mean', f'{primary} historical mean'),
-                                    ('Historical variability by strategy', 'historical_sd', f'{primary} historical standard deviation')]:
-            st.markdown(f'**{title}**')
-            if value == 'sample_mean':
-                st.caption('Each line is a historical segment within a Partner. Lines connect selected options for comparison; they do not imply a causal effect or values between options.')
-                fig = historical_metric_chart(chart_data, grouping, primary, chart_options)
-            else:
-                fig=historical_bar_chart(chart_data, grouping, value, label, chart_options, colors, patterns)
-            st.plotly_chart(fig, use_container_width=True, key=f'customer_history_chart_{value}')
-    else:
-        st.info('Select at least one Test option to compare historical data.')
+    ready = all(choice['tests'] for choice in selections.values())
+    if not ready:
+        st.info('Choose at least one Test option for each included group to get a plan.')
     if st.session_state.get('customer_plan_error'):
         st.error(st.session_state.customer_plan_error)
-    st.button('Get plan', type='primary', use_container_width=True, on_click=_run_plan,
+    st.button('Get plan', type='primary', use_container_width=True, disabled=not ready, on_click=_run_plan,
               args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries, group_selections))

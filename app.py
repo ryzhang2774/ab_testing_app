@@ -97,7 +97,7 @@ from src.experiment_platform.portfolio import PORTFOLIO_STATUSES, build_rollout_
 from src.experiment_platform.timeseries import TimeSeriesConfig, build_business_interpretation, build_timeseries_preview, campaign_decision_date, classify_calibration, config_fingerprint, data_fingerprint, detect_frequency, duplicate_timestamp_count, duration_power_status, fit_bsts_model, humanize_column_name, incremental_outcome_label, infer_timeseries_columns, method_config_fingerprint, planning_config_fingerprint, planning_durations, prepare_timeseries_data, predictor_candidates, probability_positive_label, projected_operational_exposure, run_duration_power_simulation, run_pre_post_analysis
 
 
-st.set_page_config(page_title="Experiment Platform", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Experiment Platform", layout="wide", initial_sidebar_state="expanded")
 
 st.markdown(
     """
@@ -1749,19 +1749,47 @@ def show_command_center() -> None:
         render_experiment_detail(selected)
 
 
+EXPERIMENT_CHOICES = (
+    ("Customer experiment",
+     "Randomly assign customers to Control and Test strategies. Plan sample sizes and compare outcomes for credit lines, offers or pricing.",
+     "home_choose_customer", "Customer"),
+    ("Geographic experiment",
+     "Compare Test and Control markets over the same period. Plan regional tests and measure incremental market impact.",
+     "home_choose_geo", "Geography"),
+    ("Time series experiment",
+     "Assess a shared launch using historical trends. Plan observation time and estimate the change after a campaign or policy launch.",
+     "home_choose_timeseries", "Time Series"),
+)
+
+
 def render_command_navigation() -> None:
-    with st.container(key="studio_masthead"):
-        brand, *tabs = st.columns([2.5, 1.25, 1.25, 1], vertical_alignment="center")
-        brand.markdown('<div class="studio-brand"><i aria-hidden="true"></i>Experiment Platform</div>', unsafe_allow_html=True)
-        destinations = (
-            ("Choose an experiment", "Home", "nav_chooser"),
-            ("Monitor experiments", "Command Center", "nav_monitor"),
-            ("Analyze results", "Analyzer", "nav_analyzer"),
-        )
-        for tab, (label, mode, key) in zip(tabs, destinations):
-            active = st.session_state.get("overview_mode", "Home") == mode
-            tab.button(label, key=key, use_container_width=True, type="primary" if active else "secondary",
-                       on_click=set_overview_mode, args=(mode,))
+    """Keep global navigation available from every experiment workspace."""
+    page = st.session_state.main_page
+    with st.sidebar:
+        if page == "Overview":
+            st.markdown('<div class="ledger-product">Choose an experiment</div>', unsafe_allow_html=True)
+            with st.container(key="ledger_navigation"):
+                for name, _, key, workspace in EXPERIMENT_CHOICES:
+                    st.button(name, key=f"rail_{key}", use_container_width=True,
+                              on_click=open_experiment_landing, args=(workspace,))
+            return
+
+        st.markdown('<div class="ledger-product">Experiment Platform</div>', unsafe_allow_html=True)
+        with st.container(key="ledger_navigation"):
+            st.button("Choose an experiment", key="nav_chooser", use_container_width=True,
+                      on_click=set_overview_mode, args=("Home",))
+        contexts = {
+            "Customer": ("Customer experiment", "customer_intent", start_customer_workflow),
+            "Geography": ("Geographic experiment", "geo_intent", start_geography_workflow),
+            "Time Series": ("Time series experiment", "ts_intent", start_time_series_workflow),
+        }
+        title, intent_key, start_workflow = contexts[page]
+        with st.container(key="ledger_context"):
+            st.markdown(f'<div class="ledger-context-title">{title}</div>', unsafe_allow_html=True)
+            for label, intent in (("Plan an experiment", "plan"), ("Analyze results", "analyze")):
+                st.button(label, key=f"rail_{page}_{intent}", use_container_width=True,
+                          type="primary" if st.session_state.get(intent_key) == intent else "secondary",
+                          on_click=start_workflow, args=(intent,))
 
 
 def open_analysis_experiment(experiment: dict) -> None:
@@ -1801,30 +1829,15 @@ def show_experiment_analyzer() -> None:
 
 
 def show_overview() -> None:
-    render_command_navigation()
-    if st.session_state.get("overview_mode") == "Analyzer":
-        show_experiment_analyzer()
-        return
-    if st.session_state.get("overview_mode") == "Command Center":
-        show_command_center()
-        return
-
     st.markdown(
-        '<header class="studio-lead"><h1>Choose an<br>experiment</h1>'
-        '<p>Who receives the strategy? Use the way it reaches customers to choose a design.</p></header>',
+        '<header class="studio-lead"><h1>Choose an experiment</h1>'
+        '<p>Pick the design that matches how your strategy reaches customers.</p></header>',
         unsafe_allow_html=True,
     )
-    with st.container(key="design_directory"):
-        st.markdown('<div class="studio-index"><span>Design</span><span>When to use it</span>'
-                    '<span>Example</span></div>', unsafe_allow_html=True)
-        designs = (
-            ("01", "Customer", "Randomly assign customers to Control and Test strategies.", "Credit lines", "home_choose_customer", "Customer"),
-            ("02", "Geography", "Compare Test and Control markets over the same period.", "Regional media", "home_choose_geo", "Geography"),
-            ("03", "Time series", "Launch the same change for everyone at once.", "National campaigns", "home_choose_timeseries", "Time Series"),
-        )
-        for number, name, situation, example, key, workspace in designs:
-            st.button(f"`{number}` **{name}** {situation} *{example}*", key=key, use_container_width=True,
-                      on_click=open_experiment_landing, args=(workspace,))
+    with st.container(key="experiment_choices"):
+        for column, (name, description, key, workspace) in zip(st.columns(3, gap="large"), EXPERIMENT_CHOICES):
+            column.button(f"**{name}** *{description}*", key=key, use_container_width=True,
+                          on_click=open_experiment_landing, args=(workspace,))
 
 
 
@@ -5693,7 +5706,7 @@ def render_geo_shell(intent: str | None) -> None:
     st.markdown(
         f"""
         <style>
-        [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
+        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
         .stApp {{background:#fbfcfe;}}
         .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
         .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
@@ -5775,7 +5788,7 @@ def render_ts_shell(intent: str | None) -> None:
     st.markdown(
         f"""
         <style>
-        [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
+        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
         .stApp {{background:#fbfcfe;}}
         .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
         .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
@@ -6011,7 +6024,7 @@ def render_customer_shell(intent: str | None) -> None:
     st.markdown(
         f"""
         <style>
-        [data-testid="stSidebar"], [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
+        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
         .stApp {{background:#fbfcfe;}}
         .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
         .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
@@ -6312,15 +6325,11 @@ def customer_page() -> None:
 
 
 init_state()
-with st.sidebar:
-    st.title("Experiment Platform")
-    page = st.radio(
-        "Overview",
-        ["Overview", "Customer", "Geography", "Time Series"],
-        format_func=lambda value: "Home" if value == "Overview" else value,
-        label_visibility="collapsed",
-        key="main_page",
-    )
+st.session_state.setdefault("main_page", "Overview")
+from src.experiment_platform.visual_theme import apply_theme
+apply_theme()
+render_command_navigation()
+page = st.session_state.main_page
 
 if page == "Overview":
     show_overview()
@@ -6340,5 +6349,4 @@ if st.session_state.get("pending_workspace_save"):
         st.error(f"Could not save the experiment: {exc}")
 
 # Keep the shared visual theme after each workspace's own styles.
-from src.experiment_platform.visual_theme import BUSINESS_STYLE
-st.markdown(BUSINESS_STYLE, unsafe_allow_html=True)
+apply_theme()

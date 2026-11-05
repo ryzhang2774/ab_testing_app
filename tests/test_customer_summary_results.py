@@ -23,7 +23,8 @@ def test_continuous_pooled_statistics_match_customer_records():
     raw_overall, _, _, _ = calculate_results(raw,'Customer ID','Assigned option','Revolving Balance','Credit line 1000')
     raw_groups, _ = __import__('src.experiment_platform.customer',fromlist=['analyze_customer_records']).analyze_customer_records(
         raw,'Customer ID','Assigned option','Revolving Balance','Credit line 1000',partner_column='FICO group',joint_decision=False,multiplicity_method='None')
-    assert not issues and audit['accounts'] == len(raw)
+    assert {msg.split(':')[0] for msg in issues} == {'FICO 650–699', 'FICO 700–749'}
+    assert audit['accounts'] == len(raw)
     for field in ['Mean / Rate','Effect vs Control','Raw p-value','Adjusted p-value','CI Lower','CI Upper']:
         left = overall.set_index('Credit Line')[field].sort_index()
         right = raw_overall.set_index('Credit Line')[field].sort_index()

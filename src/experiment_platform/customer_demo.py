@@ -11,7 +11,15 @@ import pandas as pd
 PARTNERS = ['Holland', 'PriceLine', 'Princess', 'Carnival']
 FICO_GROUPS = ['FICO 650–699', 'FICO 700–749', 'FICO 750+']
 PD_GROUPS = ['PD low', 'PD medium', 'PD high']
-STRATEGIES = [f'Credit line {amount}' for amount in (1000, 2000, 3000, 4000, 5000)]
+CREDIT_LINES_BY_FICO = {
+    group: [f'Credit line {amount}' for amount in range(500, cap + 1, 500)]
+    for group, cap in zip(FICO_GROUPS, (5500, 8500, 12000))
+}
+
+
+def demo_credit_line_caption():
+    ranges = [f'{group}: 500–{int(options[-1].split()[-1]):,}' for group, options in CREDIT_LINES_BY_FICO.items()]
+    return 'Credit lines in 500 increments · ' + ' · '.join(ranges)
 
 
 def _outcomes(frame: pd.DataFrame, rng: np.random.Generator) -> pd.DataFrame:
@@ -50,12 +58,12 @@ def historical_demo(seed: int = 31415) -> pd.DataFrame:
     for p, partner in enumerate(PARTNERS):
         for i, fico in enumerate(FICO_GROUPS):
             for j, pd_group in enumerate(PD_GROUPS):
-                for strategy in STRATEGIES:
+                for strategy in CREDIT_LINES_BY_FICO[fico]:
                     count = int(rng.integers(32, 52) + 300 * [1., .85, .70, .62][p] * pd_mix[i][j])
-                    block = pd.DataFrame({'Partner': [partner]*count, 'FICO group': [fico]*count,
-                                          'PD score group': [pd_group]*count, 'Strategy': [strategy]*count})
-                    blocks.append(pd.concat([block, _outcomes(block, rng)], axis=1))
-    records = pd.concat(blocks, ignore_index=True)
+                    blocks.append((partner, fico, pd_group, strategy, count))
+    cells = pd.DataFrame(blocks, columns=['Partner', 'FICO group', 'PD score group', 'Strategy', 'count'])
+    records = cells.loc[cells.index.repeat(cells['count'])].drop(columns='count').reset_index(drop=True)
+    records = pd.concat([records, _outcomes(records, rng)], axis=1)
     result = records.melt(id_vars=['Partner', 'FICO group', 'PD score group', 'Strategy'],
                           value_vars=['Revolving Balance', 'RAR', 'NCL'], var_name='Metric', value_name='value')
     result = result.groupby(['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric'], sort=False)['value'].agg(
@@ -71,8 +79,12 @@ def customer_demo_results(seed: int = 2718, n: int = 7200) -> pd.DataFrame:
     fico_index = pd.Series(fico).map(dict(zip(FICO_GROUPS, range(3)))).to_numpy()
     draws = rng.random(n)
     pd_group = [PD_GROUPS[int(np.searchsorted(np.cumsum(pd_mix[i]), u))] for i, u in zip(fico_index, draws)]
+    assigned = np.empty(n, dtype=object)
+    for group, strategies in CREDIT_LINES_BY_FICO.items():
+        eligible = fico == group
+        assigned[eligible] = rng.choice(strategies, int(eligible.sum()))
     frame = pd.DataFrame({'Partner':rng.choice(PARTNERS, n, p=[.32, .27, .22, .19]), 'FICO group':fico,
-                          'PD score group':pd_group, 'Strategy':rng.choice(STRATEGIES, n, p=[.23, .22, .20, .19, .16])})
+                          'PD score group':pd_group, 'Strategy':assigned})
     outcomes = _outcomes(frame, rng)
     frame = frame.rename(columns={'Strategy':'Assigned option'})
     frame.insert(0, 'Customer ID', [f'C{i:06d}' for i in range(1, n+1)])
