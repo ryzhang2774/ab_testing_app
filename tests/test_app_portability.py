@@ -10,6 +10,25 @@ from src.experiment_platform.timeseries import fit_bsts_model, run_duration_powe
 from src.experiment_platform.core import format_business_date
 
 
+def test_navigation_with_streamlit_container_without_key(monkeypatch):
+    import streamlit as st
+
+    current_container = st.container
+
+    def legacy_container(*, border=None, height=None):
+        return current_container(border=border, height=height)
+
+    monkeypatch.setattr(st, "container", legacy_container)
+    app = AppTest.from_file("app.py", default_timeout=45).run()
+    assert not app.exception
+    assert app.button(key="home_choose_geo") and app.button(key="home_choose_timeseries")
+    app.button(key="rail_home_choose_customer").click().run()
+    assert not app.exception
+    assert app.button(key="customer_demo_plan")
+    app.button(key="nav_chooser").click().run()
+    assert not app.exception and app.button(key="home_choose_customer")
+
+
 def test_app_uses_portable_date_directives():
     # %-d and %#d depend on the host C library and break on Windows/macOS.
     source = Path("app.py").read_text()

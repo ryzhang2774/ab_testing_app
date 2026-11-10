@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import html
+import inspect
 import math
 import numpy as np
 import pandas as pd
@@ -1762,20 +1763,27 @@ EXPERIMENT_CHOICES = (
 )
 
 
+def styled_container(key: str):
+    """Use a CSS key when the installed Streamlit container supports one."""
+    if "key" in inspect.signature(st.container).parameters:
+        return st.container(key=key)
+    return st.container()
+
+
 def render_command_navigation() -> None:
     """Keep global navigation available from every experiment workspace."""
     page = st.session_state.main_page
     with st.sidebar:
         if page == "Overview":
             st.markdown('<div class="ledger-product">Choose an experiment</div>', unsafe_allow_html=True)
-            with st.container(key="ledger_navigation"):
+            with styled_container("ledger_navigation"):
                 for name, _, key, workspace in EXPERIMENT_CHOICES:
                     st.button(name, key=f"rail_{key}", use_container_width=True,
                               on_click=open_experiment_landing, args=(workspace,))
             return
 
         st.markdown('<div class="ledger-product">Experiment Platform</div>', unsafe_allow_html=True)
-        with st.container(key="ledger_navigation"):
+        with styled_container("ledger_navigation"):
             st.button("Choose an experiment", key="nav_chooser", use_container_width=True,
                       on_click=set_overview_mode, args=("Home",))
         contexts = {
@@ -1784,7 +1792,7 @@ def render_command_navigation() -> None:
             "Time Series": ("Time series experiment", "ts_intent", start_time_series_workflow),
         }
         title, intent_key, start_workflow = contexts[page]
-        with st.container(key="ledger_context"):
+        with styled_container("ledger_context"):
             st.markdown(f'<div class="ledger-context-title">{title}</div>', unsafe_allow_html=True)
             for label, intent in (("Plan an experiment", "plan"), ("Analyze results", "analyze")):
                 st.button(label, key=f"rail_{page}_{intent}", use_container_width=True,
@@ -1834,7 +1842,7 @@ def show_overview() -> None:
         '<p>Pick the design that matches how your strategy reaches customers.</p></header>',
         unsafe_allow_html=True,
     )
-    with st.container(key="experiment_choices"):
+    with styled_container("experiment_choices"):
         for column, (name, description, key, workspace) in zip(st.columns(3, gap="large"), EXPERIMENT_CHOICES):
             column.button(f"**{name}** *{description}*", key=key, use_container_width=True,
                           on_click=open_experiment_landing, args=(workspace,))
