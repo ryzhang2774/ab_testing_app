@@ -6,6 +6,8 @@ import plotly.graph_objects as go
 import plotly.io as pio
 import streamlit as st
 
+from .workspace_visuals import workspace_css
+
 HEADING = "#00395D"
 ACTION = "#006DE3"
 HIGHLIGHT = "#00AEEF"
@@ -70,46 +72,6 @@ BUSINESS_STYLE = """
   font:600 28px/1.25 var(--display);color:var(--heading);letter-spacing:-.02em}
 .stApp :is(.customer-page-heading,.geo-page-heading,.ts-page-heading,.overview-hero) p {
   font-size:14px;line-height:1.5;color:var(--muted);margin:8px 0 0}
-.stApp .studio-lead {display:block;padding:0 0 24px}
-.stApp .studio-lead h1 {font:600 28px/1.25 var(--display);color:var(--heading);letter-spacing:-.02em;margin:0}
-.stApp .studio-lead h1 br {display:none}
-.stApp .studio-lead p {font:400 14px/1.5 var(--display);color:var(--muted);max-width:80ch;margin:8px 0 0}
-
-
-.stApp .st-key-experiment_choices button {
-  display:block;width:100%;padding:28px;border:1px solid var(--line);border-top:3px solid var(--cyan);
-  border-radius:6px;background:#fff;color:var(--ink);box-shadow:none;
-  transition:transform .2s ease,border-color .2s ease,background-color .2s ease,box-shadow .2s ease;
-}
-.stApp .st-key-experiment_choices button:hover {
-  transform:translateY(-4px);border-color:var(--action);background:#f8fcff;
-  box-shadow:0 8px 20px rgba(0,57,93,.08)
-}
-.stApp .st-key-experiment_choices button > div {width:100%;min-width:0}
-.stApp .st-key-experiment_choices button p {
-  display:flex;flex-direction:column;align-items:flex-start;gap:0;
-  min-height:354px;width:100%;margin:0;text-align:left;color:var(--ink);white-space:normal
-}
-.stApp .st-key-experiment_choices button strong {
-  display:block;font-size:22px;line-height:1.3;font-weight:600;color:var(--heading);margin:28px 0 16px
-}
-.stApp .st-key-experiment_choices button em {
-  display:block;font-size:14px;line-height:1.7;font-style:normal;color:var(--muted);white-space:normal;min-width:0
-}
-.stApp .st-key-experiment_choices button p::before {
-  content:"";width:88px;height:88px;flex-shrink:0;display:block;border-radius:6px;
-  background-color:#eaf6fc;background-repeat:no-repeat;background-position:center;background-size:52px;
-  transition:transform .2s ease,background-color .2s ease
-}
-.stApp .st-key-experiment_choices button p::after {
-  content:"Explore experiment →";display:block;width:100%;padding-top:20px;margin-top:auto;
-  border-top:1px solid var(--line);font-size:14px;font-weight:600;color:var(--action)
-}
-.stApp .st-key-experiment_choices button:hover p::before {transform:translateY(-2px);background-color:#ddf1fb}
-.stApp .st-key-home_choose_customer button p::before {background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23006DE3%22%20stroke-width%3D%221.25%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%228%22%20r%3D%223%22%2F%3E%3Cpath%20d%3D%22M6%2021v-2a6%206%200%200%201%2012%200v2%22%2F%3E%3Cpath%20d%3D%22M5%205a3%203%200%200%200%200%206m-3%208v-2a5%205%200%200%201%203-4M19%205a3%203%200%200%201%200%206m3%208v-2a5%205%200%200%200-3-4%22%2F%3E%3C%2Fsvg%3E")}
-.stApp .st-key-home_choose_geo button p::before {background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23006DE3%22%20stroke-width%3D%221.25%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%229%22%2F%3E%3Cellipse%20cx%3D%2212%22%20cy%3D%2212%22%20rx%3D%224%22%20ry%3D%229%22%2F%3E%3Cpath%20d%3D%22M3%2012h18M5%206.5a15%2015%200%200%200%2014%200M5%2017.5a15%2015%200%200%201%2014%200%22%2F%3E%3C%2Fsvg%3E")}
-.stApp .st-key-home_choose_timeseries button p::before {background-image:url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23006DE3%22%20stroke-width%3D%221.25%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpath%20d%3D%22M3%203v18h18%22%2F%3E%3Cpath%20d%3D%22M6%2016v-2m4%202v-4m4%204v-6m4%206v-8%22%20stroke%3D%22%239ACFE7%22%2F%3E%3Cpath%20d%3D%22m6%2011%204-4%204%202%206-5%22%2F%3E%3Ccircle%20cx%3D%226%22%20cy%3D%2211%22%20r%3D%221%22%20fill%3D%22%23006DE3%22%2F%3E%3Ccircle%20cx%3D%2210%22%20cy%3D%227%22%20r%3D%221%22%20fill%3D%22%23006DE3%22%2F%3E%3Ccircle%20cx%3D%2214%22%20cy%3D%229%22%20r%3D%221%22%20fill%3D%22%23006DE3%22%2F%3E%3C%2Fsvg%3E")}
-@media(prefers-reduced-motion:reduce){.stApp .st-key-experiment_choices button,.stApp .st-key-experiment_choices button p::before {transition:none;transform:none}}
 .stApp :is(.customer-explainer,.command-kpis,.lifecycle-rail,.attention-list) {
   background:white;border:1px solid var(--line);border-radius:6px;box-shadow:none}
 .stApp .customer-flow-card {background:var(--soft);border-color:var(--line);border-radius:4px;box-shadow:none}
@@ -135,4 +97,4 @@ def apply_theme() -> None:
         )
     )
     pio.templates.default = "plotly_white+decision_ledger"
-    st.markdown(BUSINESS_STYLE, unsafe_allow_html=True)
+    st.markdown(BUSINESS_STYLE + "<style>" + workspace_css() + "</style>", unsafe_allow_html=True)

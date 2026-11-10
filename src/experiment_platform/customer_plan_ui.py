@@ -13,8 +13,9 @@ from .business_data import canonical, read_table
 from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import demo_credit_line_caption, historical_demo
-from .customer_palette import STRATEGY_COLORS, strategy_styles
+from .customer_palette import STRATEGY_COLORS
 from .customer_grouping import ordered_groups
+from .workspace_visuals import render_history_details
 from .portfolio import load_experiments, upsert_experiment
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
@@ -101,20 +102,6 @@ def overall_metric_chart(history, pooled, grouping, primary, options):
                     hovertemplate='%{x}<br>Overall mean: %{y:,.2f}<br>Historical customers: %{customdata:,}<extra></extra>')
     fig.data = (fig.data[-1], *fig.data[:-1])
     fig.layout.annotations = ()
-    return fig
-
-
-def historical_bar_chart(data, dimension, axis_label, value, label, options, colors, patterns):
-    categories = options if dimension == 'strategy' else ordered_groups(data[dimension].unique(), axis_label)
-    fig = px.bar(data, x=dimension, y=value, color='strategy', pattern_shape='strategy', barmode='group',
-                 labels={'strategy': 'Strategy', dimension: axis_label, value: label},
-                 category_orders={'strategy': options, dimension: categories},
-                 color_discrete_map=colors, pattern_shape_map=patterns)
-    fig.update_xaxes(type='category', categoryorder='array', categoryarray=categories)
-    fig.update_layout(height=320, margin=dict(t=10, b=45, l=30, r=20),
-                      showlegend=dimension != 'strategy', legend_title_text='Strategy')
-    if dimension == 'strategy':
-        fig.update_layout(barmode='overlay')  # One bar centered on each strategy label.
     return fig
 
 
@@ -556,27 +543,17 @@ def render_customer_plan():
     group_view = f'By {grouping}'
     overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
-    colors, patterns = strategy_styles(options)
-
-    def historical_details(data, dimension, axis_label, scope_label):
-        chart_data = data.assign(historical_sd=np.sqrt(data.sample_variance))
-        for value, label in [('sample_number', 'Historical sample count'),
-                             ('historical_sd', f'{primary} standard deviation')]:
-            st.markdown(f'**{label} · {scope_label}**')
-            fig = historical_bar_chart(chart_data, dimension, axis_label, value, label, options, colors, patterns)
-            st.plotly_chart(fig, use_container_width=True, key=f'customer_history_{dimension}_{value}')
-
     with overall_tab:
         st.caption(f'The bold line shows the overall mean of {primary} across selected Partners and groups. '
                    f'The other lines show group means. Choose Control and Tests in the {group_view} tab.')
         st.plotly_chart(overall_metric_chart(history, pooled, grouping, primary, options),
                         use_container_width=True, key='customer_history_overall')
-        historical_details(pool_statistics(history, ['strategy']), 'strategy', 'Strategy', 'Overall')
+        render_history_details(pool_statistics(history, ['strategy']), 'strategy', 'Strategy', primary, options)
     with partner_tab:
         st.caption(f'Compare historical {primary} within each Partner. Each line follows one group.')
         st.plotly_chart(historical_metric_chart(history, grouping, primary, options),
                         use_container_width=True, key='customer_history_partner')
-        historical_details(pool_statistics(history, ['partner', 'strategy']), 'partner', 'Partner', 'By Partner')
+        render_history_details(pool_statistics(history, ['partner', 'strategy']), 'partner', 'Partner', primary, options)
 
     with group_tab:
         st.caption('Choose the current strategy as Control and the alternatives as Tests. '
@@ -619,7 +596,7 @@ def render_customer_plan():
 
         for i, (segment, fig) in enumerate(group_metric_charts(pooled, grouping, primary, options, selections)):
             chart_columns[segment].plotly_chart(fig, use_container_width=True, key=f'customer_history_group_{i}')
-        historical_details(pooled, 'segment', grouping, group_view)
+        render_history_details(pooled, 'segment', grouping, primary, options)
 
     group_selections = selections if separate else None
     if separate:

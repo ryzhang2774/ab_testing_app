@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 from dataclasses import asdict, fields
 from datetime import datetime
+from src.experiment_platform.workspace_visuals import location_trail, method_card, page_header
 from src.experiment_platform.customer_ui import simple_customer_analysis
 from src.experiment_platform.time_series_simple_ui import render_time_series_analysis
 from src.experiment_platform.customer_plan_ui import render_customer_plan as render_unified_customer_plan
@@ -1752,13 +1753,13 @@ def show_command_center() -> None:
 
 EXPERIMENT_CHOICES = (
     ("Customer experiment",
-     "Randomly assign customers to Control and Test strategies. Plan sample sizes and compare outcomes for credit lines, offers or pricing.",
+     "Assign customers to Control and Test groups to compare credit lines, pricing or offers.",
      "home_choose_customer", "Customer"),
     ("Geographic experiment",
-     "Compare Test and Control markets over the same period. Plan regional tests and measure incremental market impact.",
+     "Compare Test and Control markets over the same period to measure a regional change.",
      "home_choose_geo", "Geography"),
     ("Time series experiment",
-     "Assess a shared launch using historical trends. Plan observation time and estimate the change after a campaign or policy launch.",
+     "Compare results after a shared launch with the outcome expected from historical trends.",
      "home_choose_timeseries", "Time Series"),
 )
 
@@ -1775,7 +1776,7 @@ def render_command_navigation() -> None:
     page = st.session_state.main_page
     with st.sidebar:
         if page == "Overview":
-            st.markdown('<div class="ledger-product">Choose an experiment</div>', unsafe_allow_html=True)
+            st.markdown('<div class="ledger-product">Experiment Platform</div><div class="atlas-nav-label">Choose an experiment</div>', unsafe_allow_html=True)
             with styled_container("ledger_navigation"):
                 for name, _, key, workspace in EXPERIMENT_CHOICES:
                     st.button(name, key=f"rail_{key}", use_container_width=True,
@@ -1837,16 +1838,10 @@ def show_experiment_analyzer() -> None:
 
 
 def show_overview() -> None:
-    st.markdown(
-        '<header class="studio-lead"><h1>Choose an experiment</h1>'
-        '<p>Pick the design that matches how your strategy reaches customers.</p></header>',
-        unsafe_allow_html=True,
-    )
+    page_header("Choose an experiment", "Pick the design that matches how your strategy reaches customers.", "Workspace")
     with styled_container("experiment_choices"):
-        for column, (name, description, key, workspace) in zip(st.columns(3, gap="large"), EXPERIMENT_CHOICES):
-            column.button(f"**{name}** *{description}*", key=key, use_container_width=True,
-                          on_click=open_experiment_landing, args=(workspace,))
-
+        for column, choice in zip(st.columns(3, gap="medium"), EXPERIMENT_CHOICES):
+            method_card(column, *choice, open_experiment_landing)
 
 
 def configure_metric_compact(role: str, raw_df: pd.DataFrame) -> None:
@@ -5709,30 +5704,11 @@ def leave_geographic_workspace() -> None:
 
 
 def render_geo_shell(intent: str | None) -> None:
-    accent = "#006b9b" if not intent else "#16856b" if intent == "analyze" else "#d69a1f"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#007da8; border-color:#007da8; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#006b9b; border-color:#006b9b; color:#fff;}'
-    st.markdown(
-        f"""
-        <style>
-        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
-        .stApp {{background:#fbfcfe;}}
-        .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
-        .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
-        .stButton > button[kind="primary"]:hover {{background:{accent}; border-color:{accent}; filter:brightness(.96);}}
-        {landing_secondary}
-        @media (max-width:800px) {{.block-container {{padding:.75rem 1rem 2rem;}}}}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
     if intent:
         brand, save_col, exit_col = st.columns([4.2, .8, 1])
     else:
         brand, exit_col = st.columns([5, 1])
-    brand.markdown(
-        '<div class="geo-product-bar"><div class="geo-product-mark">GEO</div><div><div class="geo-product-name">Experiment Platform</div><div class="geo-product-context">Market experimentation workspace</div></div></div>',
-        unsafe_allow_html=True,
-    )
+    brand.markdown(location_trail("Geography"), unsafe_allow_html=True)
     if intent and save_col.button("Save", use_container_width=True, key="geo_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
         st.session_state.pending_workspace_save = "Geography"
     exit_col.button("All experiments", use_container_width=True, key="geo_all_experiments", on_click=leave_geographic_workspace)
@@ -5752,10 +5728,7 @@ def render_geo_kpi_panel(title: str, subtitle: str, status: str, values: list[tu
 def geographic_page() -> None:
     intent = st.session_state.get("geo_intent")
     render_geo_shell(intent)
-    st.markdown(
-        '<div class="geo-page-heading"><h1>Geographic Experiment</h1><p>Use your existing Test and Control markets to plan a geographic test or analyze completed results.</p></div>',
-        unsafe_allow_html=True,
-    )
+    page_header("Geographic experiment", "Use your existing Test and Control markets to plan a geographic test or analyze completed results.")
     if not intent:
         geo_landing_preview()
         return
@@ -5791,31 +5764,11 @@ def leave_time_series_workspace() -> None:
 
 
 def render_ts_shell(intent: str | None) -> None:
-    accent = "#006b9b" if not intent else "#16856b" if intent == "analyze" else "#d69a1f"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#007da8; border-color:#007da8; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#006b9b; border-color:#006b9b; color:#fff;}'
-    st.markdown(
-        f"""
-        <style>
-        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
-        .stApp {{background:#fbfcfe;}}
-        .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
-        .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
-        .stButton > button[kind="primary"]:hover {{background:{accent}; border-color:{accent}; filter:brightness(.96);}}
-        button[data-baseweb="tab"][aria-selected="true"] {{color:{accent};}}
-        {landing_secondary}
-        @media (max-width:800px) {{.block-container {{padding:.75rem 1rem 2rem;}}}}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
     if intent:
         brand, save_col, exit_col = st.columns([4.2, .8, 1])
     else:
         brand, exit_col = st.columns([5, 1])
-    brand.markdown(
-        '<div class="ts-product-bar"><div class="ts-product-mark">TIME</div><div><div class="ts-product-name">Experiment Platform</div><div class="ts-product-context">Time-series experimentation workspace</div></div></div>',
-        unsafe_allow_html=True,
-    )
+    brand.markdown(location_trail("Time Series"), unsafe_allow_html=True)
     if intent and save_col.button("Save", use_container_width=True, key="ts_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
         st.session_state.pending_workspace_save = "Time Series"
     exit_col.button("All experiments", use_container_width=True, key="ts_all_experiments", on_click=leave_time_series_workspace)
@@ -5835,10 +5788,7 @@ def render_ts_kpi_panel(title: str, subtitle: str, status: str, values: list[tup
 def time_series_page() -> None:
     intent = st.session_state.get("ts_intent")
     render_ts_shell(intent)
-    st.markdown(
-        '<div class="ts-page-heading"><h1>Time Series Experiment</h1><p>Plan or measure a campaign when no randomized control group is available.</p></div>',
-        unsafe_allow_html=True,
-    )
+    page_header("Time series experiment", "Plan or measure a campaign when no randomized control group is available.")
     if not intent:
         ts_landing_preview()
         return
@@ -6027,30 +5977,11 @@ def leave_customer_workspace() -> None:
 
 
 def render_customer_shell(intent: str | None) -> None:
-    accent = "#005b88" if intent == "analyze" else "#006b9b"
-    landing_secondary = "" if intent else '.stButton > button[kind="secondary"] {background:#005b88; border-color:#005b88; color:#fff;} .stButton > button[kind="secondary"] p {color:#fff;} .stButton > button[kind="secondary"]:hover {background:#00476b; border-color:#00476b; color:#fff;}'
-    st.markdown(
-        f"""
-        <style>
-        [data-testid="collapsedControl"], header[data-testid="stHeader"] {{display:none !important;}}
-        .stApp {{background:#fbfcfe;}}
-        .block-container {{max-width:1480px; padding:1rem 2rem 3rem;}}
-        .stButton > button[kind="primary"] {{background:{accent}; border-color:{accent}; color:#fff;}}
-        .stButton > button[kind="primary"]:hover {{background:{accent}; border-color:{accent}; filter:brightness(.96);}}
-        {landing_secondary}
-        @media (max-width:800px) {{.block-container {{padding:.75rem 1rem 2rem;}}}}
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
     if intent and intent != "plan":
         brand, save_col, exit_col = st.columns([4.2, .8, 1])
     else:
         brand, exit_col = st.columns([5, 1])
-    brand.markdown(
-        '<div class="customer-product-bar"><div class="customer-product-mark">CUST</div><div><div class="customer-product-name">Experiment Platform</div><div class="customer-product-context">Customer experimentation workspace</div></div></div>',
-        unsafe_allow_html=True,
-    )
+    brand.markdown(location_trail("Customer"), unsafe_allow_html=True)
     if intent and intent != "plan" and save_col.button("Save", use_container_width=True, key="customer_save_experiment", help="Save this configuration and the latest available result to the Command Center."):
         st.session_state.pending_workspace_save = "Customer"
     exit_col.button("All experiments", use_container_width=True, key="customer_all_experiments", on_click=leave_customer_workspace)
@@ -6279,10 +6210,7 @@ def customer_summary_step(intent: str) -> None:
 def classic_customer_page() -> None:
     intent = st.session_state.get("customer_intent")
     render_customer_shell(intent)
-    st.markdown(
-        '<div class="customer-page-heading"><h1>Customer Experiment</h1><p>Plan and analyze randomized experiments across customers or accounts.</p></div>',
-        unsafe_allow_html=True,
-    )
+    page_header("Customer experiment", "Plan and analyze randomized experiments across customers or accounts.")
     if not intent:
         plan_col, analysis_col = st.columns(2)
         with plan_col:

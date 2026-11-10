@@ -3,7 +3,9 @@ import math
 import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
-from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, calculate_group_plans, strategy_styles, historical_metric_chart, historical_bar_chart
+from src.experiment_platform.customer_plan_ui import demo_data, demo_overall_summary, normalize_table, grouping_columns, calculate_plan, calculate_group_plans, historical_metric_chart
+from src.experiment_platform.customer_palette import strategy_styles
+from src.experiment_platform.workspace_visuals import history_detail_charts
 from src.experiment_platform.customer_html_report import build_html_summary
 from src.experiment_platform.customer_grouping import ordered_groups
 
@@ -164,10 +166,10 @@ def test_fico_bar_axes_are_categorical_and_ordered_with_sparse_partner_cells():
     data = pd.DataFrame([{'partner':p, 'segment':segment, 'strategy':strategy, 'sample_number':n}
                          for p, segment, strategy, n in [('A','750+','Control',10), ('A','650–699','Test',20),
                                                         ('B','700–749','Control',30), ('B','750+','Test',40)]])
-    colors, patterns = strategy_styles(['Control', 'Test'])
-    fig = historical_bar_chart(data, 'segment', 'FICO group', 'sample_number', 'Historical sample', ['Control','Test'], colors, patterns)
-    assert list(fig.layout.xaxis.categoryarray) == ['650–699', '700–749', '750+']
-    assert fig.layout.xaxis.type == 'category' and fig.layout.barmode == 'group'
+    count, spread = history_detail_charts(data.assign(sample_variance=9), 'segment', 'FICO group', 'Balance', ['Control','Test'])
+    assert count.to_dict()['encoding']['xOffset']['sort'] == ['650–699', '700–749', '750+']
+    assert spread.to_dict()['encoding']['y']['sort'] == ['650–699', '700–749', '750+']
+    assert spread.to_dict()['encoding']['color']['field'] == 'historical_sd'
     assert ordered_groups(['750+', '650–699', '700–749'], 'FICO group') == ['650–699', '700–749', '750+']
     assert ordered_groups(['High', 'Low'], 'PD score') == ['High', 'Low']
 
@@ -269,9 +271,11 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     for tab in chart_tabs:
         assert not tab.get('expander')
         charts = tab.get('plotly_chart')
-        bars = [json.loads(chart.proto.spec) for chart in charts if json.loads(chart.proto.spec)['data'][0]['type'] == 'bar']
-        expected_axis = {'Overall': 'Strategy', 'By FICO group': 'FICO group', 'By Partner': 'Partner'}[tab.label]
-        assert [fig['layout']['xaxis']['title']['text'] for fig in bars] == [expected_axis] * 2
+        details = [json.loads(chart.proto.spec) for chart in tab.get('arrow_vega_lite_chart')]
+        assert [fig['mark']['type'] for fig in details] == ['bar', 'rect']
+        assert [fig['encoding']['x']['field'] for fig in details] == ['strategy', 'strategy']
+        assert details[0]['encoding']['y']['field'] == 'sample_number'
+        assert details[1]['encoding']['color']['field'] == 'historical_sd'
         guides = [json.loads(chart.proto.spec)['layout'].get('shapes', []) for chart in charts]
         assert sum(bool(lines) for lines in guides) == (3 if tab.label == 'By FICO group' else 0)
     assert next(s for s in app.selectbox if s.label == 'Primary metric').options == ['Revolving Balance', 'RAR', 'NCL']
