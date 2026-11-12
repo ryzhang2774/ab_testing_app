@@ -138,6 +138,7 @@ def test_overall_chart_weights_customers_and_partner_view_has_no_assignment_guid
 
 
 def test_group_charts_keep_each_groups_control_and_tests_separate():
+    from src.experiment_platform.customer_palette import ROLE_COLORS
     from src.experiment_platform.customer_plan_ui import group_metric_charts, pool_statistics
     options = ['1000', '2000', '3500', '7000']
     groups = ['750+', '650–699']
@@ -156,7 +157,7 @@ def test_group_charts_keep_each_groups_control_and_tests_separate():
         choice = selected[group]
         assert len(fig.data) == 1 and list(fig.data[0].y) == [12] * 4
         assert {(s.x0, s.line.color) for s in fig.layout.shapes} == (
-            {(choice['control'], '#657887')} | {(x, '#006DE3') for x in choice['tests']})
+            {(choice['control'], ROLE_COLORS['Control'])} | {(x, ROLE_COLORS['Test']) for x in choice['tests']})
     selected['750+']['tests'] = ['7000']
     assert [s.x0 for s in panels()['750+'].layout.shapes] == ['2000','7000']
     assert [s.x0 for s in panels()['650–699'].layout.shapes] == ['1000','2000']
@@ -242,11 +243,7 @@ def test_demo_overall_summary_pools_each_strategy_and_metric_separately():
     assert len(demo_overall_summary(raw, by_partner=True)) == 3
 
 
-def test_customer_plan_demo_flow(tmp_path,monkeypatch):
-    from src.experiment_platform import customer_plan_ui
-    saved = []
-    monkeypatch.setattr(customer_plan_ui, 'upsert_experiment', lambda record: saved.append(record))
-    monkeypatch.setattr(customer_plan_ui, 'load_experiments', lambda: [])
+def test_customer_plan_demo_flow():
     app=AppTest.from_file('app.py',default_timeout=60).run()
     app.button(key='home_choose_customer').click().run()
     assert not app.exception
@@ -309,11 +306,8 @@ def test_customer_plan_demo_flow(tmp_path,monkeypatch):
     app.text_input(key='customer_plan_name').set_value('Credit line test').run()
     assert not app.exception
     assert any(x.proto.label == 'Download complete summary (HTML)' for x in app.get('download_button'))
-    next(b for b in app.button if b.label == 'Save to Your experiments').click().run()
-    assert not app.exception
-    assert saved[0]['sample_target'] > 0 and saved[0]['sample_collected'] == 0
-    assert saved[0]['config_payload']['customer_plan']['config']['name'] == 'Credit line test'
-    assert saved[0]['config_payload']['customer_plan']['config']['synthetic']
+    assert any(x.proto.label == 'Download sample sizes' for x in app.get('download_button'))
+    assert all(b.label != 'Save to Your experiments' for b in app.button)
     next(b for b in app.button if b.label == 'Back to settings').click().run()
     assert not app.exception
     assert app.radio(key='customer_plan_source').value == 'Synthetic demo'

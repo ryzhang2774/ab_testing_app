@@ -1838,7 +1838,12 @@ def show_experiment_analyzer() -> None:
 
 
 def show_overview() -> None:
-    page_header("Choose an experiment", "Pick the design that matches how your strategy reaches customers.", "Workspace")
+    st.markdown(
+        f'<header class="chooser-mast">{location_trail("Workspace")}'
+        '<h1>Choose an <em>experiment</em></h1>'
+        '<p>Choose how the strategy reaches your customers.</p></header>',
+        unsafe_allow_html=True,
+    )
     with styled_container("experiment_choices"):
         for column, choice in zip(st.columns(3, gap="medium"), EXPERIMENT_CHOICES):
             method_card(column, *choice, open_experiment_landing)
@@ -5977,7 +5982,12 @@ def leave_customer_workspace() -> None:
 
 
 def render_customer_shell(intent: str | None) -> None:
-    if intent and intent != "plan":
+    if intent == "plan":
+        brand, workflow, exit_col = st.columns([3.8, 1.1, 1.1])
+        if workflow.button("Switch workflow", key="customer_switch_workflow", use_container_width=True):
+            st.session_state.customer_intent = None
+            st.rerun()
+    elif intent:
         brand, save_col, exit_col = st.columns([4.2, .8, 1])
     else:
         brand, exit_col = st.columns([5, 1])
@@ -6210,19 +6220,10 @@ def customer_summary_step(intent: str) -> None:
 def classic_customer_page() -> None:
     intent = st.session_state.get("customer_intent")
     render_customer_shell(intent)
-    page_header("Customer experiment", "Plan and analyze randomized experiments across customers or accounts.")
     if not intent:
-        plan_col, analysis_col = st.columns(2)
-        with plan_col:
-            with st.container(border=True):
-                st.subheader("Plan an experiment")
-                st.write("Use historical customer statistics to choose options and calculate the sample needed in each group.")
-                st.button("Plan an experiment", type="primary", use_container_width=True, key="customer_demo_plan", on_click=start_customer_workflow, args=("plan",))
-        with analysis_col:
-            with st.container(border=True):
-                st.subheader("Analyze results")
-                st.write("Compare the outcomes of your Control and Test groups after customers have been assigned.")
-                st.button("Analyze results", use_container_width=True, key="customer_demo_analyze", on_click=start_customer_workflow, args=("analyze",))
+        from src.experiment_platform.customer_landing import credit_line_example, customer_intro
+        customer_intro(start_customer_workflow)
+        credit_line_example()
         st.markdown(
             '<section class="customer-explainer" aria-label="How a customer experiment works">'
             '<div class="customer-explainer-top"><div><div class="customer-explainer-eyebrow">The experiment at a glance</div>'
@@ -6246,13 +6247,14 @@ def classic_customer_page() -> None:
             unsafe_allow_html=True,
         )
         return
+    if intent == "plan":
+        render_unified_customer_plan()
+        return
+    page_header("Customer experiment", "Plan and analyze randomized experiments across customers or accounts.")
     _, nav_right = st.columns([5, 1])
     if nav_right.button("Switch workflow", key="customer_switch_workflow"):
         st.session_state.customer_intent = None
         st.rerun()
-    if intent == "plan":
-        render_unified_customer_plan()
-        return
     simple_customer_analysis(render_customer_evidence)
 
 

@@ -26,7 +26,7 @@ def package_files(root: Path) -> list[Path]:
     # PDF generation must not depend on fonts installed on the Windows host.
     assets = root / "src" / "experiment_platform" / "assets"
     if assets.exists():
-        files.extend(path for path in assets.rglob("*") if path.is_file() and path.suffix in {".ttf", ".txt", ".md", ".css"})
+        files.extend(path for path in assets.rglob("*") if path.is_file() and path.suffix in {".ttf", ".txt", ".md", ".css", ".jpg"})
     guides = root / "docs" / "customer-v2"
     if guides.exists():
         files.extend(path for path in guides.rglob("*") if path.is_file() and path.suffix in {".md", ".png"})

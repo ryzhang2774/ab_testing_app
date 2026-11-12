@@ -13,10 +13,9 @@ from .business_data import canonical, read_table
 from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import demo_credit_line_caption, historical_demo
-from .customer_palette import STRATEGY_COLORS
+from .customer_palette import ROLE_COLORS, STRATEGY_COLORS
 from .customer_grouping import ordered_groups
-from .workspace_visuals import render_history_details
-from .portfolio import load_experiments, upsert_experiment
+from .workspace_visuals import allocation_bars, recruitment_composition, render_history_details
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
 def demo_data():
@@ -60,7 +59,7 @@ def historical_metric_chart(data, grouping, primary, options, selections=None):
                      hovertemplate=trace.hovertemplate + '<br>%{text}',
                      marker=dict(symbol=[{'Control':'square','Test':'diamond','Historical only':'circle'}[r] for r in roles],
                                  size=[11 if r != 'Historical only' else 6 for r in roles],
-                                 color=[{'Control':'#657887','Test':'#006DE3','Historical only':'#AAB8C2'}[r] for r in roles]))
+                                 color=[ROLE_COLORS[r] for r in roles]))
         for arm, mean, role in zip(trace.x, trace.y, roles):
             if pd.notna(mean):
                 guides.setdefault((trace.xaxis, trace.yaxis, arm), set()).add(role)
@@ -69,7 +68,7 @@ def historical_metric_chart(data, grouping, primary, options, selections=None):
         # that use this strategy differently. Their point markers remain local.
         if roles not in ({'Control'}, {'Test'}):
             continue
-        color = '#006DE3' if roles == {'Test'} else '#657887'
+        color = ROLE_COLORS[next(iter(roles))]
         fig.add_shape(type='line', xref=xaxis, yref=f'{yaxis} domain',
                       x0=arm, x1=arm, y0=0, y1=1, layer='below',
                       line=dict(color=color, width=1.6, dash='dash'))
@@ -98,7 +97,7 @@ def overall_metric_chart(history, pooled, grouping, primary, options):
     total = pool_statistics(history, ['strategy']).set_index('strategy').reindex(options)
     fig.add_scatter(x=options, y=total.sample_mean, customdata=total.sample_number,
                     name='Overall (all selected groups)', mode='lines+markers',
-                    line=dict(color='#00395D', width=4), connectgaps=False,
+                    line=dict(color='#144c70', width=4), connectgaps=False,
                     hovertemplate='%{x}<br>Overall mean: %{y:,.2f}<br>Historical customers: %{customdata:,}<extra></extra>')
     fig.data = (fig.data[-1], *fig.data[:-1])
     fig.layout.annotations = ()
@@ -315,18 +314,9 @@ def _run_plan(data, partners, segments, control, tests, primary, guardrail, effe
 
 
 def render_customer_plan():
-    st.markdown('### Plan an experiment')
-    st.caption('Choose historical statistics, your audience and test options. We will calculate the customers needed for each group.')
     if st.session_state.get('customer_plan_result_view'):
         plan = st.session_state['customer_plan_result']
-        st.markdown('#### Your sample size plan')
-        from .business_plan import VERSION_UNAVAILABLE
-        missing_versions = [name for name, version in plan.get('runtime_versions', {}).items() if version == VERSION_UNAVAILABLE]
-        if missing_versions:
-            st.warning('The plan was calculated, but package version information could not be recorded for: '
-                       + ', '.join(missing_versions) + '. Ask your IT team to check the app’s Python environment.')
-        if plan['config'].get('synthetic'):
-            st.warning('Synthetic demo: these numbers are illustrative.')
+        st.markdown('<h1 class="sample-plan-title">Your sample size plan</h1>', unsafe_allow_html=True)
         group_plans = plan.get('group_plans')
         targets = pd.DataFrame(plan['targets'])
         grouping = plan.get('input_grouping') or 'Group'
@@ -352,21 +342,39 @@ def render_customer_plan():
         by_option = counts.groupby(level='arm').sum()
         table_rows.append({'group': 'All selected groups', 'total': total,
                            **{f'option_{i}': f'{by_option[option]:,}' for i, option in enumerate(options)}})
-        st.metric('Total customers needed', f'{total:,}')
+        with st.container(border=True):
+            summary, breakdown = st.columns([1, 1.65], gap='medium')
+            summary.metric('Total customers needed', f'{total:,}')
+            with breakdown:
+                recruitment_composition(groups, [row['total'] for row in table_rows[:-1]], total, grouping)
+
         st.markdown(f'**Required customers by {grouping} and strategy**')
         st.caption('Each cell shows how many customers to assign. A dash means the strategy is outside that group’s plan.')
         st.dataframe(pd.DataFrame(table_rows), hide_index=True, use_container_width=True,
                      column_config={'group': grouping, 'total': 'Total customers',
                                     **{f'option_{i}': option for i, option in enumerate(options)}})
+        st.markdown('#### Strategy allocation')
+        st.caption('Percentages show the share of customers within each group.')
         totals = pd.DataFrame(allocation_rows)
+        for group, strategies in totals.groupby('Group', sort=False):
+            group_total = int(strategies['Required customers'].sum())
+            st.text(f'{group} · {group_total:,} customers')
+            allocation_bars(strategies['Option'], strategies['Required customers'], group_total,
+                            'Share of group', strategies['Role'])
+
         m=plan['config']['metrics'][0]
         st.info(f"Primary metric: {m['name']} · MDE: {m['effect']:g} {m['effect_scale']} · Power: {plan['config']['power']:.0%} · Confidence level: {1-plan['config']['alpha']:.0%}")
         st.caption('Historical Control counts define the Partner mix within each group. Keep that mix across its Control and Tests. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.' if group_plans else 'Historical Control counts define the assumed Partner / Segment mix. Keep this same mix across all groups. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.')
         with st.expander('Population mix and sample detail'):
+            from .business_plan import VERSION_UNAVAILABLE
+            missing_versions = [name for name, version in plan.get('runtime_versions', {}).items() if version == VERSION_UNAVAILABLE]
+            if missing_versions:
+                st.warning('The plan was calculated, but package version information could not be recorded for: '
+                           + ', '.join(missing_versions) + '. Ask your IT team to check the app’s Python environment.')
             st.dataframe(pd.DataFrame([w for g in group_plans for w in g['plan']['weights']] if group_plans else plan['weights']), hide_index=True, use_container_width=True)
             st.dataframe(pd.DataFrame(plan['targets'])[['partner','segment','arm','recruitment_n']], hide_index=True, use_container_width=True)
         name=st.text_input('Experiment name', value=plan['config'].get('name', 'Customer experiment'), key='customer_plan_name',
-                           help='This name appears in the PDF and in your saved experiments.')
+                           help='This name appears in the downloaded HTML summary.')
         report_plan = {**plan, 'config': {**plan['config'], 'name': name.strip() or plan['config']['name']}}
         from .customer_html_report import build_html_summary
         a,b,c=st.columns(3)
@@ -376,22 +384,16 @@ def render_customer_plan():
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
         c.button('Back to settings', use_container_width=True, on_click=back_to_settings)
-        st.markdown('#### Save experiment')
-        if st.button('Save to Your experiments', type='primary'):
-            if not name.strip():
-                st.error('Enter an experiment name.')
-            else:
-                p=plan.copy(); p['config']={**plan['config'],'name':name.strip()}
-                try:
-                    display_name = ('Demo · ' if p['config'].get('synthetic') and not name.strip().startswith('Demo · ') else '') + name.strip()
-                    previous = next((item for item in load_experiments() if item.get('id') == p['config']['experiment_id']), {})
-                    collected = int(previous.get('sample_collected', 0))
-                    upsert_experiment({**previous, 'id':p['config']['experiment_id'], 'name':display_name, 'type':'Customer', 'status':previous.get('status', 'Planning'), 'sample_target':total, 'sample_collected':collected, 'progress':min(int(100*collected/total),100), 'action':'Update sample progress', 'primary_outcome':m['name'], 'config_payload':{'customer_plan':p}, 'description':'Synthetic demo' if p['config'].get('synthetic') else 'Customer sample size plan'})
-                    st.success('Saved to Your experiments. Progress starts at zero and needs an update from experiment data.')
-                except (ValueError, OSError) as exc:
-                    st.error(f'Could not save experiment: {exc}')
         return
 
+    st.markdown(
+        '<header class="plan-hero"><div><h1>Plan an <em>experiment.</em></h1>'
+        '<p>Choose the strategies to test. Use historical outcomes to size '
+        'each group before launch.</p></div>'
+        '<div class="plan-split" aria-label="Eligible customers are assigned to Control or Test">'
+        '<span class="plan-cohort">Eligible customers</span><div class="plan-branches">'
+        '<span>Control</span><span>Test</span></div></div></header>',
+        unsafe_allow_html=True)
     draft = st.session_state.get('customer_plan_draft', {})
     sources = ['Upload file', 'Databricks', 'Synthetic demo']
     source = st.radio('Data source', sources, index=sources.index(draft.get('source', 'Synthetic demo')), horizontal=True, key='customer_plan_source')
@@ -400,11 +402,11 @@ def render_customer_plan():
         return
     metric_default='Primary metric'
     if source == 'Synthetic demo':
-        st.info('Synthetic example: credit line strategies, FICO groups and PD score groups. Metrics are simplified illustrations, not calibrated portfolio estimates.')
+        st.caption('Synthetic credit line history across partners, FICO groups and PD score groups.')
         raw=demo_data()
-        st.markdown('**Data preview**')
+        st.markdown('### Data preview')
         st.caption(demo_credit_line_caption())
-        st.dataframe(raw, height=300, hide_index=True, use_container_width=True)
+        st.dataframe(raw, height=210, hide_index=True, use_container_width=True)
         st.caption('Demo rows within each Strategy and Metric represent non-overlapping customers.')
     else:
         st.download_button('Download CSV template', demo_data().head(6).to_csv(index=False), 'customer-history-template.csv', 'text/csv')
@@ -438,7 +440,7 @@ def render_customer_plan():
         if raw.empty:
             st.info('Add historical statistics to continue.')
             return
-        st.markdown('**Data preview**')
+        st.markdown('### Data preview')
         st.dataframe(raw.head(15), hide_index=True, use_container_width=True)
         try:
             detected = _canonical_input(raw)
@@ -474,8 +476,7 @@ def render_customer_plan():
             raise ValueError('Add a grouping column such as Segment, FICO group or PD score group. Continuous scores must be grouped first.')
     except ValueError as exc:
         st.warning(str(exc)); return
-    st.markdown('**Choose your grouping column**')
-    st.caption('Select one column from the data above. The available group values and historical statistics update when you change it.')
+    st.markdown('### Choose your grouping column')
     if not is_legacy:
         st.caption('Suggested columns: ' + ', '.join(groups[:6]))
     left,right=st.columns(2)
@@ -540,6 +541,7 @@ def render_customer_plan():
     history = view.loc[view.metric.eq(primary)].copy()
     options = historical_strategy_order(history.strategy.unique())
     st.markdown('### Review historical strategies')
+    st.caption(f'{primary} · {len(partners):,} selected partners · {len(segments):,} groups · {len(options):,} historical options')
     group_view = f'By {grouping}'
     overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
@@ -557,7 +559,7 @@ def render_customer_plan():
 
     with group_tab:
         st.caption('Choose the current strategy as Control and the alternatives as Tests. '
-                   'Dashed lines mark Control (gray square) and Tests (blue diamonds).')
+                   'Dashed lines mark Control (blue square) and Tests (teal diamonds).')
         separate = st.checkbox('Set Control and Test options separately for each group',
                                value=draft.get('group_selections', True) is not None)
         saved_groups = draft.get('group_selections') or {}
@@ -605,6 +607,7 @@ def render_customer_plan():
     if len(options) < 2:
         st.warning('Provide historical statistics for at least two strategies for the primary metric.')
         return
+    st.markdown('### Set the change worth detecting')
     mde_col, scale_col=st.columns(2)
     scales=['Relative %','Absolute']
     scale=scale_col.selectbox('MDE type', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
@@ -625,5 +628,10 @@ def render_customer_plan():
         st.info('Choose at least one Test option for each included group to get a plan.')
     if st.session_state.get('customer_plan_error'):
         st.error(st.session_state.customer_plan_error)
-    st.button('Get plan', type='primary', use_container_width=True, disabled=not ready, on_click=_run_plan,
+    brief, action = st.columns([2, 1])
+    comparisons = sum(len(choices['tests']) for choices in selections.values()) if separate else len(tests)
+    brief.markdown('**Sample size plan**')
+    brief.caption(f"{comparisons} planned Test-to-Control comparison{'s' if comparisons != 1 else ''} · "
+                  f"{power:.0%} power · {1-alpha:.0%} confidence")
+    action.button('Get plan', type='primary', key='customer_get_plan', use_container_width=True, disabled=not ready, on_click=_run_plan,
               args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries, group_selections))

@@ -11,12 +11,12 @@ from .workspace_visuals import workspace_css
 HEADING = "#00395D"
 ACTION = "#006DE3"
 HIGHLIGHT = "#00AEEF"
-BODY = "#1F2A33"
+BODY = "#16384d"
 SECONDARY = "#5B6B78"
-BORDER = "#DDE3E8"
+BORDER = "#ccdde6"
 SURFACE = "#F5F7F9"
 CONTROL = "#7A8793"
-TESTS = ("#00395D", "#006DE3", "#00AEEF")
+TESTS = ("#006ba2", "#008679", "#cc7c0e")
 
 BUSINESS_STYLE = """
 <style>
@@ -88,7 +88,7 @@ def apply_theme() -> None:
     """Apply the shared CSS after workspace styles and set Plotly base defaults."""
     pio.templates["decision_ledger"] = go.layout.Template(
         layout=go.Layout(
-            font=dict(family="Inter, Arial, Helvetica, sans-serif", size=13, color=BODY),
+            font=dict(family="Segoe UI, Source Sans Pro, Arial, sans-serif", size=13, color=BODY),
             paper_bgcolor="#FFFFFF",
             plot_bgcolor="#FFFFFF",
             colorway=[CONTROL, *TESTS],
