@@ -1,5 +1,4 @@
 """Credit-line example for the Customer experiment landing page."""
-from base64 import b64encode
 from html import escape
 
 import altair as alt
@@ -7,7 +6,6 @@ import streamlit as st
 
 from .customer_demo import historical_demo
 from .customer_plan_ui import pool_statistics
-from .workspace_visuals import ASSETS
 
 
 @st.cache_data(show_spinner=False)
@@ -20,25 +18,6 @@ def credit_line_preview():
     rows = pool_statistics(history, ['segment', 'strategy', 'metric'])
     rows['limit'] = rows.strategy.str.removeprefix('Credit line ').astype(int)
     return rows
-
-
-def customer_intro(start_workflow):
-    left, right = st.columns([1.05, 1], gap="medium")
-    with left:
-        st.markdown(
-            '<header class="customer-cover"><h1>Customer<br><em>experiment.</em></h1>'
-            '<p>What changes when customers receive a different credit line? '
-            'Plan the comparison or explore results from a completed test.</p></header>',
-            unsafe_allow_html=True)
-        plan, analyze = st.columns([1.2, 1], gap="small")
-        plan.button("Plan an experiment", type="primary", use_container_width=True,
-                    key="customer_demo_plan", on_click=start_workflow, args=("plan",))
-        analyze.button("Analyze results", use_container_width=True,
-                       key="customer_demo_analyze", on_click=start_workflow, args=("analyze",))
-    with right:
-        photo = b64encode((ASSETS / 'credit-strategies.jpg').read_bytes()).decode('ascii')
-        st.markdown(f'<figure class="credit-still"><img src="data:image/jpeg;base64,{photo}" '
-                    'alt="Three credit cards standing in a clear display"></figure>', unsafe_allow_html=True)
 
 
 def credit_line_example():

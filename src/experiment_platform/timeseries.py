@@ -570,6 +570,7 @@ def regularize_timeseries_data(data: pd.DataFrame, frequency: str, missing_polic
     if missing_policy == "Fail validation" and out["_outcome"].isna().any():
         raise ValueError(f"{int(out['_outcome'].isna().sum())} periods are missing from the regular time series.")
     if missing_policy == "Interpolate":
+        out.attrs["interpolated_dates"] = tuple(out.loc[out["_outcome"].isna(), "_date"])
         out["_outcome"] = out["_outcome"].interpolate(limit_area="inside")
         if out["_outcome"].isna().any():
             raise ValueError("Interpolation cannot fill missing periods at the series boundary.")
@@ -858,6 +859,76 @@ def _joint_forecast_draws(fitted, steps: int, exog: pd.DataFrame | None, frame: 
     return values.T
 
 
+def _monthly_bayesian_forecast(pre, post, covariates, interval, draws, seed):
+    """Conjugate Gaussian local-level filter with a shared unknown variance.
+
+    Conditional on observation variance V, Var(level innovation) = 0.1 V and
+    standardized static signal coefficients have independent N(0, V) priors.
+    Use a flat initial level and p(V) proportional to 1/V. Conditioning on the
+    first observation leaves level variance V because its centered signals are zero.
+    """
+    signals, valid, notes = _build_exog(pd.concat([pre, post]), covariates, pd.concat([pre, post]).index)
+    columns = []
+    if signals is not None:
+        for col in valid:
+            before = signals.loc[pre.index, col]
+            sd = before.std()
+            if sd > 0:
+                columns.append(col)
+                signals[col] = (signals[col] - before.iloc[0]) / sd
+            else:
+                notes.append(f"Comparison signal '{col}' was constant before launch and was excluded.")
+    minimum = 8 + 3 * len(columns)
+    if len(pre) < minimum:
+        raise ValueError(f"The monthly model needs {minimum} observed pre-launch months with "
+                         f"{len(columns)} comparison signals; this selection has {len(pre)}. "
+                         "Use more history or fewer signals.")
+    if post.empty:
+        raise ValueError("Include at least one observed month on or after launch.")
+    y = pre["_outcome"].to_numpy(dtype=float)
+    if np.ptp(y) == 0:
+        raise ValueError("The pre-launch outcome is constant. Its forecast uncertainty cannot be estimated from these months.")
+    design = np.ones((len(pre) + len(post), 1 + len(columns)))
+    if columns:
+        design[:, 1:] = signals[columns].to_numpy()
+    months = pd.concat([pre["_date"], post["_date"]]).dt.to_period("M").astype("int64").to_numpy()
+    gaps = np.diff(months)
+    if (gaps < 1).any():
+        raise ValueError("Provide one observation per month in chronological order.")
+    state = np.zeros(design.shape[1])
+    state[0] = y[0]
+    covariance = np.eye(len(state))
+    sum_sq = 0.
+    level_variance_ratio = 0.1
+    for t in range(1, len(pre)):
+        covariance[0, 0] += level_variance_ratio * gaps[t - 1]
+        row = design[t]
+        projected = covariance @ row
+        variance = 1 + row @ projected
+        error = y[t] - row @ state
+        state += projected * (error / variance)
+        covariance -= np.outer(projected, projected) / variance
+        sum_sq += error**2 / variance
+
+    # Each path shares one posterior variance and terminal state across all
+    # future months. Level shocks accumulate, measurement errors do not.
+    df = len(pre) - 1
+    rng = np.random.default_rng(seed)
+    scale = np.sqrt(sum_sq / rng.chisquare(df, draws))[:, None]
+    states = rng.multivariate_normal(np.zeros(len(state)), covariance, size=draws)
+    future = design[len(pre):]
+    mean = future @ state
+    steps = gaps[len(pre) - 1:]
+    drift = rng.normal(size=(draws, len(post))) * np.sqrt(level_variance_ratio * steps)
+    offsets = states @ future.T + drift.cumsum(axis=1) + rng.normal(size=drift.shape)
+    paths = mean + scale * offsets
+    variances = 1 + np.sum((future @ covariance) * future, axis=1) + level_variance_ratio * steps.cumsum()
+    radius = stats.t.ppf((1 + interval) / 2, df) * np.sqrt(variances * sum_sq / df)
+    notes.append(f"Exploratory estimate from {len(pre)} observed pre-launch months. The baseline can drift "
+                 "from month to month. Annual seasonality and a separate trend slope are omitted.")
+    return mean, mean - radius, mean + radius, paths, columns, notes
+
+
 def fit_bsts_model(
     data: pd.DataFrame,
     intervention_date: str,
@@ -877,31 +948,44 @@ def fit_bsts_model(
     if not 0 < credible_interval < 1:
         raise ValueError("Prediction interval must be between 0 and 1.")
     pre, post = intervention_periods(data, intervention_date, campaign_end_date)
-    if len(pre) < 12:
-        raise ValueError("At least 12 pre-intervention observations are required.")
-    if len(post) < 2:
-        raise ValueError("At least two post-intervention observations are required.")
-    covariates = covariates or []
-    if len(pre) < 12 + 3 * len(covariates):
-        raise ValueError('Short histories need at least 12 pre-intervention observations plus 3 per comparison signal.')
-    short_history = len(pre) < 20
-    if short_history:
-        seasonality, local_trend = 'None', False
-    fitted, frame, period, valid_covariates, warnings = _fit_structural(pre, post, frequency, seasonality, covariates, local_trend, credible_interval)
-    if short_history:
-        warnings.insert(0, 'Short history (12–19 pre-periods): using a simpler local-level model without seasonality. The estimate is exploratory; collect more history and validate before a decision.')
-    if not _model_is_stable(fitted, frame):
-        raise RuntimeError("The structural model did not converge. Try a simpler trend or seasonality setting.")
+    filled = data.attrs.get("interpolated_dates", ())
+    observed_pre = pre.loc[~pre["_date"].isin(filled)]
+    monthly_bayes = frequency == "Monthly" and len(observed_pre) < 24 and not planner_mode
     alpha = 1 - credible_interval
-    frame = fitted.get_forecast(steps=len(post), exog=None if not valid_covariates else _build_exog(pd.concat([pre, post]), valid_covariates, pd.concat([pre, post]).index)[0].loc[post.index]).summary_frame(alpha=alpha)
-    pred = frame["mean"].to_numpy(dtype=float)
-    lower_col = f"mean_ci_lower" if "mean_ci_lower" in frame else frame.columns[2]
-    upper_col = f"mean_ci_upper" if "mean_ci_upper" in frame else frame.columns[3]
-    lower, upper = frame[lower_col].to_numpy(dtype=float), frame[upper_col].to_numpy(dtype=float)
+    if monthly_bayes:
+        # Interpolation at the launch boundary can use a treated outcome.
+        pre = observed_pre
+        pred, lower, upper, simulations, valid_covariates, warnings = _monthly_bayesian_forecast(
+            pre, post, covariates or [], credible_interval, draws, seed)
+        if post["_date"].isin(filled).any():
+            warnings.append("The campaign total includes interpolated months under the selected missing-period setting. "
+                            "The interval does not include uncertainty from filling those outcomes.")
+        seasonality, local_trend, period = "None", False, None
+    else:
+        if len(pre) < 12:
+            raise ValueError("At least 12 pre-intervention observations are required.")
+        if len(post) < 2:
+            raise ValueError("At least two post-intervention observations are required.")
+        covariates = covariates or []
+        if len(pre) < 12 + 3 * len(covariates):
+            raise ValueError('Short histories need at least 12 pre-intervention observations plus 3 per comparison signal.')
+        short_history = len(pre) < 20
+        if short_history:
+            seasonality, local_trend = 'None', False
+        fitted, frame, period, valid_covariates, warnings = _fit_structural(pre, post, frequency, seasonality, covariates, local_trend, credible_interval)
+        if short_history:
+            warnings.insert(0, 'Short history (12–19 pre-periods): using a simpler local-level model without seasonality. The estimate is exploratory; collect more history and validate before a decision.')
+        if not _model_is_stable(fitted, frame):
+            raise RuntimeError("The structural model did not converge. Try a simpler trend or seasonality setting.")
+        frame = fitted.get_forecast(steps=len(post), exog=None if not valid_covariates else _build_exog(pd.concat([pre, post]), valid_covariates, pd.concat([pre, post]).index)[0].loc[post.index]).summary_frame(alpha=alpha)
+        pred = frame["mean"].to_numpy(dtype=float)
+        lower_col = f"mean_ci_lower" if "mean_ci_lower" in frame else frame.columns[2]
+        upper_col = f"mean_ci_upper" if "mean_ci_upper" in frame else frame.columns[3]
+        lower, upper = frame[lower_col].to_numpy(dtype=float), frame[upper_col].to_numpy(dtype=float)
+        exog_post = None if not valid_covariates else _build_exog(pd.concat([pre, post]), valid_covariates, pd.concat([pre, post]).index)[0].loc[post.index]
+        simulations = _joint_forecast_draws(fitted, len(post), exog_post, frame, draws, seed)
     observed = post["_outcome"].to_numpy(dtype=float)
     impact = observed - pred
-    exog_post = None if not valid_covariates else _build_exog(pd.concat([pre, post]), valid_covariates, pd.concat([pre, post]).index)[0].loc[post.index]
-    simulations = _joint_forecast_draws(fitted, len(post), exog_post, frame, draws, seed)
     cumulative_sims = (observed - simulations).sum(axis=1)
     ci_lower, ci_upper = np.quantile(cumulative_sims, [alpha / 2, 1 - alpha / 2])
     impact_test_statistic = float(impact.sum() / max(float(np.std(cumulative_sims, ddof=1)), 1e-9))
@@ -909,6 +993,9 @@ def fit_bsts_model(
         residual_pvalue = None
         residual_autocorrelation = False
         backtest = {"status": "Skipped in planner mode", "folds": 0, "failed_folds": 0, "failure_rate": 0.0, "mae": np.nan, "rmse": np.nan, "mape": np.nan, "wape": np.nan, "mase": np.nan, "interval_coverage": np.nan, "bias": np.nan}
+    elif monthly_bayes:
+        residual_pvalue, residual_autocorrelation = None, None
+        backtest = {"status": "Limited monthly history for holdout validation", "folds": 0}
     else:
         residuals = np.asarray(fitted.resid).astype(float)
         ljung = acorr_ljungbox(residuals, lags=[min(10, max(1, len(residuals) // 5))], return_df=True)
@@ -923,8 +1010,13 @@ def fit_bsts_model(
     result["lower"] = lower
     result["upper"] = upper
     result["impact"] = impact
-    stable = _model_is_stable(fitted, frame)
-    reliability = assess_model_reliability(backtest, credible_interval, residual_pvalue, len(pre), float(np.mean(np.abs(pre["_outcome"]))), stable=stable)
+    stable = bool(np.isfinite(simulations).all()) if monthly_bayes else _model_is_stable(fitted, frame)
+    if monthly_bayes:
+        reliability = {"overall": "Limited history", "components": {"holdout_validation": "Unavailable"},
+                       "explanations": {"holdout_validation": backtest["status"]}, "residual_pvalue": None}
+    else:
+        reliability = assess_model_reliability(backtest, credible_interval, residual_pvalue, len(pre),
+                                               float(np.mean(np.abs(pre["_outcome"]))), stable=stable)
     return {
         "method": "Structural Time Series Counterfactual", "pre_observations": len(pre), "post_observations": len(post),
         "result": result, "observed_total": float(observed.sum()), "expected_total": float(pred.sum()),
@@ -942,7 +1034,10 @@ def fit_bsts_model(
         "impact_test_statistic": impact_test_statistic,
         "forecast_draws": simulations if planner_mode else None,
         "planner_mode": planner_mode,
-        "uncertainty_note": "Conditional on fitted parameters; future state and observation shocks are simulated.",
+        "estimation": "Bayesian monthly local level" if monthly_bayes else "Maximum likelihood",
+        "uncertainty_note": ("The local level follows a random walk with monthly step variance equal to 0.1 times observation variance. "
+                             "Intervals integrate uncertainty in the baseline level, signal coefficients, noise variance and future outcomes."
+                             if monthly_bayes else "Conditional on fitted parameters; future state and observation shocks are simulated."),
     }
 
 

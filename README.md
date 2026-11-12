@@ -3,7 +3,7 @@
 A business-first Streamlit application for planning, monitoring, analyzing, and documenting experiments across three common operating models:
 
 - **Customer experiments**: randomized tests across customers or accounts
-- **Geographic tests**: experiments with pre-assigned Test and Control markets
+- **Geographic tests** support pre-launch market assignment and analysis of recorded Test and Control groups
 - **Time-series experiments**: campaign measurement when no randomized control group is available
 
 The interface is designed for desktop demos and business users. Each workflow starts with a visual data story, keeps the main path simple, and places technical controls inside advanced settings.
@@ -56,9 +56,9 @@ The customer analysis flow accepts aggregate results from a completed randomized
 
 ### Geographic Tests
 
-Use this workflow when the business already supplies fixed Test and Control DMAs or other markets. The platform does not manufacture or optimize market assignments.
+For planning, supply one row per market and date with an outcome. Existing Test and Control assignments are preserved. With unassigned markets, the planner ranks markets by average outcome on shared pre-launch dates, pairs neighbors in that ranking, and randomly assigns one market in each pair to each arm. It can also use supplied pairs. With an odd number of markets the middle market gets its own random draw. Review potential spillover and export the assignment before launch.
 
-The first page previews the market panel visually before configuration, including geographic coverage, Test / Control composition, outcome history, and source data. Planning then estimates the market count and rollout duration supported by the supplied groups and effect scenario.
+The first page previews the market panel visually before configuration, including geographic coverage, Test / Control composition, outcome history, and source data. Planning then estimates the market count and rollout duration supported by the market groups and effect scenario. Analysis requires the actual market assignments from the campaign.
 
 Analysis uses panel Difference-in-Differences with:
 

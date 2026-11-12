@@ -896,13 +896,13 @@ def cumulative_impact_chart(post_result: pd.DataFrame, outcome_label: str = "Out
     return fig
 
 
-def geo_dma_map(markets: pd.DataFrame, title: str = "Geographic Markets", height: int = 430, show_labels: bool = False):
+def geo_dma_map(markets: pd.DataFrame, title: str = "Geographic Markets", height: int = 520, show_labels: bool = False):
     colors = {
         "Available DMA": "#68707a",
         "Selected Candidate DMA": "#2457a6",
         "Excluded DMA": "#c9ced6",
-        "Test": "#b42318",
-        "Control": "#2457a6",
+        "Test": "#006cac",
+        "Control": "#bb5500",
         "Not assigned": "#c9ced6",
     }
     data = markets.dropna(subset=["lat", "lon"]).copy()
@@ -924,9 +924,14 @@ def geo_dma_map(markets: pd.DataFrame, title: str = "Geographic Markets", height
     fig.update_traces(
         mode=trace_mode,
         textposition="top center",
-        textfont=dict(size=9, color="#303846"),
-        marker=dict(size=13 if show_labels else 12, line=dict(width=1.5, color="#ffffff")),
+        textfont=dict(size=12, color="#303846"),
+        marker=dict(size=15 if show_labels else 13, line=dict(width=1.5, color="#ffffff")),
     )
+    for trace in fig.data:
+        trace.marker.symbol = "diamond" if trace.name == "Control" else "circle"
+    if show_labels:
+        for trace in fig.data:
+            trace.textposition = ["bottom center" if name in {"Miami", "Los Angeles"} else "top center" for name in trace.text]
     fig.update_geos(
         bgcolor="rgba(0,0,0,0)",
         landcolor="#eef2f6",
@@ -963,21 +968,22 @@ def geo_balance_chart(balance: pd.DataFrame, intervention_date: str, view_label:
 
 def geo_trend_chart(trend: pd.DataFrame, intervention_date: str, view_label: str = "Outcome"):
     fig = go.Figure()
-    for group, color in [("Test", "#b42318"), ("Control", "#2457a6")]:
+    for group, color in [("Control", "#bb5500"), ("Test", "#006cac")]:
         group_data = trend[trend["group"] == group]
         if not group_data.empty:
-            fig.add_trace(go.Scatter(x=group_data["_date"], y=group_data["_display_outcome"], mode="lines", name=group, line=dict(color=color, width=2.6)))
+            fig.add_trace(go.Scatter(x=group_data["_date"], y=group_data["_display_outcome"], mode="lines", name=group, line=dict(color=color, width=3.5, dash="solid" if group == "Test" else "dash")))
     if intervention_date:
         launch = pd.Timestamp(intervention_date)
-        fig.add_shape(type="line", x0=launch, x1=launch, y0=0, y1=1, xref="x", yref="paper", line=dict(color="#b42318", dash="dash"))
-        fig.add_annotation(x=launch, y=1, xref="x", yref="paper", text="Campaign Launch", showarrow=False, yanchor="bottom")
+        if not trend.empty and launch < trend["_date"].max():
+            fig.add_vrect(x0=launch, x1=trend["_date"].max(), fillcolor="#eaf3fa", line_width=0, layer="below")
+        fig.add_shape(type="line", x0=launch, x1=launch, y0=0, y1=1, xref="x", yref="paper",
+                      line=dict(color="#516c80", dash="dot", width=2))
+        fig.add_annotation(x=launch, y=1, xref="x", yref="paper", text="Launch", showarrow=False,
+                           yanchor="bottom", xanchor="right", font=dict(size=13))
     fig.update_layout(
-        template="plotly_white",
-        height=360,
-        margin=dict(l=20, r=20, t=24, b=20),
-        xaxis_title="Date",
-        yaxis_title=view_label,
-        hovermode="x unified",
-        legend=dict(orientation="h", y=1.05, x=0),
+        template="plotly_white", height=440, margin=dict(l=20, r=22, t=48, b=24),
+        font=dict(size=14), xaxis=dict(title=None, showgrid=False, automargin=True),
+        yaxis=dict(title=view_label, gridcolor="#dbe6ec", automargin=True),
+        hovermode="x unified", legend=dict(orientation="h", y=1.04, yanchor="bottom", x=0),
     )
     return fig

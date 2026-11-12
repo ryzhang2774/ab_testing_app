@@ -6,7 +6,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+from .customer_grouping import credit_line_amount, historical_strategy_order
 
+STRATEGIES_PER_PAGE = 10
 
 def _p_text(p):
     return '<0.001' if p < .001 else f'{p:.3f}'
@@ -18,46 +20,79 @@ def average_chart(result, comparisons, binary, metric, control, colors, patterns
     Difference intervals are shifted by the observed Control mean onto the
     average-outcome axis; they are not confidence intervals for each mean.
     """
-    rows = result.sort_values('Mean / Rate', kind='stable')
+    # For named offers, retain the existing order by average. For credit lines,
+    # order the strategies by limit even when the observed response falls.
+    rows = result.sort_values('Mean / Rate', kind='stable').set_index('Credit Line')
+    rows.index = rows.index.astype(str)
+    labels = historical_strategy_order(rows.index)
+    rows = rows.loc[labels]
     scale = 100 if binary else 1
-    labels = rows['Credit Line'].astype(str).tolist()
     means = rows['Mean / Rate'].to_numpy(dtype=float) * scale
-    control_mean = float(rows.loc[rows['Is Control'], 'Mean / Rate'].iloc[0])
+    control_mean = float(rows.loc[control, 'Mean / Rate'])
     lookup = comparisons.set_index('Test option')
-    fig = go.Figure(go.Bar(x=labels, y=means,
-        marker=dict(color=[colors[name] for name in labels], pattern_shape=[patterns[name] for name in labels]),
-        customdata=np.stack([rows['N'], ['Control' if x == control else 'Test' for x in labels]], axis=-1),
-        hovertemplate='%{x} (%{customdata[1]})<br>Average: %{y:.2f}<br>Customers: %{customdata[0]}<extra></extra>',
-        showlegend=False))
-    annotation_text, annotation_y, all_bounds = [], [], list(means) + [0.0]
+    lookup.index = lookup.index.astype(str)
+    lift_labels, hover, upper_errors, lower_errors = [], [], [], []
     for name, mean in zip(labels, means):
+        details = [f'<b>{escape(name)}</b>', f'Average: {mean:,.2f}', f'Customers: {int(rows.at[name, "N"]):,}']
         if name == control:
-            annotation_text.append(f'Control<br>Average {mean:,.2f}')
-            annotation_y.append(mean)
-            continue
-        comparison = lookup.loc[name]
-        low = (control_mean + float(comparison['CI lower'])) * scale
-        high = (control_mean + float(comparison['CI upper'])) * scale
-        all_bounds += [low, high]
-        lift = float(comparison['Difference']) / control_mean * 100 if control_mean > 0 else None
-        lift_text = f'Lift {lift:+,.1f}%' if lift is not None and np.isfinite(lift) else 'Lift unavailable'
-        significance = 'Significant' if comparison['Significant'] else 'Not significant'
-        annotation_text.append(f'Average {mean:,.2f}<br>{lift_text}<br>p {_p_text(comparison["Adjusted p-value"])}<br>{significance}')
-        annotation_y.append(max(mean, high))
-        fig.add_trace(go.Scatter(x=[name, name], y=[low, high], mode='lines+markers',
-            line=dict(color='#334e5d', width=2), marker=dict(symbol='line-ew', size=10, color='#334e5d'),
-            hovertemplate='Comparison interval (shifted): %{y:.2f}<extra></extra>', showlegend=False))
-    ymin, ymax = min(all_bounds), max(all_bounds)
-    span = max(ymax-ymin, abs(ymax)*.1, 1.)
-    fig.add_hline(y=control_mean * scale, line_dash='dot', line_color='#92a5af', line_width=1,
-                  annotation_text='Control average', annotation_position='top left')
-    fig.add_trace(go.Scatter(x=labels, y=[v + span*.025 for v in annotation_y], text=annotation_text,
-                             mode='text', textposition='top center', textfont=dict(size=11, color='#334e5d'),
+            lift_labels.append('Control')
+            details.append('Reference strategy')
+            upper_errors.append(0.)
+            lower_errors.append(0.)
+        else:
+            comparison = lookup.loc[name]
+            difference = comparison['Difference']
+            low, high = comparison['CI lower'], comparison['CI upper']
+            lower_errors.append(max(0., (difference - low) * scale))
+            upper_errors.append(max(0., (high - difference) * scale))
+            lift = f'{100 * difference / control_mean:+,.1f}%' if control_mean > 0 else None
+            significant = comparison['Significant']
+            lift_labels.append((lift or '—') + (' ★' if significant else ''))
+            details.extend([f'Lift {lift}' if lift else 'Lift unavailable',
+                            f'p {_p_text(comparison["Adjusted p-value"])} · ' +
+                            ('Significant' if significant else 'Not significant'),
+                            f'Difference interval: {low*scale:+,.2f} to {high*scale:+,.2f}' +
+                            (' percentage points' if binary else '')])
+        hover.append('<br>'.join(details))
+
+    fig = go.Figure(go.Bar(x=labels, y=means, hovertext=hover, hovertemplate='%{hovertext}<extra></extra>',
+        marker=dict(color=[colors[name] for name in labels], pattern_shape=[patterns[name] for name in labels]),
+        error_y=dict(type='data', symmetric=False, array=upper_errors, arrayminus=lower_errors,
+                     color='#314b5c', thickness=2, width=6), showlegend=False))
+    low = min(0., min(means - lower_errors))
+    high = max(0., max(means + upper_errors))
+    span = max(high-low, abs(high)*.1, 1.)
+    fig.add_hline(y=control_mean * scale, line_dash='dot', line_color='#728897', line_width=1)
+    fig.add_trace(go.Scatter(x=labels, y=means + upper_errors + span*.045, text=lift_labels,
+                             mode='text', textposition='top center', textfont=dict(size=14, color='#16384d'),
                              hoverinfo='skip', showlegend=False))
-    fig.update_layout(height=400, margin=dict(l=20, r=20, t=30, b=75),
-        xaxis=dict(title='Assigned strategy', categoryorder='array', categoryarray=labels),
+    amounts = [credit_line_amount(label) for label in labels]
+    monetary = any(value is not None for value in amounts) and all(
+        amount is not None or label == control for amount, label in zip(amounts, labels))
+    ticks = []
+    for name, value in zip(labels, amounts):
+        if monetary and value is not None:
+            ticks.append(f'{value:,.0f}' if value.is_integer() else f'{value:,}')
+        else:
+            ticks.append(name)
+    page_size = STRATEGIES_PER_PAGE
+    paged = len(labels) > page_size
+    pages = []
+    if paged:
+        for start in range(0, len(labels), page_size):
+            stop = min(start + page_size, len(labels))
+            pages.append(dict(label=f'{ticks[start]} – {ticks[stop - 1]}', method='relayout',
+                              args=[{'xaxis.range': [start - .5, stop - .5]}]))
+    fig.update_layout(height=430 if paged else 360, bargap=.30, font=dict(size=14),
+        margin=dict(l=20, r=24, t=62 if paged else 18, b=18), hoverlabel=dict(align='left', font_size=14),
+        xaxis=dict(title='Credit line ($)' if monetary else 'Assigned strategy', type='category',
+                   categoryorder='array', categoryarray=labels, tickmode='array', tickvals=labels, ticktext=ticks,
+                   tickfont=dict(size=14), automargin=True, fixedrange=paged,
+                   range=[-.5, page_size - .5] if paged else None),
+        updatemenus=[dict(type='dropdown', buttons=pages, x=0, xanchor='left', y=1.04, yanchor='bottom',
+                          bgcolor='white', bordercolor='#b8cfda')] if paged else [],
         yaxis_title='Rate (%)' if binary else str(metric), plot_bgcolor='white', paper_bgcolor='white')
-    fig.update_yaxes(gridcolor='#e5eef2', range=[ymin-span*.06, ymax+span*.42])
+    fig.update_yaxes(gridcolor='#e5eef2', range=[low-span*.05, high+span*.16], automargin=True)
     return fig
 
 
@@ -81,7 +116,8 @@ def _result_rows(result, scope, metric_type, frame, arm_col, outcome_col, contro
                      'Difference':row['Effect vs Control'], 'CI lower':row['CI Lower'], 'CI upper':row['CI Upper'],
                      'Test statistic':row['Statistic'], 'Raw p-value':row['Raw p-value'], 'Adjusted p-value':row['Adjusted p-value'],
                      'Significant':bool(row['Adjusted p-value'] < alpha), 'Method':method})
-    return pd.DataFrame(rows).sort_values('Test option', kind='stable').reset_index(drop=True)
+    frame = pd.DataFrame(rows).sort_values('Test option', kind='stable').set_index('Test option', drop=False)
+    return frame.loc[historical_strategy_order(frame.index)].reset_index(drop=True)
 
 
 def render_decision_card(insight):

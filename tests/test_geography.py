@@ -1,6 +1,7 @@
 import pandas as pd
 
-from src.experiment_platform.core import load_geo_demo
+from src.experiment_platform.geo_assignment import assign_market_pairs
+from src.experiment_platform.core import GEO_DEMO_ASSIGNMENT_SEED, GEO_DEMO_LAUNCH, load_geo_demo
 from src.experiment_platform.geography import (
     aggregate_trend,
     build_geo_preview,
@@ -51,6 +52,17 @@ def test_geo_preview_keeps_market_assignment_and_source_coverage():
     assert preview["end_date"] == panel["_date"].max()
 
 
+def test_geo_demo_separates_campaign_delivery_from_routine_marketing():
+    data = load_geo_demo()
+    active = data["week"].ge(GEO_DEMO_LAUNCH) & data["treatment_group"].eq("Test")
+    delivery = data[["campaign_spend", "campaign_impressions"]]
+    assert delivery.loc[~active].eq(0).all().all()
+    assert delivery.loc[active].gt(0).all().all()
+    assert (data["spend"] > data["campaign_spend"]).all()
+    assert pd.api.types.is_integer_dtype(data["applications"])
+    pd.testing.assert_frame_equal(data, load_geo_demo())
+
+
 def test_fixed_assignment_is_long_form_and_never_invents_pairs():
     panel, assignment = _demo_inputs()
     assert list(assignment.columns) == ["DMA", "Group"]
@@ -91,8 +103,8 @@ def test_panel_did_recovers_positive_demo_effect_and_diagnostics():
     assert balance["dma_count"] == len(assignment)
     assert result["effect_per_period"] > 0
     assert result["lift"] > 0
-    assert result["test_dmas"] == 5
-    assert result["control_dmas"] == 7
+    assert result["test_dmas"] == 6
+    assert result["control_dmas"] == 6
     assert result["post_periods"] > 0
     assert result["interval"][0] < result["interval"][1]
     assert {"Test", "Control"}.issubset(set(trend["group"]))
@@ -106,3 +118,14 @@ def test_weighted_panel_did_runs_with_market_size_weights():
     result = run_panel_did(analysis_panel, weighted=True)
     assert result["estimand"] == "Market-size-weighted average DMA"
     assert pd.notna(result["pvalue"])
+
+def test_geo_demo_planned_groups_match_delivery_and_survive_row_reordering():
+    panel, actual = _demo_inputs()
+    history = panel.loc[panel._date < GEO_DEMO_LAUNCH].drop(columns="treatment_group")
+    planned = assign_market_pairs(history, GEO_DEMO_ASSIGNMENT_SEED)
+    pd.testing.assert_frame_equal(planned, assign_market_pairs(history.sample(frac=1, random_state=4), GEO_DEMO_ASSIGNMENT_SEED))
+    assert planned.groupby("Pair")["Group"].nunique().eq(2).all()
+    assert planned.set_index("DMA").Group.to_dict() == actual.set_index("DMA").Group.to_dict()
+    odd = assign_market_pairs(history.loc[history._dma != "Seattle"], 20)
+    assert len(odd) == odd.DMA.nunique() == 11
+    assert sorted(odd.Group.value_counts()) == [5, 6]

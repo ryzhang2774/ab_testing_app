@@ -64,12 +64,21 @@ def test_charts_sort_means_and_show_reported_p_values_and_intervals():
     chart = average_chart(result, rows, True, 'RAR', 'Control', {'A':'#008fc5','Control':'#005b88'}, {'A':'','Control':''})
     assert list(chart.data[0].x) == ['Control','A']
     assert list(chart.data[0].y) == pytest.approx([10, 14])
-    assert list(chart.data[1].y) == pytest.approx([9, 19])  # Control mean + difference interval
-    assert 'Lift +40.0%' in chart.data[2].text[1]
-    assert 'p 0.040' in chart.data[2].text[1] and 'Significant' in chart.data[2].text[1]
+    bars = chart.data[0]
+    assert bars.y[1] - bars.error_y.arrayminus[1] == pytest.approx(9)
+    assert bars.y[1] + bars.error_y.array[1] == pytest.approx(19)
+    assert 'Lift +40.0%' in chart.data[0].hovertext[1]
+    assert 'p 0.040' in chart.data[0].hovertext[1] and 'Significant' in chart.data[0].hovertext[1]
+    # A falling outcome must not reverse a numeric limit axis, even with formatted uploads.
+    limits = result.replace({'Credit Line': {'Control': 'Credit line 10,000', 'A': '$500'}})
+    credit_chart = average_chart(limits, rows.replace({'Test option': {'A': '$500'}}), True, 'RAR',
+                                 'Credit line 10,000', {'$500':'#008fc5','Credit line 10,000':'#005b88'},
+                                 {'$500':'','Credit line 10,000':''})
+    assert list(credit_chart.data[0].x) == ['$500', 'Credit line 10,000']
+    assert list(credit_chart.layout.xaxis.ticktext) == ['500', '10,000']
     result.loc[result['Is Control'], 'Mean / Rate'] = 0
     chart = average_chart(result, rows, True, 'RAR', 'Control', {'A':'#008fc5','Control':'#005b88'}, {'A':'','Control':''})
-    assert 'Lift unavailable' in chart.data[2].text[1]
+    assert 'Lift unavailable' in chart.data[0].hovertext[1]
 
 
 

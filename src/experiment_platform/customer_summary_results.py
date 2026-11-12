@@ -8,6 +8,7 @@ from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.proportion import proportions_ztest, confint_proportions_2indep
 
 from .customer import continuous_summary_results
+from .customer_grouping import historical_strategy_order
 from .customer_plan_ui import pool_statistics
 
 
@@ -136,7 +137,7 @@ def calculate_summary(data, metric, control, group=None, alpha=.05, protection='
     if group:
         all_arms = set(selected.strategy)
         for label, part in selected.groupby(group,sort=False):
-            missing = sorted(all_arms-set(part.strategy))
+            missing = historical_strategy_order(sorted(all_arms-set(part.strategy)))
             if missing: issues.append(f"{label}: no summaries for {', '.join(missing)}")
             try: groups[str(label)] = compare(part,'None')
             except ValueError as exc: issues.append(f'{label}: {exc}')

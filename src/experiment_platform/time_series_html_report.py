@@ -57,6 +57,10 @@ def build_analysis_html(bundle, cfg, source, group, label):
                 _num(model['observed_total']), _num(model['expected_total']), _num(model['cumulative_impact']),
                 _num(model['relative_impact'] * 100, 2) + '%' if model['expected_total'] > 0 and pd.notna(model['relative_impact']) else 'Not available',
                 f"{_num(low)} to {_num(high)} ({model['interval_level']:.0%})", model.get('reliability','Review')]]))
+            if model.get('estimation') == 'Bayesian monthly local level':
+                sections.append(f"<p>Bayesian monthly counterfactual fitted on {model['pre_observations']} pre-launch "
+                                f"months and evaluated on {model['post_observations']} campaign months. "
+                                f"{_e(model['uncertainty_note'])}</p>")
             spec = model.get('model_specification', {})
             sections.append(f"<p>Seasonal cycle: {_e(model.get('seasonal_period') or 'not included')} periods; trend: {_e(spec.get('level', 'Not recorded'))}; comparison signals: {_e(', '.join(model.get('covariates', [])) or 'none')}.</p>")
             for warning in model.get('warnings', []): sections.append(f'<p class="note">{_e(warning)}</p>')

@@ -13,7 +13,7 @@ from .customer_palette import strategy_styles
 from .customer_summary_results import normalize_summary, calculate_summary
 from .portfolio import configuration_fingerprint
 from .customer_results_report import build_results_report
-from .customer_grouping import ordered_groups
+from .customer_grouping import ordered_groups, historical_strategy_order
 
 
 @st.cache_data(show_spinner=False)
@@ -34,7 +34,7 @@ def summary_demo():
 
 
 def render_summary_analysis(source):
-    from .customer_ui import average_chart, _result_rows, render_decision_card
+    from .customer_ui import STRATEGIES_PER_PAGE, average_chart, _result_rows, render_decision_card
     demo = summary_demo()
     if source == 'Synthetic demo':
         frame = demo
@@ -139,11 +139,10 @@ def render_summary_analysis(source):
         st.info('Choose a different metric for each additional selection.'); return
     if extra: st.caption('Additional metrics are exploratory. Within each metric, multiple Tests follow the selected protection; comparisons are not adjusted across metrics.')
     selected_metrics = [primary]+extra
-    options = data[data.metric.eq(primary)].strategy.drop_duplicates().tolist()
+    options = historical_strategy_order(data[data.metric.eq(primary)].strategy)
     if len(options)<2: st.warning('Provide at least two strategies for the primary metric.'); return
     preferred_control = next((x for x in options if x.lower() in {'control','bau','current','credit line 1000'}),None)
     if source == 'Synthetic demo':
-        options.sort(key=lambda strategy: int(strategy.rsplit(' ', 1)[-1]))
         preferred_control = options[0]
     control = st.selectbox('Control strategy',options,index=options.index(preferred_control) if preferred_control else None,
                            placeholder='Choose the Control strategy',key='summary_control')
@@ -180,7 +179,7 @@ def render_summary_analysis(source):
     if st.session_state.get('summary_result_fingerprint') != fingerprint:
         if st.session_state.get('summary_result_fingerprint'): st.warning('Inputs changed. Calculate results again.')
         return
-    colors, patterns = strategy_styles([control] + sorted((option for option in options if option != control),key=str.casefold))
+    colors, patterns = strategy_styles([control] + [option for option in options if option != control])
     prepared = []
     for metric in selected_metrics:
         overall, subgroups, audit, issues = st.session_state.summary_analyses[metric]
@@ -195,7 +194,9 @@ def render_summary_analysis(source):
                          'audit':audit,'issues':issues,'binary':binary,'key':key,'insight':rule_based_decision(context)})
 
     st.markdown('### Overall results')
-    st.caption('Compare each strategy with Control. Whiskers show the confidence interval for the Test–Control difference, shifted to the average scale.')
+    st.caption('Lift is relative to Control. ★ marks a statistically significant comparison. Hover over a bar for its p-value and sample size. Whiskers show the confidence interval for the Test–Control difference, shifted to the average scale.')
+    if len(options) > STRATEGIES_PER_PAGE:
+        st.caption(f'Each chart shows up to {STRATEGIES_PER_PAGE} strategies. Use the range menu to see more.')
     for item in prepared:
         metric = item['metric']
         st.markdown(f'#### {metric}' + (' · Primary metric' if metric == primary else ''))

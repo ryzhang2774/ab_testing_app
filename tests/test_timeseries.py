@@ -374,3 +374,27 @@ def test_weekly_monday_and_month_end_dates_are_preserved():
     bad_dates[4] += pd.Timedelta(days=1)
     with pytest.raises(ValueError, match='consistent cadence'):
         prepare_timeseries_data(pd.DataFrame({'date':bad_dates,'value':range(8)}),'date','value')
+
+
+@pytest.mark.parametrize("n_pre", [8, 10, 16])
+def test_bayesian_forecast_for_17_months_uses_only_pre_launch_outcomes(n_pre):
+    dates = pd.date_range('2024-01-01', periods=17, freq='MS')
+    rng = np.random.default_rng(41)
+    raw = pd.DataFrame({'date': dates, 'outcome': rng.normal(100, 5, 17), 'market': rng.normal(size=17)})
+    data = prepare_timeseries_data(raw, 'date', 'outcome')
+    controls = ['market'] if n_pre == 16 else []
+    fit = fit_bsts_model(data, dates[n_pre], 'Monthly', controls)
+    shifted = data.copy()
+    shifted.loc[shifted._date >= dates[n_pre], '_outcome'] += 50
+    other = fit_bsts_model(shifted, dates[n_pre], 'Monthly', controls)
+    assert fit['estimation'] == 'Bayesian monthly local level'
+    assert fit['seasonal_period'] is None and fit['pre_observations'] == n_pre
+    assert fit['post_observations'] == 17 - n_pre
+    assert fit['covariates'] == controls and fit['reliability'] != 'Good'
+    for name in ('counterfactual', 'lower', 'upper'):
+        np.testing.assert_allclose(fit['result'][name], other['result'][name])
+    assert (fit['result'].lower < fit['result'].counterfactual).all()
+    assert (fit['result'].upper > fit['result'].counterfactual).all()
+    np.testing.assert_allclose(np.subtract(other['prediction_interval'], fit['prediction_interval']), 50*(17-n_pre))
+    with pytest.raises(ValueError, match='observed pre-launch months'):
+        fit_bsts_model(data, dates[7], 'Monthly')

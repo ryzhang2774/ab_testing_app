@@ -1,5 +1,4 @@
 """Presentation components for the desktop experiment workspace."""
-from base64 import b64encode
 from html import escape
 from pathlib import Path
 
@@ -28,20 +27,6 @@ def page_header(title, description, location=None):
     st.markdown(
         f'<header class="workspace-mast">{trail}<h1 class="bulma-title">{escape(title)}</h1>'
         f'<p class="bulma-subtitle">{escape(description)}</p></header>', unsafe_allow_html=True)
-
-
-def method_card(column, title, description, key, workspace, open_workspace):
-    subject, _, noun = title.rpartition(" ")
-    slug = workspace.lower().replace(" ", "-")
-    image = b64encode((ASSETS / f"chooser-{slug}.jpg").read_bytes()).decode("ascii")
-    with column:
-        st.markdown(
-            f'<article class="method-copy"><div class="method-photo">'
-            f'<img src="data:image/jpeg;base64,{image}" alt=""></div>'
-            f'<div class="method-body"><h2>{escape(subject)} <span>{escape(noun)}</span></h2>'
-            f'<p>{escape(description)}</p></div></article>', unsafe_allow_html=True)
-        st.button("Open workspace", key=key, use_container_width=True,
-                  on_click=open_workspace, args=(workspace,))
 
 
 def history_detail_charts(data, dimension, dimension_label, metric, options):

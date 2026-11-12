@@ -144,7 +144,9 @@ def _decision_insight(metric, prepost, model, model_error, segment=None):
         model_text = f"The model estimates {abs(difference):,.2f} {'more' if difference > 0 else 'fewer'} total {metric} than its no-campaign baseline ({interval})."
     if model.get('expected_total',0)>0 and np.isfinite(model.get('relative_impact',np.nan)):
         model_text += f" Estimated relative change: {model['relative_impact']:+.1%}."
-    if reliability == 'Poor':
+    if reliability == 'Limited history':
+        next_step = 'Treat this as an early estimate. Check for other changes near launch and revisit the estimate as more months arrive.'
+    elif reliability == 'Poor':
         next_step = 'Improve the baseline or add an unaffected comparison signal before relying on the estimate.'
     elif np.isfinite(low) and np.isfinite(high) and low <= 0 <= high:
         next_step = 'Review the model and consider collecting more outcome data before deciding.'
@@ -324,6 +326,9 @@ def render_time_series_analysis():
     if end: post = post[post['_date']<=pd.Timestamp(end)]
     if pre.empty or post.empty: st.warning('Choose a launch date with observations both before and after it.'); return
     st.caption(f"{len(prepared):,} {prepared.attrs['frequency'].lower()} periods · {len(pre):,} before launch · {len(post):,} in the selected outcome window")
+    if prepared.attrs['frequency'] == 'Monthly' and (~pre["_date"].isin(prepared.attrs.get("interpolated_dates", ()))).sum() < 24:
+        st.caption('Short monthly history uses a Bayesian baseline. Allow at least 8 observed months before launch '
+                   'and 1 after, plus 3 pre-launch months for each comparison signal. Annual seasonality is omitted.')
     cfg.date_column,cfg.outcome_column,cfg.campaign_flag_column = str(date_col),str(metric),str(flag)
     cfg.intervention_date,cfg.campaign_end_date = launch.isoformat(),end.isoformat() if end else ''
     cfg.duplicate_policy,cfg.missing_policy = 'Fail validation',missing
@@ -331,7 +336,7 @@ def render_time_series_analysis():
     cfg.frequency = prepared.attrs['frequency']
     cfg.comparison_metric,cfg.comparison_window,cfg.symmetric_periods = 'Average per period','Symmetric',min(len(pre),len(post))
     st.session_state.ts_prepared_df = prepared
-    fingerprint = configuration_fingerprint({'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
+    fingerprint = configuration_fingerprint({'model_version':2,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
         'date_column':date_col,'metric':metric,'launch':cfg.intervention_date,'end':cfg.campaign_end_date,'missing':missing,'predictors':predictors,
         'seasonality':seasonality,'interval':interval,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
     if group != group_options[0]:
@@ -352,7 +357,7 @@ def render_time_series_analysis():
                 except ValueError as exc:
                     bundle.append({'name':name,'data':data,'prepost':None,'model':None,'error':str(exc)}); continue
                 try:
-                    model_key = configuration_fingerprint({'data':data_fingerprint(data),'launch':cfg.intervention_date,
+                    model_key = configuration_fingerprint({'model_version':2,'missing':missing,'data':data_fingerprint(data),'launch':cfg.intervention_date,
                         'end':cfg.campaign_end_date,'frequency':data.attrs['frequency'],'predictors':predictors,'interval':interval,
                         'seasonality':seasonality,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
                     if model_key not in model_cache:
@@ -419,7 +424,8 @@ def _render_scope(item,label,cfg,group,is_overall):
     st.caption(f"Matching before/after windows: {pp['pre_observations']} / {pp['post_observations']} periods; {pp['pre_start'].date()}–{pp['pre_end'].date()} and {pp['post_start'].date()}–{pp['post_end'].date()}.")
     chart_key = configuration_fingerprint({'scope':name,'group':group,'overall':is_overall})[:14]
     if model is not None:
-        st.markdown('**Structural time-series counterfactual**')
+        bayesian = model.get('estimation') == 'Bayesian monthly local level'
+        st.markdown('**Bayesian monthly counterfactual**' if bayesian else '**Structural time-series counterfactual**')
         low,high = model['prediction_interval']
         relative = _safe_pct(model['relative_impact']) if model['expected_total']>0 else 'Unavailable'
         st.caption(f"Model estimate: {model['cumulative_impact']:+,.2f} ({relative}) · {model['interval_level']:.0%} model interval: {low:+,.2f} to {high:+,.2f} · Validation: {model.get('reliability','Review')}")
@@ -433,10 +439,15 @@ def _render_scope(item,label,cfg,group,is_overall):
         if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
         st.caption(f"Model seasonality: {season_note} · Comparison signals: {', '.join(model.get('covariates', [])) or 'none'}.")
         st.markdown('**Actual vs estimated without campaign**')
+        if bayesian and not model['covariates']:
+            st.caption('The expected line stays at the estimated pre-launch level. The shaded range widens '
+                       'further from launch as monthly uncertainty accumulates.')
         context = timeseries_chart_context(data,cfg.intervention_date,cfg.campaign_end_date)
         st.plotly_chart(bsts_counterfactual_chart(data,model['result'],cfg.intervention_date,label,context),use_container_width=True,key='ts_simple_model_'+chart_key)
         for warning in model.get('warnings',[]): st.warning(warning)
         with st.expander(f'Model diagnostics · {name}'):
+            if bayesian:
+                st.write(model['uncertainty_note'])
             st.write('Validation:',model.get('reliability','Review'))
             st.json(model.get('backtest',{}))
             st.write('Comparison signals used:',', '.join(model.get('covariates',[])) or 'None')

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+<defs><linearGradient id="blue" x2="1" y2=".65" gradientUnits="objectBoundingBox"><stop stop-color="#0076b2"/><stop offset="1" stop-color="#03476f"/></linearGradient><clipPath id="card"><rect width="157" height="104" rx="10"/></clipPath></defs>
+<rect width="400" height="200" fill="#eaf5fa"/>
+<g font-family="Arial, Helvetica, sans-serif">
+<g transform="translate(32 52) rotate(-5 80 52)"><rect x="1" y="5" width="157" height="104" rx="10" fill="#b8d3e4"/><rect width="157" height="104" rx="10" fill="#fff" stroke="#90b5cc"/>
+<rect x="16" y="16" width="19" height="14" rx="3" fill="#c6a76d"/><path d="M17 23h18m-10-7v14" stroke="#f6eac7"/>
+<text x="16" y="59" font-size="16" fill="#31556d">Control</text><text x="15" y="85" font-size="27" font-weight="700" fill="#133750">$2,500</text></g>
+<g transform="translate(210 43) rotate(5 80 52)"><rect x="1" y="5" width="157" height="104" rx="10" fill="#a8cbdc"/><rect width="157" height="104" rx="10" fill="url(#blue)"/>
+<g clip-path="url(#card)" fill="none" stroke="#4cc8ef" opacity=".55"><circle cx="169" cy="5" r="39"/><circle cx="169" cy="5" r="47"/><circle cx="169" cy="5" r="55"/><circle cx="169" cy="5" r="63"/></g>
+<rect x="16" y="16" width="19" height="14" rx="3" fill="#e3c38c"/><path d="M17 23h18m-10-7v14" stroke="#fff1cc"/>
+<text x="16" y="59" font-size="16" fill="#e6faff">Test</text><text x="15" y="85" font-size="27" font-weight="700" fill="#fff">$5,000</text></g></g></svg>

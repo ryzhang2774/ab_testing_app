@@ -29,8 +29,6 @@
 .stApp [data-testid="stMetricValue"] {font-size:34px;letter-spacing:-.03em}
 .stApp [data-testid="stDataFrame"],.stApp [data-testid="stExpander"] {border-radius:8px}
 .stApp :is(.customer-explainer,.st-key-experiment_choices){box-shadow:none}
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-customer_demo_plan),
-.stApp [data-testid="stVerticalBlockBorderWrapper"]:has(.st-key-customer_demo_analyze) {background-color:white}
 .stApp [data-testid="stElementContainer"]:has(style):not(:has(.method-copy,.workspace-mast,button)) {margin:0}
 .stApp .workspace-mast h1.bulma-title {padding:0}
 .stApp .workspace-trail {margin-bottom:20px}
@@ -117,57 +115,62 @@
 .stApp .cohort-figure li {padding:8px 0;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
 .stApp .cohort-label i {display:inline-block;width:8px;height:8px;margin-right:8px;border-radius:2px}
 
-/* Experiment chooser */
-.stApp [data-testid="stMain"]:has(.chooser-mast),
-.stApp section.main:has(.chooser-mast) {background:#f9f9f7}
-.stApp .chooser-mast {margin:0 0 clamp(16px,2vw,32px)}
-.stApp .chooser-mast .workspace-trail {margin-bottom:clamp(22px,2.6vw,40px)}
-.stApp .chooser-mast h1 {
-  font:400 clamp(54px,6.4vw,100px)/1.02 var(--headline);
-  color:#07466e;letter-spacing:-.055em;padding:0;margin:0 0 16px;
+/* Shared desktop entry pages */
+.stApp {
+  --display:Geist,"Segoe UI",system-ui,sans-serif; --headline:var(--display);
+  --cover-ink:#102b43; --cover-blue:#007eb8; --cover-wash:#e9f6fd;
 }
-.stApp .chooser-mast h1 em {font-weight:400;color:inherit}
-.stApp .chooser-mast p {font:400 clamp(17px,1.4vw,22px)/1.45 var(--display);margin:0;color:#344c5b}
-.stApp [data-testid="stHorizontalBlock"]:has(.method-copy) {align-items:stretch;gap:clamp(12px,1.3vw,22px)}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) {
-  --inset:clamp(16px,1.5vw,26px);
-  container-type:inline-size;position:relative;min-width:0;flex:1 1 0;padding:0;background:white;border:1px solid #c6d3da;
-  border-radius:3px;transition:border-color .2s,box-shadow .2s,transform .2s;
+.stApp .brand-placeholder {margin:0 8px 12px;border:1px dashed #96adbb;border-radius:6px;color:#577080;text-align:center;font:500 14px/32px var(--display)}
+.stApp .ledger-product {max-width:none;padding:0 8px 24px;font:600 18px/28px var(--display);letter-spacing:-.035em}
+.stApp .ledger-product::before {display:none}
+.stApp .atlas-nav-label {font:600 14px/20px var(--display);color:var(--cover-ink);margin:16px 8px 4px}
+.stApp [data-testid="stSidebar"] {width:210px!important;min-width:210px!important;max-width:210px!important}
+.stApp [data-testid="stSidebarContent"] {padding:24px 12px}
+.stApp .block-container:has(.intro-spread) {max-width:1600px;padding:0 32px 48px}
+.stApp :is([data-testid="stMain"],section.main):has(.intro-spread) {background:#fff}
+.stApp .intro-spread {position:relative;isolation:isolate;margin:0 -32px;display:grid;grid-template-columns:minmax(0,1.07fr) minmax(0,1fr);align-items:stretch;background:#e6f4fc;overflow:hidden;border-bottom:1px solid #bdd9e6}
+.stApp .home-intro {position:relative;z-index:1;align-self:center;padding:clamp(40px,4.8vw,78px) 0 clamp(40px,4.8vw,78px) clamp(28px,3vw,56px)}
+.stApp .home-intro h1,.stApp .work-intro h1 {font:680 clamp(34px,3.65vw,60px)/1.04 var(--display);color:var(--cover-blue);letter-spacing:-.055em;margin:0;padding:0}
+.stApp .home-intro h1 {font-weight:730;font-size:clamp(35px,4.05vw,75px);color:#00679f;letter-spacing:-.06em}
+.stApp .home-intro h1 span {color:#0084b9}
+.stApp .home-intro p,.stApp .work-intro p {font:400 clamp(16px,1.3vw,20px)/1.5 var(--display);color:var(--cover-ink);margin:19px 0 25px;max-width:39ch;text-wrap:pretty}
+.stApp .home-cover {position:relative;align-self:stretch;margin:0;min-height:325px;clip-path:polygon(11% 0,100% 0,100% 100%,0 100%);background:#bedaeb}
+.stApp .home-cover img {position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:55% 53%}
+.stApp .intro-actions .book-demo {display:inline-flex;align-items:center;gap:22px;padding:11px 19px;border-radius:7px;background:#0068a4;color:#fff;text-decoration:none;font:650 16px/24px var(--display)}
+.stApp .intro-actions .book-demo:hover {background:#004f80;color:white}
+.stApp .book-demo:focus-visible {outline:3px solid #009fd2;outline-offset:4px}
+.stApp .book-demo span {font-size:19px}
+.stApp [data-testid="stSidebar"]:has(.atlas-nav-label) .stButton button {display:flex;align-items:center;justify-content:flex-start;gap:8px;min-height:43px;border:1px solid #d2e3ed!important;border-radius:7px;padding:8px 10px!important;background:#f4f9fc!important}
+.stApp [data-testid="stSidebar"]:has(.atlas-nav-label) .stButton button p {font:620 14px/1.25 var(--display)!important;color:#145276!important;text-align:left}
+.stApp [data-testid="stSidebar"]:has(.atlas-nav-label) .stButton button::before {content:"";width:4px;height:17px;border-radius:2px;background:#0092cc;flex:none}
+.stApp [data-testid="stSidebar"]:has(.atlas-nav-label) .stButton button:hover {border-color:#1283b8!important;background:#e7f4fc!important}
+.stApp .explore-title {font:650 clamp(30px,2.5vw,40px)/1.15 var(--display);letter-spacing:-.045em;color:var(--cover-blue);margin:28px 0 4px;padding:0;scroll-margin-top:20px}
+.stApp [data-testid="stHorizontalBlock"]:has(.method-art) {align-items:stretch;gap:16px}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) {
+  position:relative;min-width:0;background:white;border:1px solid #cedfe9;border-radius:12px;overflow:hidden;
+  transition:transform .3s cubic-bezier(.22,1,.36,1);
 }
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) [data-testid="stVerticalBlock"] {
-  gap:0;height:100%;justify-content:space-between;
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) [data-testid="stVerticalBlock"] {gap:0}
+.stApp .method-art img,.stApp .intro-art img {width:100%;display:block}
+.stApp .method-art {background:var(--cover-wash)}
+.stApp .method-description {color:#425a69;font:400 14px/20px var(--display);padding:0 16px 16px;margin:0}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) :is(.stButton,[data-testid="stElementContainer"],[data-testid="stVerticalBlock"],button) {position:static}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button {
+  background:white;border:0;width:100%;padding:12px 16px 4px;border-radius:0;box-shadow:none;justify-content:space-between;min-height:0;
 }
-.stApp .method-photo {aspect-ratio:1.25;overflow:hidden;background:#d5e6ec}
-.stApp .method-photo img {width:100%;height:100%;display:block;object-fit:cover;transition:transform .4s ease-out}
-.stApp .method-body {padding:clamp(18px,1.7vw,28px) var(--inset) 20px}
-.stApp .method-body h2 {color:#07466e;font:400 clamp(25px,2.15vw,35px)/1.08 var(--headline);
-  padding:0;margin:0 0 12px;letter-spacing:-.04em}
-.stApp .method-body p {font:400 clamp(15px,1.06vw,17px)/1.5 var(--display);margin:0;color:#314855}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) .stButton {
-  padding:0 var(--inset);margin:0;
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button p {font:600 clamp(16px,1.4vw,22px)/1.3 var(--display);color:var(--cover-ink);letter-spacing:-.035em;text-align:left}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button::before {content:"→";order:1;color:var(--cover-blue);font-size:20px}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button::after {content:"";position:absolute;inset:0;z-index:1;cursor:pointer}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art):is(:hover,:focus-within) {border-color:var(--cover-blue)}
+.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art):has(button:focus-visible) {outline:3px solid var(--cover-blue);outline-offset:3px}
+@media(hover:hover) and (prefers-reduced-motion:no-preference){
+  .stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art):hover {transform:translateY(-4px)}
 }
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) .stButton button {
-  justify-content:space-between;width:100%;min-height:58px;margin:0;padding:12px 0;
-  background:transparent;border:0;border-top:1px solid #c6d3da;border-radius:0;color:#006398;box-shadow:none;transform:none;
-}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) button p {font:600 15px/1.3 var(--display);color:#005d8f}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) .stButton button::before {
-  content:"→";order:1;font:400 26px/1 var(--display);color:#006398;transition:transform .2s;
-}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) :is(.stButton,[data-testid="stElementContainer"],[data-testid="stVerticalBlock"],button) {position:static}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) .stButton button::after {
-  content:"";position:absolute;inset:0;z-index:1;cursor:pointer;
-}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy):is(:hover,:focus-within) {
-  border-color:#4086a5;box-shadow:0 8px 24px #1c4c6912;
-}
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy):has(button:focus-visible) {outline:3px solid #007ab3;outline-offset:3px}
-@media (prefers-reduced-motion:no-preference) {
-  .stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy):hover {transform:translateY(-3px)}
-  .stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy):hover img {transform:scale(1.035)}
-}
-
-.stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-copy) [data-testid="stTooltipHoverTarget"] {width:100%}
-@container (max-width:300px) {
-  .stApp .method-body h2 span {display:block}
-}
+.stApp [data-testid="stHorizontalBlock"]:has(> div .work-intro) {background:var(--cover-wash);padding:32px;align-items:center;border-radius:16px;margin:0 0 16px}
+.stApp .intro-art {margin:0;border-radius:12px;overflow:hidden}
+.stApp .work-intro p {margin:16px 0 20px}
+.stApp [data-testid="stHorizontalBlock"]:has(.work-intro) button {min-height:46px;border-radius:8px}
+.stApp .plan-hero em {font-style:normal}
+/* Streamlit subtracts a paragraph margin from HTML blocks. Keep figure and card insets intact. */
+.stApp [data-testid="stMarkdownContainer"]:has(> :is(.method-description,.method-art,.intro-art,.work-intro,.intro-spread)) {margin-bottom:0}
+.stApp .block-container:has(.intro-spread) [data-testid="stElementContainer"]:has(style):not(:has(.intro-spread,button)) {display:none}

@@ -26,6 +26,7 @@ DMA_CENTROIDS: dict[str, tuple[float, float]] = {
     "Philadelphia": (39.9526, -75.1652),
     "Phoenix": (33.4484, -112.0740),
     "San Francisco-Oakland-San Jose": (37.7749, -122.4194),
+    "Salt Lake City": (40.7608, -111.8910),
     "Seattle": (47.6062, -122.3321),
     "Tampa-St. Petersburg": (27.9506, -82.4572),
     "Washington DC": (38.9072, -77.0369),
@@ -43,6 +44,7 @@ class GeoConfig:
     spend_column: str = "None"
     group_column: str = "None"
     pair_column: str = "None"
+    assignment_seed: int | None = None
     test_label: str = "Test"
     control_label: str = "Control"
     estimand: str = "Equal weight per DMA"
@@ -68,7 +70,7 @@ def infer_geo_schema(df: pd.DataFrame) -> dict[str, str]:
         "outcome": infer_column(numeric, ["applications", "outcome", "revenue", "transactions", "sales", "conversions"], numeric[0] if numeric else ""),
         "market_size": infer_column(columns, ["population", "customers", "households", "market_size"], "None"),
         "spend": infer_column(columns, ["spend", "media_spend", "marketing_spend"], "None"),
-        "group": infer_column(columns, ["treatment_group", "group", "assignment", "test_control"], "None"),
+        "group": infer_column(columns, ["treatment_group", "group", "assignment", "test_control", "experiment_group", "experiment_arm", "arm", "assigned_group"], "None"),
         "pair": infer_column(columns, ["pair_id", "matched_pair", "pair"], "None"),
     }
 
@@ -76,7 +78,7 @@ def infer_geo_schema(df: pd.DataFrame) -> dict[str, str]:
 def prepare_geo_panel(df: pd.DataFrame, date_col: str, dma_col: str, outcome_col: str) -> pd.DataFrame:
     data = df.copy()
     data["_date"] = pd.to_datetime(data[date_col], errors="coerce")
-    data["_dma"] = data[dma_col].astype(str).str.strip()
+    data["_dma"] = data[dma_col].astype("string").str.strip().replace("", pd.NA)
     data["_outcome"] = pd.to_numeric(data[outcome_col], errors="coerce")
     return data.dropna(subset=["_date", "_dma", "_outcome"]).sort_values(["_dma", "_date"]).reset_index(drop=True)
 

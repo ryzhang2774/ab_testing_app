@@ -7,6 +7,9 @@ import warnings
 import numpy as np
 
 
+from .geo_assignment import assign_market_pairs
+
+
 # --- Models ---
 
 @dataclass
@@ -505,49 +508,72 @@ def time_series_planning(seed: int = 77) -> pd.DataFrame:
     return data
 
 
+GEO_DEMO_ASSIGNMENT_SEED = 91
+GEO_DEMO_LAUNCH = "2026-09-06"
+
+
 def geographic_panel(seed: int = 91) -> pd.DataFrame:
+    """Weekly application counts for a locally targeted acquisition campaign."""
     rng = np.random.default_rng(seed)
-    dates = pd.date_range("2023-01-01", "2026-12-27", freq="W-SUN")
-    campaign_start = pd.Timestamp("2026-09-06")
+    dates = pd.date_range("2025-01-05", "2026-12-27", freq="W-SUN")
+    week = np.arange(len(dates))
+    since_launch = (dates - pd.Timestamp(GEO_DEMO_LAUNCH)).days.to_numpy() // 7
+    # Population and application volumes are illustrative market profiles.
     markets = [
-        ("New York", 19500000, 1.24),
-        ("Los Angeles", 13200000, 1.17),
-        ("Chicago", 9500000, 0.96),
-        ("Dallas-Ft. Worth", 8100000, 0.94),
-        ("Houston", 7200000, 0.87),
-        ("Atlanta", 6100000, 0.83),
-        ("Washington DC", 6300000, 0.82),
-        ("Philadelphia", 6200000, 0.80),
-        ("Phoenix", 5000000, 0.70),
-        ("Seattle", 4100000, 0.68),
-        ("Boston", 4900000, 0.72),
-        ("Miami-Ft. Lauderdale", 6700000, 0.78),
+        ("Seattle", 4_100_000, 1200),
+        ("Phoenix", 5_000_000, 1620),
+        ("Minneapolis-St. Paul", 3_700_000, 1070),
+        ("Atlanta", 6_100_000, 2080),
+        ("Boston", 4_900_000, 1450),
+        ("Los Angeles", 13_200_000, 2530),
+        ("San Francisco-Oakland-San Jose", 6_700_000, 1610),
+        ("Denver", 3_000_000, 980),
+        ("Dallas-Ft. Worth", 8_100_000, 1910),
+        ("Detroit", 4_300_000, 1290),
+        ("Miami-Ft. Lauderdale", 6_100_000, 1520),
+        ("Salt Lake City", 1_300_000, 990),
     ]
-    treated = {"New York", "Chicago", "Houston", "Washington DC", "Phoenix"}
-    records = []
-    for market_idx, (dma, population, scale) in enumerate(markets):
-        base = 7200 * scale + rng.normal(0, 180)
-        trend = rng.normal(9.5, 1.3) * np.arange(len(dates))
-        seasonal = 380 * scale * np.sin(2 * np.pi * np.arange(len(dates)) / 52 + market_idx / 5)
-        customers = population / 1000 * rng.normal(1.0, 0.015, len(dates))
-        spend = np.where(dates >= campaign_start, rng.normal(14500, 1200, len(dates)), rng.normal(1200, 350, len(dates)))
-        lift = np.where((dates >= campaign_start) & (dma in treated), 0.075 * (base + trend), 0)
-        outcome = base + trend + seasonal + 0.0009 * customers + lift + rng.normal(0, 260 * scale, len(dates))
-        revenue = outcome * rng.normal(58, 4, len(dates))
-        for idx, date in enumerate(dates):
-            records.append(
-                {
-                    "week": date,
-                    "dma": dma,
-                    "applications": round(float(outcome[idx]), 2),
-                    "spend": round(float(spend[idx]), 2),
-                    "population": population,
-                    "existing_customers": round(float(customers[idx]), 0),
-                    "historical_revenue": round(float(revenue[idx]), 2),
-                    "treatment_group": "Test" if dma in treated else "Control",
-                }
-            )
-    return pd.DataFrame(records)
+
+    def persistent_noise(sd, persistence):
+        noise = rng.normal(0, sd, len(dates))
+        for t in range(1, len(noise)):
+            noise[t] += persistence * noise[t - 1]
+        return noise
+
+    seasonal = np.sin(2 * np.pi * week / 52)
+    holiday = (dates.month == 12) & (dates.day >= 20)
+    demand = .0005 * week + .055 * seasonal - .13 * holiday + persistent_noise(.018, .55)
+    frames = []
+    for dma, population, baseline in markets:
+        local = persistent_noise(.03, .65)
+        local += rng.uniform(.01, .04) * np.sin(2 * np.pi * week / 52 + rng.uniform(0, 2 * np.pi))
+        regular_spend = baseline * 5 * np.exp(.5 * demand + persistent_noise(.055, .5))
+        customers = population * rng.uniform(.025, .05) * np.exp(.0007 * week + .08 * local)
+        frames.append(pd.DataFrame({
+            "week": dates, "dma": dma, "applications": rng.poisson(baseline * np.exp(demand + local)),
+            "spend": regular_spend.round(2), "population": population,
+            "existing_customers": customers.round().astype(int),
+        }))
+    data = pd.concat(frames, ignore_index=True)
+    history = data.loc[data.week < GEO_DEMO_LAUNCH].rename(columns={"week": "_date", "dma": "_dma", "applications": "_outcome"})
+    assignment = assign_market_pairs(history, GEO_DEMO_ASSIGNMENT_SEED).set_index("DMA")
+    data["treatment_group"] = data.dma.map(assignment["Group"])
+    data["campaign_spend"] = 0.
+    data["campaign_impressions"] = 0
+    for dma, _, baseline in markets:
+        mask = data.dma.eq(dma)
+        if assignment.at[dma, "Group"] == "Test":
+            ramp = np.clip((since_launch + 1) / rng.uniform(2, 5), 0, 1)
+            spend = (baseline * rng.uniform(2.5, 4.5) * ramp * np.exp(persistent_noise(.12, .45))).round(2)
+            impressions = np.rint(spend * 1000 / rng.uniform(13, 19, len(dates))).astype(int)
+            response = rng.uniform(.00022, .00048) * (.65 * impressions + .35 * np.r_[0, impressions[:-1]])
+            data.loc[mask, "campaign_spend"] = spend
+            data.loc[mask, "campaign_impressions"] = impressions
+            data.loc[mask, "spend"] += spend
+            data.loc[mask, "applications"] += rng.poisson(response)
+        data.loc[mask, "historical_revenue"] = (data.loc[mask, "applications"].to_numpy()
+                                               * rng.uniform(52, 65) * np.exp(rng.normal(0, .03, len(dates)))).round(2)
+    return data
 
 
 # --- Data Access ---

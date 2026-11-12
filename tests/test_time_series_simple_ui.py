@@ -178,3 +178,25 @@ def test_comparison_signal_confirmation_is_refreshed():
     app.multiselect(key='ts_simple_predictors').set_value(['External signal']).run()
     assert not app.checkbox(key='ts_simple_predictor_confirm').value
     assert not any(button.key == 'ts_simple_calculate' for button in app.button)
+
+
+def test_monthly_paste_runs_bayesian_counterfactual_and_report():
+    app = enter_analysis()
+    app.radio(key='ts_simple_source').set_value('Upload file').run()
+    app.radio(key='ts_simple_input_mode').set_value('Enter or paste data').run()
+    app.radio(key='ts_simple_input_style').set_value('Paste CSV / tab-separated').run()
+    dates = pd.date_range('2024-01-31', periods=17, freq='ME')
+    data = pd.DataFrame({'Date': dates, 'Revenue': [100+(i*7)%11+i//4 for i in range(17)],
+                         'pre_post': ['pre']*10 + ['post']*7})
+    app.text_area(key='ts_simple_paste').set_value(data.to_csv(index=False)).run()
+    app.button(key='ts_simple_calculate').click().run()
+    assert not app.exception and not app.error
+    model = app.session_state.ts_bsts_result
+    assert model['estimation'] == 'Bayesian monthly local level'
+    assert len(model['result']) == 7 and model['pre_observations'] == 10
+    assert any('Bayesian monthly counterfactual' in x.value for x in app.markdown)
+    assert len(app.get('plotly_chart')) == 2
+    from src.experiment_platform.time_series_html_report import build_analysis_html
+    report = build_analysis_html(app.session_state.ts_simple_bundle, app.session_state.ts_config,
+                                 'Upload file', 'Overall', 'Revenue')
+    assert b'Bayesian monthly counterfactual fitted on 10 pre-launch months' in report

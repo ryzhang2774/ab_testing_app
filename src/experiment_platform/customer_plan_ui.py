@@ -6,6 +6,7 @@ import re
 import numpy as np
 import pandas as pd
 import streamlit as st
+from streamlit.components.v1 import html as component_html
 import plotly.express as px
 
 from .business_config import default_config, fingerprint
@@ -14,23 +15,12 @@ from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import demo_credit_line_caption, historical_demo
 from .customer_palette import ROLE_COLORS, STRATEGY_COLORS
-from .customer_grouping import ordered_groups
+from .customer_grouping import ordered_groups, historical_strategy_order
 from .workspace_visuals import allocation_bars, recruitment_composition, render_history_details
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
 def demo_data():
     return historical_demo()
-
-
-def historical_strategy_order(values):
-    """Order credit limits by amount; keep uploaded order for other strategies."""
-    options = list(dict.fromkeys(values))
-    amounts = [re.fullmatch(r'(?:credit line\s*)?\$?(\d[\d,]*(?:\.\d+)?)', label.strip(), re.I)
-               for label in options]
-    if all(amounts):
-        return [option for _, option in sorted(zip(
-            (float(match[1].replace(',', '')) for match in amounts), options))]
-    return options
 
 
 def historical_metric_chart(data, grouping, primary, options, selections=None):
@@ -308,6 +298,7 @@ def _run_plan(data, partners, segments, control, tests, primary, guardrail, effe
         st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping, boundaries=boundaries, group_selections=group_selections)
         st.session_state.customer_plan_result = plan
         st.session_state.customer_plan_result_view = True
+        st.session_state.customer_plan_scroll_to_top = True
         st.session_state.customer_plan_error = ''
     except (ValueError, OverflowError) as exc:
         st.session_state.customer_plan_error = str(exc)
@@ -316,7 +307,7 @@ def _run_plan(data, partners, segments, control, tests, primary, guardrail, effe
 def render_customer_plan():
     if st.session_state.get('customer_plan_result_view'):
         plan = st.session_state['customer_plan_result']
-        st.markdown('<h1 class="sample-plan-title">Your sample size plan</h1>', unsafe_allow_html=True)
+        st.markdown('<h1 tabindex="-1" class="sample-plan-title">Your sample size plan</h1>', unsafe_allow_html=True)
         group_plans = plan.get('group_plans')
         targets = pd.DataFrame(plan['targets'])
         grouping = plan.get('input_grouping') or 'Group'
@@ -384,6 +375,20 @@ def render_customer_plan():
         def back_to_settings():
             st.session_state.customer_plan_result_view = False
         c.button('Back to settings', use_container_width=True, on_click=back_to_settings)
+        if st.session_state.pop('customer_plan_scroll_to_top', False):
+            # Streamlit reuses the scrolled main pane when replacing the settings with results.
+            component_html("""
+                <script>
+                requestAnimationFrame(() => {
+                    const heading = window.parent.document.querySelector("h1.sample-plan-title");
+                    if (!heading) return;
+                    heading.focus({preventScroll: true});
+                    for (let pane = heading.parentElement; pane; pane = pane.parentElement) {
+                        if (pane.scrollTop > 0) pane.scrollTop = 0;
+                    }
+                });
+                </script>
+            """, height=0)
         return
 
     st.markdown(

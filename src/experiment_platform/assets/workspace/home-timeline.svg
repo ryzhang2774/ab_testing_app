@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 200">
+<rect width="400" height="200" fill="#f0f6fa"/>
+<path d="M0 172h12v-11h8v11h9v-25h7v25h8v-35h10v34h10v-23h8v24h8v-49h7v-7h3v-13h2v13h3v7h6v49h6v-26h13v26h7v-37h8v37h8v-47h12v47h8v-24h11v24h10v-30h12v30h12v-48h5v-8h4v-9h2v9h4v8h5v48h7v-29h11v29h9v-21h15v21h10v-40h12v40h8v-52h16v52h8v-29h13v29h7v-14h9v14h15v28H0Z" fill="#dae8f0"/>
+<path d="M16 69h368m-368 42h368m-368 42h368" stroke="#cfdee7" stroke-dasharray="2 5"/>
+<path d="M176 44v119" stroke="#718999" stroke-dasharray="3 5"/>
+<g font-family="Arial, sans-serif" font-size="14" font-weight="600"><text x="176" y="30" text-anchor="middle" fill="#39596f">Launch</text>
+<path d="M18 136 37 135 52 127 70 130 85 117 101 123 121 113 137 117 155 106 176 108 193 97 211 92 228 94 248 77 265 80 284 66 300 68 320 56" fill="none" stroke="#0075b4" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="m176 108 22 0 23-5 20 5 23-7 21 2 17-5 18 1" fill="none" stroke="#b95412" stroke-width="3" stroke-dasharray="5 5" stroke-linecap="round"/>
+<circle cx="320" cy="56" r="4.5" fill="#0075b4"/><text x="331" y="61" fill="#005c93">Actual</text><text x="328" y="105" fill="#96440f">Expected</text></g></svg>
