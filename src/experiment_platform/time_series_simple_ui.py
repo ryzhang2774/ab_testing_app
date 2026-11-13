@@ -263,21 +263,23 @@ def render_time_series_analysis():
         if (coverage != total_cells).any():
             st.error('Some Partner/Segment combinations are missing on certain dates. Use a consistent population across the full period, or select a complete subset.'); return
     multiple = dates.duplicated().any()
-    if multiple:
-        choices = ['Sum','Simple average']
-        aggregation = st.selectbox('Combine rows for the same date',choices,index=0 if source=='Synthetic demo' else None,
-            placeholder='Choose how to combine',key='ts_simple_aggregation',
-            help='Sum is appropriate for additive counts and totals. Simple average weights each row equally; rates and averages often need customer-count weights.')
-        st.caption('Sum counts or totals only for non-overlapping rows. Simple average gives every row equal weight; do not use it for rates or averages unless that weighting is appropriate.')
-        if aggregation is None: st.info('Choose how to combine the selected rows.'); return
-        if source != 'Synthetic demo':
-            confirmation_scope = configuration_fingerprint({'data':signature,'partners':chosen_partners,'group':group,'metric':metric,'aggregation':aggregation})
-            if confirmation_scope != st.session_state.get('ts_simple_aggregation_confirmation_scope'):
-                st.session_state.pop('ts_simple_disjoint',None)
-                st.session_state.ts_simple_aggregation_confirmation_scope = confirmation_scope
-            confirmed = st.checkbox('I confirm rows are non-overlapping and the chosen aggregation is appropriate for this metric.',key='ts_simple_disjoint')
-            if not confirmed: st.info('Confirm how the rows are combined before calculating.'); return
-    else: aggregation = None
+    advanced_settings = st.expander('Advanced settings', expanded=False)
+    with advanced_settings:
+        if multiple:
+            choices = ['Sum','Simple average']
+            aggregation = st.selectbox('Combine rows for the same date',choices,index=0 if source=='Synthetic demo' else None,
+                placeholder='Choose how to combine',key='ts_simple_aggregation',
+                help='Sum is appropriate for additive counts and totals. Simple average weights each row equally; rates and averages often need customer-count weights.')
+            st.caption('Sum counts or totals only for non-overlapping rows. Simple average gives every row equal weight; do not use it for rates or averages unless that weighting is appropriate.')
+            if aggregation is None: st.info('Choose how to combine the selected rows.'); return
+            if source != 'Synthetic demo':
+                confirmation_scope = configuration_fingerprint({'data':signature,'partners':chosen_partners,'group':group,'metric':metric,'aggregation':aggregation})
+                if confirmation_scope != st.session_state.get('ts_simple_aggregation_confirmation_scope'):
+                    st.session_state.pop('ts_simple_disjoint',None)
+                    st.session_state.ts_simple_aggregation_confirmation_scope = confirmation_scope
+                confirmed = st.checkbox('I confirm rows are non-overlapping and the chosen aggregation is appropriate for this metric.',key='ts_simple_disjoint')
+                if not confirmed: st.info('Confirm how the rows are combined before calculating.'); return
+        else: aggregation = None
     min_date,max_date = dates.min().date(),dates.max().date()
     try:
         _, inferred_launch = infer_period_boundary(selected, date_col)
@@ -292,7 +294,7 @@ def render_time_series_analysis():
         launch = st.date_input('Campaign launch date',value=None,min_value=min_date,max_value=max_date,key='ts_simple_launch')
     if launch is None: st.info('Choose the campaign launch date.'); return
     st.caption('Both a before-and-after comparison and a modeled estimate will be calculated. The model needs sufficient history.')
-    with st.expander('Advanced settings'):
+    with advanced_settings:
         missing = st.selectbox('Missing periods',['Fail validation','Keep','Interpolate','Fill missing counts with zero'],key='ts_simple_missing')
         end_enabled = st.checkbox('Set a campaign end date',key='ts_simple_end_enabled')
         old_end = st.session_state.get('ts_simple_end')
@@ -327,8 +329,8 @@ def render_time_series_analysis():
     if pre.empty or post.empty: st.warning('Choose a launch date with observations both before and after it.'); return
     st.caption(f"{len(prepared):,} {prepared.attrs['frequency'].lower()} periods · {len(pre):,} before launch · {len(post):,} in the selected outcome window")
     if prepared.attrs['frequency'] == 'Monthly' and (~pre["_date"].isin(prepared.attrs.get("interpolated_dates", ()))).sum() < 24:
-        st.caption('Short monthly history uses a Bayesian baseline. Allow at least 8 observed months before launch '
-                   'and 1 after, plus 3 pre-launch months for each comparison signal. Annual seasonality is omitted.')
+        st.caption('Short monthly history uses a Bayesian model with optional trend and annual seasonality. Allow at least 8 observed months before launch '
+                   'and 1 after, plus 3 pre-launch months for each comparison signal. Trend and seasonality follow Advanced settings; short seasonal histories remain uncertain.')
     cfg.date_column,cfg.outcome_column,cfg.campaign_flag_column = str(date_col),str(metric),str(flag)
     cfg.intervention_date,cfg.campaign_end_date = launch.isoformat(),end.isoformat() if end else ''
     cfg.duplicate_policy,cfg.missing_policy = 'Fail validation',missing
@@ -336,7 +338,7 @@ def render_time_series_analysis():
     cfg.frequency = prepared.attrs['frequency']
     cfg.comparison_metric,cfg.comparison_window,cfg.symmetric_periods = 'Average per period','Symmetric',min(len(pre),len(post))
     st.session_state.ts_prepared_df = prepared
-    fingerprint = configuration_fingerprint({'model_version':2,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
+    fingerprint = configuration_fingerprint({'model_version':3,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
         'date_column':date_col,'metric':metric,'launch':cfg.intervention_date,'end':cfg.campaign_end_date,'missing':missing,'predictors':predictors,
         'seasonality':seasonality,'interval':interval,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
     if group != group_options[0]:
@@ -357,7 +359,7 @@ def render_time_series_analysis():
                 except ValueError as exc:
                     bundle.append({'name':name,'data':data,'prepost':None,'model':None,'error':str(exc)}); continue
                 try:
-                    model_key = configuration_fingerprint({'model_version':2,'missing':missing,'data':data_fingerprint(data),'launch':cfg.intervention_date,
+                    model_key = configuration_fingerprint({'model_version':3,'missing':missing,'data':data_fingerprint(data),'launch':cfg.intervention_date,
                         'end':cfg.campaign_end_date,'frequency':data.attrs['frequency'],'predictors':predictors,'interval':interval,
                         'seasonality':seasonality,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
                     if model_key not in model_cache:
@@ -417,49 +419,73 @@ def _render_scope(item,label,cfg,group,is_overall):
     if not is_overall: st.markdown(f'#### {name}')
     if pp is None:
         st.warning('Not calculated: '+str(item['error'])); return
-    a,b,c = st.columns(3)
-    a.metric('Average before',f"{pp['pre_value']:,.2f}")
-    b.metric('Average after',f"{pp['post_value']:,.2f}")
-    c.metric('Observed change',_safe_pct(pp['percent_change']) if pp['pre_value']>0 else 'Unavailable')
-    st.caption(f"Matching before/after windows: {pp['pre_observations']} / {pp['post_observations']} periods; {pp['pre_start'].date()}–{pp['pre_end'].date()} and {pp['post_start'].date()}–{pp['post_end'].date()}.")
     chart_key = configuration_fingerprint({'scope':name,'group':group,'overall':is_overall})[:14]
-    if model is not None:
-        bayesian = model.get('estimation') == 'Bayesian monthly local level'
-        st.markdown('**Bayesian monthly counterfactual**' if bayesian else '**Structural time-series counterfactual**')
-        low,high = model['prediction_interval']
-        relative = _safe_pct(model['relative_impact']) if model['expected_total']>0 else 'Unavailable'
-        st.caption(f"Model estimate: {model['cumulative_impact']:+,.2f} ({relative}) · {model['interval_level']:.0%} model interval: {low:+,.2f} to {high:+,.2f} · Validation: {model.get('reliability','Review')}")
-        actual, expected = model['observed_total'], model['expected_total']
-        x,y,z = st.columns(3)
-        x.metric('Actual outcome (campaign period)', f'{actual:,.2f}')
-        y.metric('Estimated without campaign', f'{expected:,.2f}')
-        z.metric('Estimated lift vs baseline', relative)
-        period = model.get('seasonal_period')
-        season_note = str(period) + ' ' + data.attrs['frequency'].lower() + ' periods per cycle' if period else 'not included'
-        if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
-        st.caption(f"Model seasonality: {season_note} · Comparison signals: {', '.join(model.get('covariates', [])) or 'none'}.")
-        st.markdown('**Actual vs estimated without campaign**')
-        if bayesian and not model['covariates']:
-            st.caption('The expected line stays at the estimated pre-launch level. The shaded range widens '
-                       'further from launch as monthly uncertainty accumulates.')
-        context = timeseries_chart_context(data,cfg.intervention_date,cfg.campaign_end_date)
-        st.plotly_chart(bsts_counterfactual_chart(data,model['result'],cfg.intervention_date,label,context),use_container_width=True,key='ts_simple_model_'+chart_key)
-        for warning in model.get('warnings',[]): st.warning(warning)
-        with st.expander(f'Model diagnostics · {name}'):
+    with st.container(border=True):
+        st.markdown(
+            '<div style="background:#eef2f6;padding:16px 24px;border-radius:8px;margin-bottom:16px;">'
+            '<h3 style="margin:0;font-size:24px;line-height:1.3;font-weight:600;color:#006b9b;">Pre–post results</h3>'
+            '<p style="margin:8px 0 0;">Before-and-after comparison of actual averages over matching time windows.</p></div>',
+            unsafe_allow_html=True)
+        a,b,c = st.columns(3)
+        a.metric('Average before',f"{pp['pre_value']:,.2f}")
+        b.metric('Average after',f"{pp['post_value']:,.2f}")
+        c.metric('Observed lift',_safe_pct(pp['percent_change']) if pp['pre_value']>0 else 'Unavailable')
+        st.caption(f"Matching before/after windows: {pp['pre_observations']} / {pp['post_observations']} periods; {pp['pre_start'].date()}–{pp['pre_end'].date()} and {pp['post_start'].date()}–{pp['post_end'].date()}.")
+        test = pp.get('significance_test', {'available': False, 'reason': 'Not calculated.'})
+        st.plotly_chart(pre_post_bar(pp['pre_value'],pp['post_value'],label,test),use_container_width=True,key='ts_simple_prepost_'+chart_key)
+        st.caption('The before-and-after test is exploratory. It uses autocorrelation-robust standard errors but does not adjust for trend, seasonality, concurrent events or multiple segments and cannot establish causality.')
+        if not test.get('available'):
+            st.caption('Significance unavailable: ' + test.get('reason', 'Not enough data.'))
+
+    with st.container(border=True):
+        if model is not None:
+            bayesian = model.get('estimation', '').startswith('Bayesian monthly')
+            heading = 'Bayesian monthly counterfactual' if bayesian else 'Structural time-series counterfactual'
+            st.markdown(
+                '<div style="background:#e3f4fd;padding:16px 24px;border-radius:8px;margin-bottom:16px;">'
+                f'<h3 style="margin:0;font-size:24px;line-height:1.3;font-weight:600;color:#006b9b;">{heading}</h3>'
+                '<p style="margin:8px 0 0;">Estimated campaign impact against the outcome expected without launch.</p></div>',
+                unsafe_allow_html=True)
+            low,high = model['prediction_interval']
+            relative = _safe_pct(model['relative_impact']) if model['expected_total']>0 else 'Unavailable'
+            actual, expected = model['observed_total'], model['expected_total']
+            x,y,z = st.columns(3)
+            x.metric('Actual campaign total', f'{actual:,.2f}')
+            y.metric('Estimated baseline total', f'{expected:,.2f}')
+            z.metric('Model-estimated lift', relative)
+            st.markdown(f"**Estimated impact {model['cumulative_impact']:+,.2f} · {model['interval_level']:.0%} model interval {low:+,.2f} to {high:+,.2f}**")
+            st.caption(f"Campaign-period totals · Model validation: {model.get('reliability', 'Review')}")
+            period = model.get('seasonal_period')
+            season_note = str(period) + ' ' + data.attrs['frequency'].lower() + ' periods per cycle' if period else 'not included'
+            if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
+            st.caption(f"Model seasonality: {season_note} · Comparison signals: {', '.join(model.get('covariates', [])) or 'none'}.")
+            st.markdown('**Actual vs estimated without campaign**')
             if bayesian:
-                st.write(model['uncertainty_note'])
-            st.write('Validation:',model.get('reliability','Review'))
-            st.json(model.get('backtest',{}))
-            st.write('Comparison signals used:',', '.join(model.get('covariates',[])) or 'None')
-    else:
-        st.warning('Model estimate unavailable: '+str(item['error']))
-        st.plotly_chart(time_series_line(data,cfg.intervention_date,label),use_container_width=True,key='ts_simple_history_'+chart_key)
-    st.markdown('**Before-and-after comparison**')
-    test = pp.get('significance_test', {'available': False, 'reason': 'Not calculated.'})
-    st.plotly_chart(pre_post_bar(pp['pre_value'],pp['post_value'],label,test),use_container_width=True,key='ts_simple_prepost_'+chart_key)
-    st.caption('The before-and-after test is exploratory. It uses autocorrelation-robust standard errors but does not adjust for trend, seasonality, concurrent events or multiple segments and cannot establish causality.')
-    if not test.get('available'):
-        st.caption('Significance unavailable: ' + test.get('reason', 'Not enough data.'))
+                st.caption('The baseline forecasts from pre-launch data using the enabled trend, seasonal cycle and comparison signals. '
+                           'Post-launch outcomes are used to measure the difference from that baseline.')
+            context = timeseries_chart_context(data,cfg.intervention_date,cfg.campaign_end_date)
+            st.plotly_chart(bsts_counterfactual_chart(data,model['result'],cfg.intervention_date,label,context),use_container_width=True,key='ts_simple_model_'+chart_key)
+            for warning in model.get('warnings',[]): st.warning(warning)
+            with st.expander(f'Model diagnostics · {name}'):
+                if bayesian:
+                    st.write(model['uncertainty_note'])
+                    components = model.get('components')
+                    if components is not None:
+                        st.markdown('**Trend and seasonal components**')
+                        st.caption('Before launch these are filtered estimates; after launch they are forecasts. '
+                                   'Trend and seasonality are model estimates, with limited seasonal evidence in short histories.')
+                        st.line_chart(components.set_index('_date')[['level_and_trend', 'seasonal', 'comparison_signals']].rename(
+                            columns={'level_and_trend': 'Level and trend', 'seasonal': 'Annual seasonal contribution',
+                                     'comparison_signals': 'Comparison signal contribution'}))
+                        st.write('Fixed prior settings (relative to observation variance):')
+                        st.json(model.get('monthly_priors', {}))
+                st.write('Validation:',model.get('reliability','Review'))
+                st.json(model.get('backtest',{}))
+                st.write('Comparison signals used:',', '.join(model.get('covariates',[])) or 'None')
+        else:
+            st.markdown('### Counterfactual results')
+            st.warning('Model estimate unavailable: '+str(item['error']))
+            st.plotly_chart(time_series_line(data,cfg.intervention_date,label),use_container_width=True,key='ts_simple_history_'+chart_key)
     with st.expander(f'Detailed statistics · {name}'):
         st.json({k:str(v) if isinstance(v,pd.Timestamp) else v for k,v in pp.items()})
         if model is not None: st.dataframe(model['result'],hide_index=True,use_container_width=True)

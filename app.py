@@ -10,7 +10,7 @@ import streamlit as st
 from streamlit.components.v1 import html as component_html
 from dataclasses import asdict, fields
 from datetime import datetime
-from src.experiment_platform.workspace_visuals import location_trail, page_header
+from src.experiment_platform.workspace_visuals import location_trail, page_header, render_sidebar_brand
 from src.experiment_platform.landing import COMPARISONS, method_card, overview_intro, workspace_intro
 from src.experiment_platform.customer_ui import simple_customer_analysis
 from src.experiment_platform.time_series_simple_ui import render_time_series_analysis
@@ -1775,18 +1775,19 @@ def render_command_navigation() -> None:
     """Keep global navigation available from every experiment workspace."""
     page = st.session_state.main_page
     with st.sidebar:
-        st.markdown('<div class="brand-placeholder" aria-hidden="true">Logo</div>'
-                    '<div class="ledger-product">Experiment Platform</div>', unsafe_allow_html=True)
+        render_sidebar_brand()
         if page == "Overview":
             st.markdown('<div class="atlas-nav-label">Workspaces</div>', unsafe_allow_html=True)
             with styled_container("ledger_navigation"):
                 for key, workspace in EXPERIMENT_CHOICES:
                     name = COMPARISONS[workspace][0]
+                    st.markdown(f'<span class="workspace-nav-marker" data-icon="{workspace.lower().replace(" ", "-")}" aria-hidden="true"></span>', unsafe_allow_html=True)
                     st.button(name, key=f"rail_{key}", use_container_width=True,
                               on_click=open_experiment_landing, args=(workspace,))
             return
 
         with styled_container("ledger_navigation"):
+            st.markdown('<span class="workspace-nav-marker" data-icon="home" aria-hidden="true"></span>', unsafe_allow_html=True)
             st.button("Choose an experiment", key="nav_chooser", use_container_width=True,
                       on_click=set_overview_mode, args=("Home",))
         contexts = {
@@ -1798,6 +1799,7 @@ def render_command_navigation() -> None:
         with styled_container("ledger_context"):
             st.markdown(f'<div class="ledger-context-title">{title}</div>', unsafe_allow_html=True)
             for label, intent in (("Plan an experiment", "plan"), ("Analyze results", "analyze")):
+                st.markdown(f'<span class="workspace-nav-marker" data-icon="{intent}" aria-hidden="true"></span>', unsafe_allow_html=True)
                 st.button(label, key=f"rail_{page}_{intent}", use_container_width=True,
                           type="primary" if st.session_state.get(intent_key) == intent else "secondary",
                           on_click=start_workflow, args=(intent,))

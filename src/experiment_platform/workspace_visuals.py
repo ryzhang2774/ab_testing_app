@@ -1,5 +1,7 @@
 """Presentation components for the desktop experiment workspace."""
+from base64 import b64encode
 from html import escape
+from mimetypes import guess_type
 from pathlib import Path
 
 import altair as alt
@@ -10,6 +12,20 @@ from .customer_palette import STRATEGY_COLORS
 
 GRID = '#d5e4ed'
 ASSETS = Path(__file__).parent / 'assets' / 'workspace'
+# Drop the company logo here, or change this filename to use SVG / JPG / WebP.
+LOGO_FILE = ASSETS / 'logo.png'
+
+
+
+def render_sidebar_brand():
+    """Load the shared company logo when present, otherwise show its placeholder."""
+    if LOGO_FILE.is_file():
+        mime = guess_type(LOGO_FILE.name)[0] or 'image/png'
+        payload = b64encode(LOGO_FILE.read_bytes()).decode('ascii')
+        logo = f'<div class="brand-logo"><img src="data:{mime};base64,{payload}" alt="Company logo"></div>'
+    else:
+        logo = '<div class="brand-placeholder" aria-hidden="true">Logo</div>'
+    st.markdown(logo + '<div class="ledger-product">Experiment Platform</div>', unsafe_allow_html=True)
 
 
 def workspace_css():

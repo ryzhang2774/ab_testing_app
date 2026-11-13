@@ -57,12 +57,32 @@ def build_analysis_html(bundle, cfg, source, group, label):
                 _num(model['observed_total']), _num(model['expected_total']), _num(model['cumulative_impact']),
                 _num(model['relative_impact'] * 100, 2) + '%' if model['expected_total'] > 0 and pd.notna(model['relative_impact']) else 'Not available',
                 f"{_num(low)} to {_num(high)} ({model['interval_level']:.0%})", model.get('reliability','Review')]]))
-            if model.get('estimation') == 'Bayesian monthly local level':
+            if model.get('estimation', '').startswith('Bayesian monthly'):
                 sections.append(f"<p>Bayesian monthly counterfactual fitted on {model['pre_observations']} pre-launch "
                                 f"months and evaluated on {model['post_observations']} campaign months. "
                                 f"{_e(model['uncertainty_note'])}</p>")
             spec = model.get('model_specification', {})
             sections.append(f"<p>Seasonal cycle: {_e(model.get('seasonal_period') or 'not included')} periods; trend: {_e(spec.get('level', 'Not recorded'))}; comparison signals: {_e(', '.join(model.get('covariates', [])) or 'none')}.</p>")
+            if model.get('monthly_priors') is not None:
+                sections.append('<h3>Monthly model calculation</h3>')
+                sections.append('<p>Expected outcome = baseline level and trend + annual seasonal contribution + comparison signal contribution. '
+                                'Each month the level advances by the previous slope plus a level innovation; the slope can change by a slope innovation. '
+                                'When enabled, the annual component is a × sin(2π × month / 12) + b × cos(2π × month / 12). '
+                                'The coefficients a and b have zero-centred shrinkage priors. Disabled components contribute zero. '
+                                'Only pre-launch outcomes update the model. Future baseline paths are simulated jointly, including '
+                                'uncertainty in the level, slope, enabled coefficients, shared noise variance and future observations. '
+                                'The impact interval is obtained from the campaign-total impact across these paths.</p>')
+                sections.append(_table(['Fixed prior assumption', 'Variance ratio relative to observation noise'],
+                                       [[key, _precise(value)] for key, value in model['monthly_priors'].items()
+                                        if key != 'seasonal_harmonics']))
+                components = model.get('components')
+                if components is not None:
+                    sections.append('<h3>Trend and seasonal contributions by month</h3>'
+                                    '<p>Pre-launch rows are filtered estimates. Post-launch rows are forecasts. '
+                                    'Contributions add to the expected outcome. A short history provides limited evidence of annual repetition.</p>')
+                    sections.append(_table(['Date', 'Phase', 'Level and trend', 'Annual seasonal contribution', 'Comparison signal contribution', 'Expected'],
+                        [[str(r['_date'].date()), r['phase'], _precise(r['level_and_trend']), _precise(r['seasonal']),
+                          _precise(r['comparison_signals']), _precise(r['expected'])] for r in components.to_dict('records')]))
             for warning in model.get('warnings', []): sections.append(f'<p class="note">{_e(warning)}</p>')
             sections.append('<h3>Counterfactual by period</h3>')
             sections.append(_table(['Date', 'Actual', 'Estimated without campaign', 'Lower forecast bound', 'Upper forecast bound', 'Difference'],

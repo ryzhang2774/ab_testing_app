@@ -387,8 +387,8 @@ def test_bayesian_forecast_for_17_months_uses_only_pre_launch_outcomes(n_pre):
     shifted = data.copy()
     shifted.loc[shifted._date >= dates[n_pre], '_outcome'] += 50
     other = fit_bsts_model(shifted, dates[n_pre], 'Monthly', controls)
-    assert fit['estimation'] == 'Bayesian monthly local level'
-    assert fit['seasonal_period'] is None and fit['pre_observations'] == n_pre
+    assert fit['estimation'] == 'Bayesian monthly structural'
+    assert fit['seasonal_period'] == 12 and fit['pre_observations'] == n_pre
     assert fit['post_observations'] == 17 - n_pre
     assert fit['covariates'] == controls and fit['reliability'] != 'Good'
     for name in ('counterfactual', 'lower', 'upper'):
@@ -398,3 +398,53 @@ def test_bayesian_forecast_for_17_months_uses_only_pre_launch_outcomes(n_pre):
     np.testing.assert_allclose(np.subtract(other['prediction_interval'], fit['prediction_interval']), 50*(17-n_pre))
     with pytest.raises(ValueError, match='observed pre-launch months'):
         fit_bsts_model(data, dates[7], 'Monthly')
+
+
+def test_monthly_trend_seasonality_switches_and_components():
+    dates = pd.date_range('2024-01-01', periods=17, freq='MS')
+    t = np.arange(17)
+    outcome = 100 + 4 * t + 12 * np.sin(2 * np.pi * t / 12)
+    data = prepare_timeseries_data(pd.DataFrame({'date': dates, 'value': outcome}), 'date', 'value')
+    fit = fit_bsts_model(data, dates[13], 'Monthly', draws=400)
+    prediction = fit['result'].counterfactual.to_numpy()
+    assert prediction[-1] > prediction[0]
+    assert np.mean(np.abs(prediction - outcome[13:])) < 8
+    assert fit['model_specification']['level'] == 'local linear trend'
+    components = fit['components']
+    assert components.seasonal.abs().max() > 1
+    np.testing.assert_allclose(components.expected, components[['level_and_trend', 'seasonal', 'comparison_signals']].sum(axis=1))
+    np.testing.assert_allclose(components.expected.iloc[13:], prediction)
+    assert fit['monthly_priors']['seasonal_harmonics'] == 1
+    assert np.isfinite(fit['prediction_interval']).all()
+    flat = fit_bsts_model(data, dates[13], 'Monthly', seasonality='None', local_trend=False)
+    assert flat['estimation'] == 'Bayesian monthly local level'
+    assert flat['seasonal_period'] is None
+    assert (flat['components'].seasonal == 0).all()
+    np.testing.assert_allclose(flat['result'].counterfactual, flat['result'].counterfactual.iloc[0])
+    trend = fit_bsts_model(data, dates[13], 'Monthly', seasonality='None', local_trend=True)
+    assert trend['seasonal_period'] is None
+    assert np.ptp(trend['result'].counterfactual) > 1
+    seasonal = fit_bsts_model(data, dates[13], 'Monthly', seasonality='Annual', local_trend=False)
+    assert seasonal['seasonal_period'] == 12
+    assert seasonal['model_specification']['level'] == 'local level'
+    assert np.ptp(seasonal['result'].counterfactual) > 1
+
+
+def test_monthly_annual_forecast_repeats_and_gap_covariance_composes():
+    from src.experiment_platform.timeseries import _monthly_state_transition
+    dates = pd.date_range('2023-01-01', periods=30, freq='MS')
+    t = np.arange(len(dates))
+    data = prepare_timeseries_data(pd.DataFrame({'date': dates, 'value': 200 + 3*t + 20*np.cos(2*np.pi*t/12)}), 'date', 'value')
+    fit = fit_bsts_model(data, dates[16], 'Monthly', draws=500)
+    future = fit['components'].iloc[16:]
+    np.testing.assert_allclose(future.seasonal.iloc[:2], future.seasonal.iloc[12:14], atol=1e-10)
+    assert fit['result'].iloc[-1]['upper'] - fit['result'].iloc[-1]['lower'] > fit['result'].iloc[0]['upper'] - fit['result'].iloc[0]['lower']
+    transition, noise = _monthly_state_transition(4, 1, 1)
+    combined_transition = np.eye(4)
+    combined_noise = np.zeros((4, 4))
+    for _ in range(3):
+        combined_transition = transition @ combined_transition
+        combined_noise = transition @ combined_noise @ transition.T + noise
+    gap_transition, gap_noise = _monthly_state_transition(4, 1, 3)
+    np.testing.assert_allclose(gap_transition, combined_transition)
+    np.testing.assert_allclose(gap_noise, combined_noise)

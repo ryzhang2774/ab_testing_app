@@ -192,7 +192,7 @@ def test_monthly_paste_runs_bayesian_counterfactual_and_report():
     app.button(key='ts_simple_calculate').click().run()
     assert not app.exception and not app.error
     model = app.session_state.ts_bsts_result
-    assert model['estimation'] == 'Bayesian monthly local level'
+    assert model['estimation'] == 'Bayesian monthly structural'
     assert len(model['result']) == 7 and model['pre_observations'] == 10
     assert any('Bayesian monthly counterfactual' in x.value for x in app.markdown)
     assert len(app.get('plotly_chart')) == 2
@@ -200,3 +200,7 @@ def test_monthly_paste_runs_bayesian_counterfactual_and_report():
     report = build_analysis_html(app.session_state.ts_simple_bundle, app.session_state.ts_config,
                                  'Upload file', 'Overall', 'Revenue')
     assert b'Bayesian monthly counterfactual fitted on 10 pre-launch months' in report
+    assert b'Monthly model calculation' in report
+    assert b'Trend and seasonal contributions by month' in report
+    assert model['seasonal_period'] == 12
+    assert any('Trend and seasonal components' in x.value for x in app.markdown)

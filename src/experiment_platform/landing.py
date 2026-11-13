@@ -12,7 +12,7 @@ COMPARISONS = {
     "Customer": (
         "Customer experiment",
         "Randomly assign customers to strategies and compare each test with Control.",
-        "A random split assigns eligible customers to a $500 Control limit or a $1,000 Test limit.",
+        "White Control and blue Test credit cards represent the two experiment strategies.",
         "customer",
     ),
     "Geography": (
@@ -31,9 +31,10 @@ COMPARISONS = {
 
 
 def comparison_image(workspace):
-    filename = "comparison-" + workspace.lower().replace(" ", "-") + ".webp"
+    filename, mime = (("customer-credit-cards.png", "image/png") if workspace == "Customer"
+                      else ("comparison-" + workspace.lower().replace(" ", "-") + ".webp", "image/webp"))
     payload = b64encode((ASSETS / filename).read_bytes()).decode("ascii")
-    return f'<img src="data:image/webp;base64,{payload}" alt="{escape(COMPARISONS[workspace][2])}">'
+    return f'<img src="data:{mime};base64,{payload}" alt="{escape(COMPARISONS[workspace][2])}">'
 
 
 HOME_ART = {
