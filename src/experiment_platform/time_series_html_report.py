@@ -35,7 +35,7 @@ def _document(title, content):
 body{{font:15px/1.5 Arial,sans-serif;color:#173d55;max-width:1120px;margin:35px auto;padding:0 24px}}h1,h2{{color:#006b9b}}h2{{border-bottom:1px solid #d7e4eb;padding-bottom:8px;margin-top:32px}}.note{{background:#eaf6fb;border-left:4px solid #00aeef;padding:12px}}table{{width:100%;border-collapse:collapse;font-size:12px}}th,td{{padding:7px;text-align:left;border-bottom:1px solid #d7e4eb}}th{{background:#eaf6fb}}.table-wrap{{overflow-x:auto}}@media print{{.table-wrap{{overflow:visible}}thead{{display:table-header-group}}tr{{break-inside:avoid}}}}</style></head><body><h1>{_e(title)}</h1>{content}</body></html>'''.encode('utf-8')
 
 
-def build_analysis_html(bundle, cfg, source, group, label):
+def build_analysis_html(bundle, cfg, source, group, label, calculated_at=None, input_fingerprint=None):
     sections = []
     for item in bundle:
         pp, model = item['prepost'], item['model']
@@ -93,6 +93,7 @@ def build_analysis_html(bundle, cfg, source, group, label):
         signals = [c for c in getattr(cfg, 'selected_covariates', []) if c in item['data'].columns]
         sections.append(_table(['Date', label] + signals, [[str(r['_date'].date()), _precise(r['_outcome'])] + [_precise(r[c]) for c in signals] for r in item['data'].to_dict('records')]))
     body = f"<p>Source: {_e(source)} · Metric: {_e(label)} · Group by: {_e(group)} · Launch: {_e(cfg.intervention_date)} · Campaign end: {_e(cfg.campaign_end_date or 'latest observation')}.</p>"
+    body += _table(['Dataset', 'Calculated at', 'Input reference'], [[getattr(cfg, 'dataset_name', 'Not recorded'), calculated_at or 'Not recorded', input_fingerprint or 'Not recorded']])
     body += "<p class='note'>This is an exploratory observational time-series analysis. Neither method alone proves the campaign caused the change.</p>" + ''.join(sections)
     body += '''<h2>How the results are calculated</h2><p>Before and after are averages over equal-length windows. Difference = after average − before average; lift = difference / before average when the baseline is positive.</p>
 <p>The exploratory two-sided significance test compares period means using a regression with Newey–West HAC standard errors, allowing some serial correlation. At least 8 periods in each window and a stable standard error are required. This test does not remove trend, seasonality, other events, or adjust across segments.</p>

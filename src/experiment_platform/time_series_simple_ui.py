@@ -8,7 +8,8 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from .business_data import read_table
+from .business_data import read_table, row_issue
+from .workspace_visuals import render_context_card
 from .core import load_timeseries_demo, normalize_uploaded_dataset, safe_datetime_series, safe_numeric_series
 from .charts import time_series_line, pre_post_bar, bsts_counterfactual_chart, timeseries_chart_context
 from .portfolio import configuration_fingerprint
@@ -198,7 +199,7 @@ def render_time_series_analysis():
                 except (ValueError,UnicodeError,pd.errors.ParserError) as exc:
                     st.error(f'Could not read pasted data: {exc}'); return
             cfg.dataset_name = 'Entered time series'
-    frame = normalize_uploaded_dataset(frame)
+    frame = normalize_uploaded_dataset(frame).reset_index(drop=True)
     st.session_state.ts_raw_df = frame.copy()
     if frame.empty or len(frame.columns)<2:
         st.warning('Provide at least a date and a numeric metric.'); return
@@ -254,7 +255,7 @@ def render_time_series_analysis():
     values = safe_numeric_series(selected,metric)
     invalid = dates.isna() | ~np.isfinite(values)
     if invalid.any():
-        st.error(f'{int(invalid.sum()):,} rows have an invalid date or missing/non-numeric metric. Correct those rows before analysis.'); return
+        st.error(row_issue(invalid, f'{int(invalid.sum()):,} rows have an invalid date or missing/non-numeric metric. Correct those rows before analysis.', selected.index.to_numpy() + 2)); return
     # A stable mix is essential: otherwise shifts in the population can look
     # like a campaign change. We cannot infer omitted dimensions or overlaps.
     if dimension_cols:
@@ -327,6 +328,10 @@ def render_time_series_analysis():
     post = prepared[prepared['_date']>=pd.Timestamp(launch)]
     if end: post = post[post['_date']<=pd.Timestamp(end)]
     if pre.empty or post.empty: st.warning('Choose a launch date with observations both before and after it.'); return
+    render_context_card('Data checks passed', [
+        ('Data source', cfg.dataset_name), ('Metric', metric), ('Frequency', prepared.attrs['frequency']),
+        ('Before launch', f'{len(pre):,} periods'), ('After launch', f'{len(post):,} periods'),
+        ('Group by', group)], tone='success')
     st.caption(f"{len(prepared):,} {prepared.attrs['frequency'].lower()} periods · {len(pre):,} before launch · {len(post):,} in the selected outcome window")
     if prepared.attrs['frequency'] == 'Monthly' and (~pre["_date"].isin(prepared.attrs.get("interpolated_dates", ()))).sum() < 24:
         st.caption('Short monthly history uses a Bayesian model with optional trend and annual seasonality. Allow at least 8 observed months before launch '
@@ -338,7 +343,7 @@ def render_time_series_analysis():
     cfg.frequency = prepared.attrs['frequency']
     cfg.comparison_metric,cfg.comparison_window,cfg.symmetric_periods = 'Average per period','Symmetric',min(len(pre),len(post))
     st.session_state.ts_prepared_df = prepared
-    fingerprint = configuration_fingerprint({'model_version':3,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
+    fingerprint = configuration_fingerprint({'model_version':3,'source':source,'dataset':cfg.dataset_name,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
         'date_column':date_col,'metric':metric,'launch':cfg.intervention_date,'end':cfg.campaign_end_date,'missing':missing,'predictors':predictors,
         'seasonality':seasonality,'interval':interval,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
     if group != group_options[0]:
@@ -391,6 +396,9 @@ def render_time_series_analysis():
     # Keep the legacy save/monitor snapshot aligned with the available overall result.
     cfg.analysis_method = 'Structural Time Series Counterfactual' if bundle[0]['model'] else 'Pre–Post Analysis'
     label = humanize_column_name(metric)
+    render_context_card('Results match the current inputs', [
+        ('Dataset', cfg.dataset_name), ('Metric', label), ('Launch', cfg.intervention_date),
+        ('Calculated at', st.session_state.get('ts_prepost_timestamp', 'Not recorded'))], tone='success')
     st.markdown('### Overall results')
     st.caption('The model uses the selected post-launch window. The before-and-after chart uses matching-length windows, which can be shorter.')
     _render_scope(bundle[0],label,cfg,group,is_overall=True)
@@ -409,7 +417,7 @@ def render_time_series_analysis():
         st.write('Before-and-after compares equal-length windows. Lift = (after average − before average) / before average. The exploratory significance test uses a two-sided mean-change regression with Newey–West autocorrelation-robust errors; it does not account for trend, seasonality, other events or multiple segments.')
         st.write('The structural model fits the pre-period and estimates the outcome without the campaign. Impact = actual − estimated baseline; model lift = total impact / estimated baseline total. Intervals depend on the model assumptions. Check the validation, seasonal coverage and unaffected signals before drawing conclusions.')
     from .time_series_html_report import build_analysis_html
-    st.download_button('Download analysis report (HTML)', build_analysis_html(bundle,cfg,source,group,label),
+    st.download_button('Download analysis report (HTML)', build_analysis_html(bundle,cfg,source,group,label, calculated_at=st.session_state.get('ts_prepost_timestamp'), input_fingerprint=fingerprint),
                        'time-series-analysis.html', 'text/html', key='ts_analysis_html')
     st.caption('Open the report in a browser and use Print → Save as PDF if needed.')
 
@@ -426,16 +434,17 @@ def _render_scope(item,label,cfg,group,is_overall):
             '<h3 style="margin:0;font-size:24px;line-height:1.3;font-weight:600;color:#006b9b;">Pre–post results</h3>'
             '<p style="margin:8px 0 0;">Before-and-after comparison of actual averages over matching time windows.</p></div>',
             unsafe_allow_html=True)
+        test = pp.get('significance_test', {'available': False, 'reason': 'Not calculated.'})
+        st.markdown('**Mean comparison and significance test available**' if test.get('available') else '**Mean comparison available · significance test unavailable**')
+        if not test.get('available'):
+            st.caption(test.get('reason', 'Not enough data.'))
         a,b,c = st.columns(3)
         a.metric('Average before',f"{pp['pre_value']:,.2f}")
         b.metric('Average after',f"{pp['post_value']:,.2f}")
         c.metric('Observed lift',_safe_pct(pp['percent_change']) if pp['pre_value']>0 else 'Unavailable')
         st.caption(f"Matching before/after windows: {pp['pre_observations']} / {pp['post_observations']} periods; {pp['pre_start'].date()}–{pp['pre_end'].date()} and {pp['post_start'].date()}–{pp['post_end'].date()}.")
-        test = pp.get('significance_test', {'available': False, 'reason': 'Not calculated.'})
         st.plotly_chart(pre_post_bar(pp['pre_value'],pp['post_value'],label,test),use_container_width=True,key='ts_simple_prepost_'+chart_key)
         st.caption('The before-and-after test is exploratory. It uses autocorrelation-robust standard errors but does not adjust for trend, seasonality, concurrent events or multiple segments and cannot establish causality.')
-        if not test.get('available'):
-            st.caption('Significance unavailable: ' + test.get('reason', 'Not enough data.'))
 
     with st.container(border=True):
         if model is not None:
@@ -455,6 +464,8 @@ def _render_scope(item,label,cfg,group,is_overall):
             z.metric('Model-estimated lift', relative)
             st.markdown(f"**Estimated impact {model['cumulative_impact']:+,.2f} · {model['interval_level']:.0%} model interval {low:+,.2f} to {high:+,.2f}**")
             st.caption(f"Campaign-period totals · Model validation: {model.get('reliability', 'Review')}")
+            if model.get('reliability') == 'Limited history':
+                st.info(f"Counterfactual calculated from {model['pre_observations']} pre-launch periods. Short history limits model validation; review the interval and diagnostics.")
             period = model.get('seasonal_period')
             season_note = str(period) + ' ' + data.attrs['frequency'].lower() + ' periods per cycle' if period else 'not included'
             if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
@@ -465,9 +476,12 @@ def _render_scope(item,label,cfg,group,is_overall):
                            'Post-launch outcomes are used to measure the difference from that baseline.')
             context = timeseries_chart_context(data,cfg.intervention_date,cfg.campaign_end_date)
             st.plotly_chart(bsts_counterfactual_chart(data,model['result'],cfg.intervention_date,label,context),use_container_width=True,key='ts_simple_model_'+chart_key)
-            for warning in model.get('warnings',[]): st.warning(warning)
+            for warning in model.get('warnings', []):
+                if not bayesian or 'interpolat' in warning.lower():
+                    st.warning(warning)
             with st.expander(f'Model diagnostics · {name}'):
                 if bayesian:
+                    for note in model.get('warnings', []): st.write(note)
                     st.write(model['uncertainty_note'])
                     components = model.get('components')
                     if components is not None:

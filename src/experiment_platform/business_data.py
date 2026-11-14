@@ -14,6 +14,15 @@ ALIASES = {"sample mean": "sample_mean", "mean": "sample_mean", "sample variance
            "observed_n": "sample_number", "sd": "sample_sd", "stdev.s": "sample_sd", "outcome": "outcome"}
 
 
+def row_issue(mask, message, row_numbers=None):
+    """Locate source table rows by position, counting the header as row one."""
+    indices = np.flatnonzero(np.asarray(mask, dtype=bool))
+    positions = indices + 2 if row_numbers is None else np.asarray(row_numbers)[indices]
+    rows = ', '.join(str(position) for position in positions[:8])
+    extra = f' (and {len(positions) - 8} more)' if len(positions) > 8 else ''
+    return f'{message} Check row(s) {rows}{extra}. Row 1 is the header.'
+
+
 def read_table(text: str | bytes) -> pd.DataFrame:
     if isinstance(text, bytes):
         text = text.decode("utf-8-sig")

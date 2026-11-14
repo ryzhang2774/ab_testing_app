@@ -44,7 +44,7 @@ def build_results_report(report: dict) -> bytes:
 
     title = report.get('name') or 'Customer experiment'
     metrics = report['metrics']
-    options = [['Source', report['source']], ['Control strategy', report['control']],
+    options = [['Source', report['source']], ['Dataset', report.get('dataset', 'Not recorded')], ['Control strategy', report['control']],
                ['Partners', ', '.join(map(str, report.get('partners') or [])) or 'All selected rows'],
                ['Group by', report.get('group_by') or 'No segment breakdown'],
                ['Significance level', f"{report['alpha']:.1%}"],

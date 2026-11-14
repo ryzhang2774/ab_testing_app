@@ -7,6 +7,7 @@ from scipy import stats
 from statsmodels.stats.multitest import multipletests
 from statsmodels.stats.proportion import proportions_ztest, confint_proportions_2indep
 
+from .business_data import row_issue
 from .customer import continuous_summary_results
 from .customer_grouping import historical_strategy_order
 from .customer_plan_ui import pool_statistics
@@ -30,7 +31,7 @@ def normalize_summary(frame):
     if 'metric_type' not in data: data['metric_type'] = 'Continuous'
     for col in ['strategy','metric','metric_type']:
         if data[col].isna().any() or data[col].astype(str).str.strip().eq('').any():
-            raise ValueError(f'{col}: every row needs a value.')
+            raise ValueError(row_issue(data[col].isna() | data[col].astype(str).str.strip().eq(''), f'{col}: every row needs a value.'))
         data[col] = data[col].astype(str).str.strip()
     data['metric_type'] = data['metric_type'].str.title()
     if not data.metric_type.isin(['Continuous','Binary']).all():
@@ -42,20 +43,20 @@ def normalize_summary(frame):
     if any(str(c).strip().lower() in {'ym','month','year_month','date','snapshot_date'} for c in dimensions):
         raise ValueError('Do not combine monthly snapshots: provide one non-overlapping summary per combination.')
     for col in dimensions:
-        if data[col].isna().any() or data[col].astype(str).str.strip().eq('').any(): raise ValueError(f'{col}: fill in every row.')
+        if data[col].isna().any() or data[col].astype(str).str.strip().eq('').any(): raise ValueError(row_issue(data[col].isna() | data[col].astype(str).str.strip().eq(''), f'{col}: fill in every row.'))
         data[col] = data[col].astype(str).str.strip()
     if data.duplicated(['strategy','metric']+dimensions).any():
-        raise ValueError('Duplicate summary combinations. Remove duplicates or aggregate non-overlapping data first.')
+        raise ValueError(row_issue(data.duplicated(['strategy','metric']+dimensions, keep=False), 'Duplicate summary combinations. Remove duplicates or aggregate non-overlapping data first.'))
     n = pd.to_numeric(data.sample_number, errors='coerce')
     if not np.isfinite(n).all() or (n < 2).any() or (n % 1 != 0).any():
-        raise ValueError('Sample number must be a whole number of at least 2 per row.')
+        raise ValueError(row_issue(~np.isfinite(n) | (n < 2) | (n % 1 != 0), 'Sample number must be a whole number of at least 2 per row.'))
     data['sample_number'] = n.astype(int)
     continuous = data.metric_type.eq('Continuous')
     for col, label in [('sample_sd','Sample SD'),('sample_variance','Sample variance')]:
         if col in data:
             supplied = data[col].notna() & data[col].astype(str).str.strip().ne('')
             if (supplied & pd.to_numeric(data[col], errors='coerce').isna()).any():
-                raise ValueError(f'{label} must contain valid numeric values.')
+                raise ValueError(row_issue(supplied & pd.to_numeric(data[col], errors='coerce').isna(), f'{label} must contain valid numeric values.'))
     for col in ['sample_mean','sample_variance','sample_sd','success_count']:
         if col not in data: data[col] = np.nan
         data[col] = pd.to_numeric(data[col], errors='coerce')
@@ -69,8 +70,8 @@ def normalize_summary(frame):
     use_sd = continuous & data.sample_variance.isna() & data.sample_sd.notna()
     data.loc[use_sd, 'sample_variance'] = data.loc[use_sd, 'sample_sd'] ** 2
     if not np.isfinite(data.loc[continuous,'sample_mean']).all() or not np.isfinite(data.loc[continuous,'sample_variance']).all():
-        raise ValueError('Continuous metrics need a finite sample mean and sample variance in every row.')
-    if (data.loc[continuous,'sample_variance'] < 0).any(): raise ValueError('Sample variance cannot be negative.')
+        raise ValueError(row_issue(continuous & (~np.isfinite(data.sample_mean) | ~np.isfinite(data.sample_variance)), 'Continuous metrics need a finite sample mean and sample variance in every row.'))
+    if (data.loc[continuous,'sample_variance'] < 0).any(): raise ValueError(row_issue(continuous & data.sample_variance.lt(0), 'Sample variance cannot be negative.'))
     binary = ~continuous
     successes = data.loc[binary,'success_count']
     if not np.isfinite(successes).all() or (successes < 0).any() or (successes % 1 != 0).any() or (successes > data.loc[binary,'sample_number']).any():

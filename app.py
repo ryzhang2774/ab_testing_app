@@ -10,7 +10,7 @@ import streamlit as st
 from streamlit.components.v1 import html as component_html
 from dataclasses import asdict, fields
 from datetime import datetime
-from src.experiment_platform.workspace_visuals import location_trail, page_header, render_sidebar_brand
+from src.experiment_platform.workspace_visuals import location_trail, page_header, render_sidebar_brand, render_context_card
 from src.experiment_platform.landing import COMPARISONS, method_card, overview_intro, workspace_intro
 from src.experiment_platform.customer_ui import simple_customer_analysis
 from src.experiment_platform.time_series_simple_ui import render_time_series_analysis
@@ -5347,11 +5347,12 @@ def geo_data_step() -> bool:
         st.session_state.geo_panel_df = panel
         quality = validate_geo_panel(panel)
         min_date, max_date = panel["_date"].min().date(), panel["_date"].max().date()
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Markets", f"{quality['dma_count']:,.0f}")
-        m2.metric("Time Periods", f"{quality['period_count']:,.0f}")
-        m3.metric("Frequency", str(quality["frequency"]))
-        m4.metric("Date Range", f"{min_date} to {max_date}")
+        needs_review = bool(quality['duplicates'] or quality['missing_periods'])
+        render_context_card('Panel needs review' if needs_review else 'Panel format checks passed', [
+            ('Dataset', cfg.dataset_name), ('Markets', f"{quality['dma_count']:,}"),
+            ('Time periods', f"{quality['period_count']:,}"), ('Frequency', quality['frequency']),
+            ('Date range', f'{min_date} to {max_date}'), ('Outcome', cfg.outcome_column)],
+            tone='review' if needs_review else 'success')
         if quality["duplicates"]:
             st.warning(f"{quality['duplicates']:,.0f} duplicate DMA/date records were found. Resolve duplicates before finalizing a design.")
         if quality["missing_periods"]:
@@ -5512,6 +5513,7 @@ def geo_planning_step() -> None:
                 weighted,
                 cfg.market_size_column,
             )
+            plan['_calculated_at'] = datetime.now().isoformat(timespec='seconds')
             st.session_state.geo_plan = plan
             st.session_state.geo_result_view = True
             st.session_state.geo_scroll_to_top = True
@@ -5519,6 +5521,11 @@ def geo_planning_step() -> None:
             st.session_state.geo_plan = None
             st.session_state.geo_submit_error = str(exc)
 
+    render_context_card('Review your experiment', [
+        ('Dataset', cfg.dataset_name), ('Outcome', cfg.outcome_column), ('Launch', cfg.planned_launch_date),
+        ('Test markets', ', '.join(assignment.loc[assignment.Group.eq('Test'), 'DMA'].astype(str))),
+        ('Control markets', ', '.join(assignment.loc[assignment.Group.eq('Control'), 'DMA'].astype(str))),
+        ('Change to detect', f'{cfg.expected_effect:g} {cfg.effect_type}')])
     st.button("Get plan", type="primary", key="geo_get_plan", on_click=get_plan)
     if error := st.session_state.pop("geo_submit_error", None):
         st.error(error)
@@ -5526,6 +5533,11 @@ def geo_planning_step() -> None:
 
 def geo_plan_results() -> None:
     plan = st.session_state.geo_plan
+    cfg = st.session_state.geo_config
+    render_context_card('Calculated plan', [
+        ('Dataset', cfg.dataset_name), ('Outcome', cfg.outcome_column), ('Launch', cfg.planned_launch_date),
+        ('Change to detect', f'{cfg.expected_effect:g} {cfg.effect_type}'),
+        ('Calculated at', plan.get('_calculated_at', 'Not recorded'))])
     frequency = validate_geo_panel(st.session_state.geo_panel_df)["frequency"]
     recommended = plan["recommended_duration"]
     row = plan["table"].loc[plan["table"]["Campaign Duration"] == recommended].iloc[0] if recommended is not None else plan["table"].iloc[-1]
@@ -5632,6 +5644,12 @@ def geo_analysis_setup_step() -> None:
         st.session_state.geo_scroll_to_top = True
 
 
+    assignment = st.session_state.geo_assignment
+    render_context_card('Review your analysis', [
+        ('Dataset', cfg.dataset_name), ('Outcome', cfg.outcome_column),
+        ('Campaign start', cfg.campaign_start_date), ('Campaign end', cfg.campaign_end_date or 'Latest observation'),
+        ('Test markets', ', '.join(assignment.loc[assignment.Group.eq('Test'), 'DMA'].astype(str))),
+        ('Control markets', ', '.join(assignment.loc[assignment.Group.eq('Control'), 'DMA'].astype(str)))])
     st.button("Calculate impact", type="primary", key="geo_run_analysis", on_click=calculate_impact)
     if error := st.session_state.pop("geo_submit_error", None):
         st.error(error)
@@ -5664,6 +5682,9 @@ def geo_analysis_results_step() -> None:
 
     result = st.session_state.geo_analysis
     if result and result.get("_signature") == signature:
+        render_context_card('Results match the current inputs', [
+            ('Dataset', cfg.dataset_name), ('Outcome', cfg.outcome_column),
+            ('Campaign start', cfg.campaign_start_date), ('Calculated at', result.get('_calculated_at', 'Not recorded'))], tone='success')
         low, high = result["interval"]
         if pd.notna(low) and low > 0:
             headline = "Evidence of positive incremental impact"

@@ -34,10 +34,12 @@ def build_html_summary(plan):
                         + '<h3>Required customers by Partner</h3>' + table(['Partner', 'Group', 'Role', 'Strategy', 'Required N'], targets)
                         + '<h3>Historical inputs used</h3>' + table(['Partner', 'Group', 'Strategy', 'Metric', 'Mean', 'Variance', 'Historical N'], inputs)
                         + f"<p>Comparison family: {g['family_size']}; alpha per comparison: {g['planning_alpha']:.5g}.</p></section>")
+    input_context = plan.get('input_context', {})
+    provenance = table(['Data source', 'Dataset', 'Input reference'], [[plan.get('input_source', 'Not recorded'), input_context.get('dataset', 'Not recorded'), plan.get('input_fingerprint', 'Not recorded')]])
     synthetic = '<p class="notice">Synthetic demo: illustrative data and results.</p>' if c.get('synthetic') else ''
     return f'''<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Experiment design summary</title>
 <style>body{{font:15px/1.5 Arial,sans-serif;color:#183b52;max-width:1100px;margin:40px auto;padding:0 24px}}h1,h2{{color:#006b9b}}section{{margin:35px 0}}table{{border-collapse:collapse;width:100%;margin:12px 0}}th,td{{padding:8px;text-align:left;border-bottom:1px solid #d7e4eb}}th{{background:#eaf6fb}}.notice{{background:#eaf6fb;padding:12px}}@media print{{body{{margin:0}}section{{break-inside:avoid}}}}</style></head><body>
-<h1>Experiment design summary</h1><p>{text(c['name'])}</p>{synthetic}
+<h1>Experiment design summary</h1><p>{text(c['name'])}</p>{synthetic}{provenance}
 <p><strong>Primary metric:</strong> {text(metric['name'])} &nbsp; <strong>MDE:</strong> {text(metric['effect'])} {text(metric['effect_scale'])} &nbsp; <strong>Power:</strong> {c['power']:.0%} &nbsp; <strong>Nominal alpha:</strong> {c['alpha']:.1%} &nbsp; <strong>Total customers:</strong> {total:,}</p>
 <p>Group by: {text(plan.get('input_grouping', 'Not recorded'))}. Guardrail: {text(next((m['name'] + (' (included in sizing; margin ' + str(m['margin']) + ')' if m['include_in_plan'] else ' (monitoring only)') for m in c['metrics'] if m['role'] == 'Guardrail'), 'None'))}. Multiple comparison protection: {'On' if c['multiplicity'] else 'Off'}. Historical inputs and sample sizes are planning assumptions, not observed experiment effects.</p>
 {''.join(sections)}

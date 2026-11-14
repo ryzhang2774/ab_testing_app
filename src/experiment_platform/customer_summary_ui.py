@@ -7,6 +7,7 @@ import pandas as pd
 import streamlit as st
 
 from .business_data import read_table
+from .workspace_visuals import render_context_card
 from .customer_demo import customer_demo_results, demo_credit_line_caption
 from .customer_decision import decision_context, rule_based_decision
 from .customer_palette import strategy_styles
@@ -36,6 +37,7 @@ def summary_demo():
 def render_summary_analysis(source):
     from .customer_ui import STRATEGIES_PER_PAGE, average_chart, _result_rows, render_decision_card
     demo = summary_demo()
+    dataset_name = 'Synthetic experiment summaries'
     if source == 'Synthetic demo':
         frame = demo
         st.caption('Credit line ranges vary by FICO group. At higher limits, the overall average represents a different mix of customers. Use the FICO group results to compare strategies within an eligible group.')
@@ -47,11 +49,13 @@ def render_summary_analysis(source):
             uploaded = st.file_uploader('Upload experiment summary statistics', type=['csv','xlsx','xlsm'], key='summary_upload')
             if uploaded is None:
                 st.info('Upload one row for each strategy, metric and population combination.'); return
+            dataset_name = uploaded.name
             try:
                 frame = pd.read_excel(BytesIO(uploaded.getvalue()), dtype=str, keep_default_na=False, engine='openpyxl') if uploaded.name.lower().endswith(('.xlsx','.xlsm')) else read_table(uploaded.getvalue())
             except (ValueError,UnicodeError,pd.errors.ParserError,ImportError,OSError) as exc:
                 st.error(f'Could not read the file: {exc}'); return
         else:
+            dataset_name = 'Entered experiment summaries'
             how = st.radio('Input method', ['Editable table','Paste CSV / tab-separated'], horizontal=True, key='summary_input_style')
             if how == 'Editable table':
                 frame = st.data_editor(pd.DataFrame([{'Partner':'','Segment':'','Strategy':'','Metric':'',
@@ -74,6 +78,15 @@ def render_summary_analysis(source):
     try: data, dimensions = normalize_summary(frame)
     except ValueError as exc:
         st.warning(str(exc)); return
+    data_signature = configuration_fingerprint({'source': source, 'dataset': dataset_name, 'data': frame.to_json(orient='split')})
+    if st.session_state.get('summary_data_signature') != data_signature:
+        for widget in ('summary_partners', 'summary_group', 'summary_control', 'summary_disjoint_confirmation'):
+            st.session_state.pop(widget, None)
+        st.session_state.summary_data_signature = data_signature
+    render_context_card('Data checks passed', [
+        ('Data source', dataset_name), ('Validated summary rows', f'{len(data):,}'),
+        ('Metrics available', ', '.join(data.metric.drop_duplicates().astype(str))),
+        ('Checks', 'Required fields, numeric values and duplicate combinations')], tone='success')
     partners = next((col for col in dimensions if col.lower() == 'partner'), None)
     if partners:
         available = data[partners].drop_duplicates().tolist()
@@ -156,17 +169,27 @@ def render_summary_analysis(source):
             lower = any(x in metric.lower() for x in ('ncl','loss','default','cost'))
             directions[metric] = st.selectbox(f'Preferred direction: {metric}',['Higher','Lower'],index=1 if lower else 0,
                 key='summary_dir_'+configuration_fingerprint({'metric':metric})[:12])
+    confirmation_scope = configuration_fingerprint({'data': data_signature, 'partners': chosen if partners else [], 'metrics': selected_metrics, 'group': group})
+    if st.session_state.get('summary_confirmation_scope') != confirmation_scope:
+        st.session_state.pop('summary_disjoint_confirmation', None)
+        st.session_state.summary_confirmation_scope = confirmation_scope
     if source != 'Synthetic demo':
         confirmed = st.checkbox('I confirm the summary rows represent non-overlapping customers within each metric, and all strategies use a consistent outcome window.',key='summary_disjoint_confirmation')
         if not confirmed:
             st.info('Confirm the rows do not overlap before combining them. Repeated monthly snapshots can count the same customer more than once.'); return
     st.caption('Overall statistics pool the observed customers in each arm. Summary data cannot verify unique customer IDs, assignment integrity, missing outcomes, or the frozen planning mix.')
-    config = {'data':data.to_json(orient='split'),'metrics':selected_metrics,'control':control,'group':group,'alpha':alpha,'protection':protection}
+    config = {'source':source, 'dataset':dataset_name, 'data':data.to_json(orient='split'),'metrics':selected_metrics,'control':control,'group':group,'alpha':alpha,'protection':protection}
     fingerprint = configuration_fingerprint(config)
+    render_context_card('Review your analysis', [
+        ('Primary metric', primary), ('Other metrics', ', '.join(extra) or 'None'),
+        ('Control', control), ('Test strategies', ', '.join(option for option in options if option != control)),
+        ('Group by', group), ('Confidence level', f'{1-alpha:.0%}')])
     if st.button('Calculate results',type='primary',key='summary_calculate'):
+        progress = st.progress(0., text='Preparing comparisons...')
         try:
             analyses = {}
-            for metric in selected_metrics:
+            for position, metric in enumerate(selected_metrics):
+                progress.progress(position / len(selected_metrics), text=f'Analyzing {metric} ({position + 1} of {len(selected_metrics)})')
                 subset_options = set(data[data.metric.eq(metric)].strategy)
                 if subset_options != set(options):
                     raise ValueError(f'{metric}: provide the same Control and Test strategies as the primary metric.')
@@ -176,6 +199,8 @@ def render_summary_analysis(source):
             st.session_state.summary_result_timestamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
         except (ValueError,OverflowError,ZeroDivisionError) as exc:
             st.error(str(exc)); return
+        finally:
+            progress.empty()
     if st.session_state.get('summary_result_fingerprint') != fingerprint:
         if st.session_state.get('summary_result_fingerprint'): st.warning('Inputs changed. Calculate results again.')
         return
@@ -193,6 +218,9 @@ def render_summary_analysis(source):
         prepared.append({'metric':metric,'overall':overall,'overall_rows':overall_rows,'segments':segment_rows,
                          'audit':audit,'issues':issues,'binary':binary,'key':key,'insight':rule_based_decision(context)})
 
+    render_context_card('Results match the current inputs', [
+        ('Dataset', dataset_name), ('Control', control), ('Primary metric', primary),
+        ('Calculated at (UTC)', st.session_state.get('summary_result_timestamp', 'Not recorded'))], tone='success')
     st.markdown('### Overall results')
     st.caption('Lift is relative to Control. ★ marks a statistically significant comparison. Hover over a bar for its p-value and sample size. Whiskers show the confidence interval for the Test–Control difference, shifted to the average scale.')
     if len(options) > STRATEGIES_PER_PAGE:
@@ -249,7 +277,7 @@ def render_summary_analysis(source):
     if any(item['binary'] for item in prepared): input_columns.append('success_count')
     input_data = data.loc[data.metric.isin(selected_metrics), input_columns].astype(object)
     input_data = input_data.where(pd.notna(input_data), None)
-    report = {'name':report_name, 'source':source, 'input_format':'Summary statistics', 'synthetic':source == 'Synthetic demo',
+    report = {'name':report_name, 'source':source, 'dataset':dataset_name, 'input_format':'Summary statistics', 'synthetic':source == 'Synthetic demo',
               'control':control, 'partners':chosen if partners else [], 'group_by':None if group == groups[0] else group, 'alpha':alpha, 'protection':protection,
               'calculated_at':st.session_state.get('summary_result_timestamp'), 'fingerprint':fingerprint, 'metrics':report_metrics,
               'input_columns':input_columns, 'input_rows':input_data.to_dict('records')}

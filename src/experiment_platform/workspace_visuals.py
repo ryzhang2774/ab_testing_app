@@ -33,6 +33,14 @@ def workspace_css():
                      for name in ('bulma.min.css', 'workspace.css'))
 
 
+def render_context_card(title, items, tone='neutral'):
+    """Show checked inputs or calculation provenance consistently across workflows."""
+    fields = ''.join('<div><dt>' + escape(str(label)) + '</dt><dd>' + escape(str(value)) + '</dd></div>'
+                     for label, value in items)
+    st.markdown(f'<section class="workflow-context {escape(tone, quote=True)}" aria-label="{escape(title, quote=True)}">'
+                f'<h3>{escape(title)}</h3><dl>{fields}</dl></section>', unsafe_allow_html=True)
+
+
 def location_trail(location):
     return (f'<div class="bulma-breadcrumb workspace-trail" aria-label="Location">'
             f'<ul><li>Experiment Platform</li><li>{escape(location)}</li></ul></div>')

@@ -10,13 +10,13 @@ from streamlit.components.v1 import html as component_html
 import plotly.express as px
 
 from .business_config import default_config, fingerprint
-from .business_data import canonical, read_table
+from .business_data import canonical, read_table, row_issue
 from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import demo_credit_line_caption, historical_demo
 from .customer_palette import ROLE_COLORS, STRATEGY_COLORS
 from .customer_grouping import ordered_groups, historical_strategy_order
-from .workspace_visuals import allocation_bars, recruitment_composition, render_history_details
+from .workspace_visuals import allocation_bars, recruitment_composition, render_history_details, render_context_card
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
 def demo_data():
@@ -180,7 +180,8 @@ def demo_overall_summary(frame, by_partner=False):
 
 
 def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', grouping=None, allow_pool=False) -> pd.DataFrame:
-    d = _canonical_input(frame, default_metric)
+    d = _canonical_input(frame, default_metric).reset_index(drop=True)
+    source_rows = np.arange(len(d)) + 2
     fields = ['partner', 'strategy', 'metric', 'sample_mean', 'sample_variance', 'sample_number']
     missing = [x for x in fields if x not in d]
     if missing:
@@ -191,6 +192,7 @@ def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', groupi
         d['group_by'] = d['group_by'].astype(str).str.strip()
         grouping = grouping or d['group_by'].iloc[0]
         d = d[d['group_by'].eq(grouping)].copy()
+        source_rows = source_rows[d.index]
         dimensions = ['segment']
     else:
         if not candidates:
@@ -204,17 +206,20 @@ def normalize_table(frame: pd.DataFrame, default_metric='Primary metric', groupi
         d['group_by'] = grouping
     for col in list(dict.fromkeys(['partner', 'group_by', 'strategy', 'metric'] + dimensions)):
         if d[col].isna().any() or d[col].astype(str).str.strip().eq('').any():
-            raise ValueError(f'{col}: fill in every row.')
+            raise ValueError(row_issue(d[col].isna() | d[col].astype(str).str.strip().eq(''), f'{col}: fill in every row.', source_rows))
         d[col] = d[col].astype(str).str.strip()
     for col in ['sample_mean', 'sample_variance', 'sample_number']:
         d[col] = pd.to_numeric(d[col], errors='coerce')
         if not np.isfinite(d[col]).all():
-            raise ValueError(f'{col}: every row must contain a valid number.')
-    if (d.sample_variance < 0).any() or (d.sample_number < 2).any() or (d.sample_number % 1 != 0).any():
-        raise ValueError('Sample variance must be non-negative and sample number must be a whole number of at least 2.')
+            raise ValueError(row_issue(~np.isfinite(d[col]), f'{col}: every row must contain a valid number.', source_rows))
+    if (d.sample_variance < 0).any():
+        raise ValueError(row_issue(d.sample_variance < 0, 'Sample variance must be non-negative.', source_rows))
+    invalid_n = (d.sample_number < 2) | (d.sample_number % 1 != 0)
+    if invalid_n.any():
+        raise ValueError(row_issue(invalid_n, 'Sample number must be a whole number of at least 2.', source_rows))
     full_keys = list(dict.fromkeys(['partner', 'group_by', 'strategy', 'metric'] + dimensions))
     if d.duplicated(full_keys).any():
-        raise ValueError('Duplicate historical combinations. Do not add monthly rows when the same customers can appear more than once; provide non-overlapping summaries.')
+        raise ValueError(row_issue(d.duplicated(full_keys, keep=False), 'Duplicate historical combinations. Do not add monthly rows when the same customers can appear more than once; provide non-overlapping summaries.', source_rows))
     if not legacy:
         d['segment'] = d[mapping[grouping]]
     keys = ['partner', 'group_by', 'segment', 'strategy', 'metric']
@@ -283,16 +288,20 @@ def calculate_group_plans(data, partners, segments, selections, primary, guardra
     return result
 
 
-def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries, group_selections=None):
+def _run_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw, grouping, boundaries, group_selections=None, input_context=None):
     if group_selections is None and not tests:
         st.session_state.customer_plan_error = 'Choose at least one Test option.'
         return
+    progress = st.progress(.1, text='Checking history and calculating sample sizes...')
     try:
         plan = (calculate_group_plans(data, partners, segments, group_selections, primary, guardrail, effect, scale, alpha, power, multiplicity, margin)
                 if group_selections is not None else
                 calculate_plan(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin))
         plan['config']['synthetic'] = source == 'Synthetic demo'
         plan['input_source'] = source
+        plan['input_context'] = input_context or {}
+        plan['input_fingerprint'] = (input_context or {}).get('fingerprint', '')
+        st.session_state.customer_plan_dataset_name = (input_context or {}).get('dataset', source)
         plan['input_grouping'] = grouping
         plan['group_boundaries'] = boundaries
         st.session_state.customer_plan_draft = dict(source=source, raw=raw.copy(), partners=partners, segments=segments, control=control, tests=tests, primary=primary, guardrail=guardrail, effect=effect, scale=scale, alpha=alpha, power=power, multiplicity=multiplicity, margin=margin, grouping=grouping, boundaries=boundaries, group_selections=group_selections)
@@ -302,6 +311,8 @@ def _run_plan(data, partners, segments, control, tests, primary, guardrail, effe
         st.session_state.customer_plan_error = ''
     except (ValueError, OverflowError) as exc:
         st.session_state.customer_plan_error = str(exc)
+    finally:
+        progress.empty()
 
 
 def render_customer_plan():
@@ -311,6 +322,8 @@ def render_customer_plan():
         group_plans = plan.get('group_plans')
         targets = pd.DataFrame(plan['targets'])
         grouping = plan.get('input_grouping') or 'Group'
+        primary_metric = plan['config']['metrics'][0]
+        context = plan.get('input_context', {})
         counts = targets.groupby(['segment', 'arm'], sort=False)['recruitment_n'].sum()
         groups = ordered_groups(targets.segment.unique(), grouping)
         options = historical_strategy_order(targets.arm.unique())
@@ -339,6 +352,15 @@ def render_customer_plan():
             with breakdown:
                 recruitment_composition(groups, [row['total'] for row in table_rows[:-1]], total, grouping)
 
+        change_label = (f"{primary_metric['effect']:g}% of Control mean" if primary_metric['effect_scale'] == 'Relative %'
+                        else f"{primary_metric['effect']:g} metric units")
+        render_context_card('Calculated plan', [
+            ('Data source', context.get('dataset', plan.get('input_source', 'Not recorded'))),
+            ('Primary metric', primary_metric['name']), ('Group by', grouping),
+            ('Change to detect', change_label),
+            ('Test settings', f"{plan['config']['power']:.0%} detection chance · {1-plan['config']['alpha']:.0%} confidence"),
+            ('Calculated at (UTC)', plan.get('saved_at', 'Not recorded'))])
+
         st.markdown(f'**Required customers by {grouping} and strategy**')
         st.caption('Each cell shows how many customers to assign. A dash means the strategy is outside that group’s plan.')
         st.dataframe(pd.DataFrame(table_rows), hide_index=True, use_container_width=True,
@@ -353,8 +375,6 @@ def render_customer_plan():
             allocation_bars(strategies['Option'], strategies['Required customers'], group_total,
                             'Share of group', strategies['Role'])
 
-        m=plan['config']['metrics'][0]
-        st.info(f"Primary metric: {m['name']} · MDE: {m['effect']:g} {m['effect_scale']} · Power: {plan['config']['power']:.0%} · Confidence level: {1-plan['config']['alpha']:.0%}")
         st.caption('Historical Control counts define the Partner mix within each group. Keep that mix across its Control and Tests. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.' if group_plans else 'Historical Control counts define the assumed Partner / Segment mix. Keep this same mix across all groups. Historical option differences are not assumed to be causal. Power is per comparison; estimates depend on historical variances.')
         with st.expander('Population mix and sample detail'):
             from .business_plan import VERSION_UNAVAILABLE
@@ -405,6 +425,7 @@ def render_customer_plan():
     if source == 'Databricks':
         st.info('Databricks is not connected yet. Choose Upload file or Synthetic demo to continue.')
         return
+    dataset_name = 'Synthetic credit line history' if source == 'Synthetic demo' else st.session_state.get('customer_plan_dataset_name', 'Entered historical statistics')
     metric_default='Primary metric'
     if source == 'Synthetic demo':
         st.caption('Synthetic credit line history across partners, FICO groups and PD score groups.')
@@ -415,7 +436,14 @@ def render_customer_plan():
         st.caption('Demo rows within each Strategy and Metric represent non-overlapping customers.')
     else:
         st.download_button('Download CSV template', demo_data().head(6).to_csv(index=False), 'customer-history-template.csv', 'text/csv')
-        st.caption('Each row describes a Partner, strategy, metric and combination of grouping columns. Use a consistent observation window and non-overlapping customers.')
+        with st.expander('How to prepare your statistics'):
+            st.write('Use one row for each Partner, group, strategy and metric, measured over the same observation window.')
+            st.dataframe(pd.DataFrame([
+                ('Partner', 'Business partner name'), ('FICO group / other grouping column', 'The population group for this row'),
+                ('Strategy', 'Historical credit line or other tested option'), ('Metric', 'The outcome these statistics describe'),
+                ('Sample mean', 'Average outcome per customer'), ('Sample variance', 'Sample variance of the customer outcomes, using denominator N − 1'),
+                ('Sample number', 'Number of customers used for that mean and variance')], columns=['Column', 'What to provide']), hide_index=True, use_container_width=True)
+            st.caption('Keep customers non-overlapping within each metric. Repeated monthly snapshots of the same customers need a separate aggregation approach.')
         input_method=st.radio('How would you like to add data?', ['Upload CSV / Excel', 'Enter or paste data'], horizontal=True)
         if input_method == 'Upload CSV / Excel':
             upload=st.file_uploader('Upload historical statistics', type=['csv','xlsx','xlsm'])
@@ -426,12 +454,14 @@ def render_customer_plan():
                 st.caption('Each row is one Partner × Segment × Strategy × Metric. Excel: .xlsx or .xlsm.')
                 return
             else:
+                dataset_name = upload.name
                 try:
                     raw=pd.read_excel(BytesIO(upload.getvalue()), dtype=str, keep_default_na=False, engine='openpyxl') if upload.name.lower().endswith(('.xlsx','.xlsm')) else read_table(upload.getvalue())
                 except (ValueError, UnicodeError, ImportError, OSError) as exc:
                     st.error(f'Could not read file: {exc}')
                     return
         else:
+            dataset_name = 'Entered historical statistics'
             input_style=st.radio('Input method', ['Editable table', 'Paste CSV / tab-separated'], horizontal=True)
             if input_style == 'Editable table':
                 raw=st.data_editor(pd.DataFrame([['','','','','',None,None,None]],columns=COLUMNS), num_rows='dynamic', hide_index=True, use_container_width=True, key='customer_plan_editor')
@@ -543,6 +573,10 @@ def render_customer_plan():
     guardrail_options = ['None']+[n for n in names if n != primary]
     guardrail=y.selectbox('Guardrail metric (optional)', guardrail_options, index=guardrail_options.index(draft.get('guardrail')) if draft.get('guardrail') in guardrail_options else 0)
     guardrail=None if guardrail=='None' else guardrail
+    render_context_card('Data checks passed', [
+        ('Data source', dataset_name), ('Source rows', f'{len(raw):,}'), ('Prepared summary rows', f'{len(data):,}'),
+        ('Selected partners', len(partners)), ('Selected groups', len(segments)),
+        ('Primary metric', primary), ('Checks', 'Required fields, numeric values and duplicate combinations')], tone='success')
     history = view.loc[view.metric.eq(primary)].copy()
     options = historical_strategy_order(history.strategy.unique())
     st.markdown('### Review historical strategies')
@@ -615,8 +649,8 @@ def render_customer_plan():
     st.markdown('### Set the change worth detecting')
     mde_col, scale_col=st.columns(2)
     scales=['Relative %','Absolute']
-    scale=scale_col.selectbox('MDE type', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
-    effect = mde_col.number_input('Minimum detectable effect (MDE)', min_value=0.001,
+    scale=scale_col.selectbox('Change measured as', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
+    effect = mde_col.number_input('Smallest change worth detecting (MDE)', min_value=0.001,
                                   value=float(draft.get('effect', 5.0)),
                                   step=1.0 if scale == 'Relative %' else 0.01,
                                   help='Smallest change worth detecting, not a prediction of the outcome.')
@@ -628,15 +662,55 @@ def render_customer_plan():
                                  help='Adjust the significance level across planned comparisons. Without this protection, the chance of at least one false positive increases when comparing multiple Tests.')
         st.caption('Default: pairwise Neyman allocation with a shared Control; historical Control customer counts determine the population mix across arms.')
         margin=st.number_input('Guardrail maximum tolerated deterioration (absolute units; 0 = monitoring only)', min_value=0.,value=float(draft.get('margin',0.))) if guardrail else 0.
-    ready = all(choice['tests'] for choice in selections.values())
-    if not ready:
-        st.info('Choose at least one Test option for each included group to get a plan.')
+    review_rows = []
+    issues = []
+    metrics_to_check = [primary] + ([guardrail] if guardrail else [])
+    for segment, choice in selections.items():
+        baseline = history[history.strategy.eq(choice['control'])]
+        if separate:
+            baseline = baseline[baseline.segment.eq(segment)]
+        control_mean = (float(np.average(baseline.sample_mean, weights=baseline.sample_number))
+                        if not baseline.empty else np.nan)
+        delta = abs(control_mean) * effect / 100 if scale == 'Relative %' else effect
+        review_rows.append({grouping: segment, 'Control': choice['control'] or 'Choose a Control',
+                            'Tests': ', '.join(choice['tests']) or 'Choose at least one Test',
+                            'Control historical mean': control_mean, f'Change to detect · {primary}': delta})
+        if not choice['control'] or not choice['tests']:
+            issues.append(f'{segment}: choose a Control and at least one Test in the {group_view} tab.')
+            continue
+        try:
+            prepare_history(data, partners, [segment], choice['control'], choice['tests'], metrics_to_check)
+        except ValueError as exc:
+            issues.append(str(exc))
+    st.markdown('### Review your experiment')
+    st.caption(f'Check the strategies for every group before calculating. Edit them beside the charts in the {group_view} tab. '
+               'For relative MDE, the change in metric units is the absolute Control historical mean × MDE / 100.')
+    st.dataframe(pd.DataFrame(review_rows), hide_index=True, use_container_width=True,
+                 column_config={'Control historical mean': st.column_config.NumberColumn(format='%.2f'),
+                                f'Change to detect · {primary}': st.column_config.NumberColumn(format='%.2f')})
+    input_context = {'dataset': dataset_name, 'source': source, 'group_by': grouping,
+                     'partners': partners, 'primary': primary, 'guardrail': guardrail,
+                     'group_selections': selections, 'effect': effect, 'scale': scale,
+                     'alpha': alpha, 'power': power, 'multiplicity': multiplicity, 'margin': margin,
+                     'separate_groups': separate, 'boundaries': boundaries}
+    input_context['fingerprint'] = fingerprint({'inputs': input_context, 'data': raw_before_binning.to_csv(index=False)})
+    previous_plan = st.session_state.get('customer_plan_result')
+    if previous_plan and previous_plan.get('input_fingerprint') != input_context['fingerprint']:
+        render_context_card('Settings changed since the previous plan', [
+            ('Next step', 'Get plan to calculate updated sample sizes'),
+            ('Previous calculation (UTC)', previous_plan.get('saved_at', 'Not recorded'))], tone='review')
+    ready = not issues
+    for issue in issues:
+        st.warning(issue)
+    if st.session_state.get('customer_plan_settings_fingerprint') != input_context['fingerprint']:
+        st.session_state.customer_plan_error = ''
+        st.session_state.customer_plan_settings_fingerprint = input_context['fingerprint']
     if st.session_state.get('customer_plan_error'):
         st.error(st.session_state.customer_plan_error)
     brief, action = st.columns([2, 1])
     comparisons = sum(len(choices['tests']) for choices in selections.values()) if separate else len(tests)
-    brief.markdown('**Sample size plan**')
+    brief.markdown('**Ready to calculate**' if ready else '**Complete the settings above**')
     brief.caption(f"{comparisons} planned Test-to-Control comparison{'s' if comparisons != 1 else ''} · "
-                  f"{power:.0%} power · {1-alpha:.0%} confidence")
+                  f"{power:.0%} detection chance · {1-alpha:.0%} confidence")
     action.button('Get plan', type='primary', key='customer_get_plan', use_container_width=True, disabled=not ready, on_click=_run_plan,
-              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries, group_selections))
+              args=(data, partners, segments, control, tests, primary, guardrail, effect, scale, alpha, power, multiplicity, margin, source, raw_before_binning, grouping, boundaries, group_selections, input_context))

@@ -389,3 +389,68 @@ def test_html_uses_only_selected_inputs_and_updates_for_new_data():
     assert all(value not in second_text for value in ['Holland', 'FICO A', 'FICO B', 'Revolving Balance', 'Unused 3000'])
     assert first['data_fingerprint'] != second['data_fingerprint']
     assert first['arm_totals'] != second['arm_totals']
+
+
+def test_review_matches_group_sizing_and_changed_settings_are_identified():
+    app = AppTest.from_file('app.py', default_timeout=90).run()
+    app.button(key='home_choose_customer').click().run()
+    app.button(key='customer_demo_plan').click().run()
+    controls = [item for item in app.selectbox if item.label.startswith('Control — ')]
+    controls[1].set_value('Credit line 2000').run()
+    tests = [item for item in app.multiselect if item.label.startswith('Test options — ')]
+    tests[1].set_value(['Credit line 3000']).run()
+    review = next(item.value for item in app.dataframe if 'Control historical mean' in item.value.columns)
+    assert review.iloc[1]['Control'] == 'Credit line 2000'
+    assert review.iloc[1]['Tests'] == 'Credit line 3000'
+    assert any('Data checks passed' in item.value for item in app.markdown)
+    app.button(key='customer_get_plan').click().run()
+    assert not app.exception
+    plan = app.session_state.customer_plan_result
+    for group in plan['group_plans']:
+        comparison = group['plan']['comparisons'][0]
+        row = review[review['FICO group'].eq(group['segment'])].iloc[0]
+        assert row['Control historical mean'] == pytest.approx(comparison['baseline'])
+        assert row['Change to detect · Revolving Balance'] == pytest.approx(comparison['detectable_change_or_margin'])
+    report = build_html_summary(plan).decode()
+    assert plan['input_fingerprint'] in report
+    assert plan['input_context']['dataset'] in report
+    next(button for button in app.button if button.label == 'Back to settings').click().run()
+    mde = next(item for item in app.number_input if item.label == 'Smallest change worth detecting (MDE)')
+    mde.set_value(6.).run()
+    assert any('Settings changed since the previous plan' in item.value for item in app.markdown)
+    app.button(key='customer_get_plan').click().run()
+    assert app.session_state.customer_plan_result['input_fingerprint'] != plan['input_fingerprint']
+    assert app.session_state.customer_plan_result['config']['metrics'][0]['effect'] == 6.
+
+
+def test_validation_names_source_rows_even_with_custom_dataframe_index():
+    rows = pd.DataFrame([
+        {'Partner':'A', 'Segment':'Low', 'Strategy':'Control', 'Metric':'Revenue', 'Sample mean':10, 'Sample variance':4, 'Sample number':20},
+        {'Partner':'A', 'Segment':'Low', 'Strategy':'Test', 'Metric':'Revenue', 'Sample mean':12, 'Sample variance':4, 'Sample number':2.5},
+    ], index=[100, 200])
+    with pytest.raises(ValueError, match=r'whole number.*row\(s\) 3'):
+        normalize_table(rows)
+    from src.experiment_platform.customer_summary_results import normalize_summary
+    with pytest.raises(ValueError, match=r'whole number.*row\(s\) 3'):
+        normalize_summary(rows)
+
+
+def test_missing_partner_history_blocks_planning_before_calculation(monkeypatch):
+    from src.experiment_platform import customer_plan_ui
+    raw = pd.DataFrame([
+        {'Partner':partner, 'FICO group':'Low', 'Strategy':strategy, 'Metric':'Revenue',
+         'Sample mean':10., 'Sample variance':4., 'Sample number':20}
+        for partner, strategy in [('A','500'), ('A','1000'), ('B','500')]])
+    monkeypatch.setattr(customer_plan_ui, 'demo_data', lambda: raw.copy())
+    app = AppTest.from_string('from src.experiment_platform.customer_plan_ui import render_customer_plan\nrender_customer_plan()', default_timeout=60).run()
+    assert not app.exception
+    assert app.button(key='customer_get_plan').disabled
+    assert any('Missing historical statistics' in item.value and 'B / Low / 1000' in item.value for item in app.warning)
+
+
+def test_legacy_validation_keeps_original_source_row_numbers():
+    raw = pd.DataFrame([
+        {'Partner':'A', 'Group by':'Other', 'Segment':'Low', 'Strategy':'500', 'Metric':'Revenue', 'Sample mean':10., 'Sample variance':4., 'Sample number':20},
+        {'Partner':'A', 'Group by':'FICO', 'Segment':'Low', 'Strategy':'500', 'Metric':'Revenue', 'Sample mean':10., 'Sample variance':4., 'Sample number':1}])
+    with pytest.raises(ValueError, match=r'row\(s\) 3'):
+        normalize_table(raw, grouping='FICO')

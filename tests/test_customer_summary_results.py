@@ -177,3 +177,12 @@ def test_metric_options_update_with_pasted_dataset_and_removal():
     assert not app.exception
     assert app.selectbox(key='summary_extra_1').value is None
     assert app.selectbox(key='summary_extra_1').options == ['New metric']
+    app.button(key='summary_remove_1').click().run()
+    app.checkbox(key='summary_disjoint_confirmation').check().run()
+    app.button(key='summary_calculate').click().run()
+    assert not app.exception and app.get('plotly_chart')
+    changed = rows(['Balance','New metric']).replace(',10,4,100', ',12,4,100')
+    app.text_area(key='summary_paste').set_value(changed).run()
+    assert not app.exception
+    assert not app.checkbox(key='summary_disjoint_confirmation').value
+    assert not app.get('plotly_chart')
