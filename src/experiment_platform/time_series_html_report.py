@@ -57,6 +57,18 @@ def build_analysis_html(bundle, cfg, source, group, label, calculated_at=None, i
                 _num(model['observed_total']), _num(model['expected_total']), _num(model['cumulative_impact']),
                 _num(model['relative_impact'] * 100, 2) + '%' if model['expected_total'] > 0 and pd.notna(model['relative_impact']) else 'Not available',
                 f"{_num(low)} to {_num(high)} ({model['interval_level']:.0%})", model.get('reliability','Review')]]))
+            matching = model['result'].loc[model['result']['_date'].between(pp['post_start'], pp['post_end'])]
+            if not matching.empty:
+                baseline_mean = float(matching['counterfactual'].mean())
+                sections.append('<h3>Why pre–post and counterfactual differ</h3>'
+                                '<p>For the same matching post window, the observed mean change can be separated into '
+                                'expected baseline movement and the difference from that expected baseline. '
+                                'Pre–post lift divides by the before mean; model lift divides by the expected baseline. '
+                                'The headline model totals use the full selected post window.</p>')
+                sections.append(_table(['Before mean', 'Expected post mean without launch', 'Observed post mean',
+                                        'Expected baseline movement', 'Observed minus expected'], [[
+                    _num(pp['pre_value']), _num(baseline_mean), _num(pp['post_value']),
+                    _num(baseline_mean - pp['pre_value']), _num(pp['post_value'] - baseline_mean)]]))
             if model.get('estimation', '').startswith('Bayesian monthly'):
                 sections.append(f"<p>Bayesian monthly counterfactual fitted on {model['pre_observations']} pre-launch "
                                 f"months and evaluated on {model['post_observations']} campaign months. "
@@ -64,15 +76,15 @@ def build_analysis_html(bundle, cfg, source, group, label, calculated_at=None, i
             spec = model.get('model_specification', {})
             sections.append(f"<p>Seasonal cycle: {_e(model.get('seasonal_period') or 'not included')} periods; trend: {_e(spec.get('level', 'Not recorded'))}; comparison signals: {_e(', '.join(model.get('covariates', [])) or 'none')}.</p>")
             if model.get('monthly_priors') is not None:
-                sections.append('<h3>Monthly model calculation</h3>')
+                sections.append('<h3>Monthly model calculation and fitting</h3>')
                 sections.append('<p>Expected outcome = baseline level and trend + annual seasonal contribution + comparison signal contribution. '
                                 'Each month the level advances by the previous slope plus a level innovation; the slope can change by a slope innovation. '
                                 'When enabled, the annual component is a × sin(2π × month / 12) + b × cos(2π × month / 12). '
                                 'The coefficients a and b have zero-centred shrinkage priors. Disabled components contribute zero. '
                                 'Only pre-launch outcomes update the model. Future baseline paths are simulated jointly, including '
                                 'uncertainty in the level, slope, enabled coefficients, shared noise variance and future observations. '
-                                'The impact interval is obtained from the campaign-total impact across these paths.</p>')
-                sections.append(_table(['Fixed prior assumption', 'Variance ratio relative to observation noise'],
+                                'Candidate level and slope variances and seasonal shrinkage strengths are averaged using posterior weights from pre-launch marginal likelihoods. The impact interval is obtained from the campaign-total impact across these paths.</p>')
+                sections.append(_table(['Posterior average parameter', 'Variance ratio relative to observation noise'],
                                        [[key, _precise(value)] for key, value in model['monthly_priors'].items()
                                         if key != 'seasonal_harmonics']))
                 components = model.get('components')
@@ -83,6 +95,22 @@ def build_analysis_html(bundle, cfg, source, group, label, calculated_at=None, i
                     sections.append(_table(['Date', 'Phase', 'Level and trend', 'Annual seasonal contribution', 'Comparison signal contribution', 'Expected'],
                         [[str(r['_date'].date()), r['phase'], _precise(r['level_and_trend']), _precise(r['seasonal']),
                           _precise(r['comparison_signals']), _precise(r['expected'])] for r in components.to_dict('records')]))
+            fitting = model.get('fitting')
+            if fitting:
+                sections.append('<h3>Candidate model weights</h3>')
+                sections.append(_table(['Level innovation ratio', 'Slope innovation ratio', 'Seasonal prior ratio', 'Posterior weight'],
+                    [[_precise(row['level_variance_ratio']), _precise(row['slope_variance_ratio']),
+                      _precise(row['seasonal_prior_variance_ratio']), _precise(row['posterior_weight'])] for row in fitting['candidates']]))
+            backtest = model.get('backtest', {})
+            if backtest.get('predictions'):
+                sections.append('<h3>Rolling forecasts tested before launch</h3>'
+                                '<p>Each origin refits using only earlier pre-launch observations. Forecasts from overlapping origins are dependent. Short histories provide limited validation.</p>')
+                sections.append(_table(['Origins', 'Forecast errors', 'MAE', 'RMSE', 'Last-value baseline MAE', 'Interval coverage'], [[
+                    backtest['folds'], backtest['forecast_points'], _num(backtest['mae']), _num(backtest['rmse']),
+                    _num(backtest['naive_mae']), _num(backtest['interval_coverage'], 4)]]))
+                sections.append(_table(['Training through', 'Horizon', 'Forecast date', 'Actual', 'Predicted', 'Lower', 'Upper', 'Last-value baseline'],
+                    [[row['origin'], row['horizon'], row['date'], _precise(row['actual']), _precise(row['predicted']),
+                      _precise(row['lower']), _precise(row['upper']), _precise(row['last_value_baseline'])] for row in backtest['predictions']]))
             for warning in model.get('warnings', []): sections.append(f'<p class="note">{_e(warning)}</p>')
             sections.append('<h3>Counterfactual by period</h3>')
             sections.append(_table(['Date', 'Actual', 'Estimated without campaign', 'Lower forecast bound', 'Upper forecast bound', 'Difference'],
@@ -93,6 +121,7 @@ def build_analysis_html(bundle, cfg, source, group, label, calculated_at=None, i
         signals = [c for c in getattr(cfg, 'selected_covariates', []) if c in item['data'].columns]
         sections.append(_table(['Date', label] + signals, [[str(r['_date'].date()), _precise(r['_outcome'])] + [_precise(r[c]) for c in signals] for r in item['data'].to_dict('records')]))
     body = f"<p>Source: {_e(source)} · Metric: {_e(label)} · Group by: {_e(group)} · Launch: {_e(cfg.intervention_date)} · Campaign end: {_e(cfg.campaign_end_date or 'latest observation')}.</p>"
+    body += _table(['Rows for each date', 'Missing periods', 'Seasonality request', 'Local trend'], [[getattr(cfg, 'duplicate_policy', 'Not recorded'), getattr(cfg, 'missing_policy', 'Not recorded'), getattr(cfg, 'seasonality', 'Not recorded'), getattr(cfg, 'local_trend', 'Not recorded')]])
     body += _table(['Dataset', 'Calculated at', 'Input reference'], [[getattr(cfg, 'dataset_name', 'Not recorded'), calculated_at or 'Not recorded', input_fingerprint or 'Not recorded']])
     body += "<p class='note'>This is an exploratory observational time-series analysis. Neither method alone proves the campaign caused the change.</p>" + ''.join(sections)
     body += '''<h2>How the results are calculated</h2><p>Before and after are averages over equal-length windows. Difference = after average − before average; lift = difference / before average when the baseline is positive.</p>

@@ -19,6 +19,8 @@ def test_analysis_report_contains_actual_counterfactual_and_escapes_input():
     assert '&lt;script&gt;' in report and '<script>' not in report
     assert 'Counterfactual by period' in report and '27.00' in report and '21.00' in report
     assert 'Newey–West' in report and 'Significant' not in report
+    assert 'Why pre–post and counterfactual differ' in report
+    assert '<td>10.50</td>' in report and '<td>-0.50</td>' in report
 
 
 def test_planning_report_marks_assumption_based_and_inputs():

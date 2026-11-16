@@ -448,3 +448,32 @@ def test_monthly_annual_forecast_repeats_and_gap_covariance_composes():
     gap_transition, gap_noise = _monthly_state_transition(4, 1, 3)
     np.testing.assert_allclose(gap_transition, combined_transition)
     np.testing.assert_allclose(gap_noise, combined_noise)
+
+
+def test_monthly_fitting_validates_on_pre_period_and_recovers_known_intervention():
+    dates = pd.date_range('2024-01-01', periods=17, freq='MS')
+    t = np.arange(17)
+    baseline = 100 + 4 * t + 12 * np.sin(2 * np.pi * t / 12)
+    data = prepare_timeseries_data(pd.DataFrame({'date':dates, 'value':baseline + np.where(t >= 13, 15., 0.)}), 'date', 'value')
+    result = fit_bsts_model(data, dates[13], 'Monthly', draws=4000)
+    assert result['cumulative_impact'] == pytest.approx(60., abs=5.)
+    assert result['prediction_interval'][0] < 60 < result['prediction_interval'][1]
+    assert result['backtest']['folds'] == 5
+    assert result['backtest']['rmse'] < 2
+    assert result['backtest']['mae'] < result['backtest']['naive_mae']
+    assert sum(row['posterior_weight'] for row in result['fitting']['candidates']) == pytest.approx(1.)
+    assert result['fitting']['effective_models'] > 1
+    shifted = data.copy()
+    shifted.loc[shifted._date >= dates[13], '_outcome'] += 50
+    other = fit_bsts_model(shifted, dates[13], 'Monthly', draws=4000)
+    assert other['fitting'] == result['fitting']
+    assert other['backtest'] == result['backtest']
+    assert other['cumulative_impact'] - result['cumulative_impact'] == pytest.approx(200)
+    # Reproduce a rolling holdout from its historical origin, without later pre data.
+    first = result['backtest']['predictions'][0]
+    cutoff = pd.Timestamp(first['origin'])
+    heldout = pd.Timestamp(first['date'])
+    truncated = data.loc[data._date <= heldout].copy()
+    replay = fit_bsts_model(truncated, heldout, 'Monthly', draws=100)
+    assert first['predicted'] == pytest.approx(replay['result'].counterfactual.iloc[0])
+    assert cutoff < heldout < dates[13]

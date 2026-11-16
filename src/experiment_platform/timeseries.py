@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 import numpy as np
 import pandas as pd
 from scipy import stats
+from scipy.special import logsumexp
 import statsmodels.api as sm
 from statsmodels.stats.diagnostic import acorr_ljungbox
 from statsmodels.tsa.statespace.structural import UnobservedComponents
@@ -859,14 +860,64 @@ def _joint_forecast_draws(fitted, steps: int, exog: pd.DataFrame | None, frame: 
     return values.T
 
 
-def _monthly_bayesian_forecast(pre, post, covariates, interval, draws, seed,
-                               seasonality="Auto", local_trend=True):
-    """Conjugate Gaussian structural model with a shared unknown variance.
+def _monthly_filter(y, design, gaps, slope_index, seasonal_start, signal_start,
+                    level_ratio, slope_ratio, seasonal_ratio):
+    """Condition a diffuse level and proper coefficient priors on the first outcome."""
+    size = design.shape[1]
+    prior = np.ones(size - 1)
+    if slope_index is not None:
+        prior[slope_index - 1] = 10.
+    prior[seasonal_start - 1:signal_start - 1] = seasonal_ratio
+    state = np.zeros(size)
+    state[0] = y[0]
+    covariance = np.diag(np.r_[1., prior])
+    cross = prior * design[0, 1:]
+    covariance[0, 0] += design[0, 1:] @ cross
+    covariance[0, 1:] = covariance[1:, 0] = -cross
+    sum_sq, log_variance = 0., 0.
+    filtered = [state.copy()]
+    for t in range(1, len(y)):
+        transition, evolution = _monthly_state_transition(size, slope_index, gaps[t - 1], level_ratio, slope_ratio)
+        state = transition @ state
+        covariance = transition @ covariance @ transition.T + evolution
+        projected = covariance @ design[t]
+        variance = 1 + design[t] @ projected
+        error = y[t] - design[t] @ state
+        state += projected * (error / variance)
+        covariance -= np.outer(projected, projected) / variance
+        covariance = (covariance + covariance.T) / 2
+        sum_sq += error**2 / variance
+        log_variance += np.log(variance)
+        filtered.append(state.copy())
+    # Integrated likelihood with p(V) proportional to 1/V. All candidates use
+    # the same conditioning observation and proper coefficient prior families.
+    score = -.5 * log_variance - .5 * (len(y) - 1) * np.log(max(sum_sq, np.finfo(float).tiny))
+    return {'state': state, 'covariance': covariance, 'sum_sq': sum_sq,
+            'filtered': filtered, 'log_evidence': score, 'level_ratio': level_ratio,
+            'slope_ratio': slope_ratio, 'seasonal_ratio': seasonal_ratio}
 
-    The level and optional slope evolve monthly. Annual seasonality uses one
-    regularized Fourier harmonic. All state/noise variances are multiples of V,
-    with p(V) proportional to 1/V, so filtering and posterior simulation integrate
-    V analytically. Fixed variance ratios are explicit modelling assumptions.
+
+def _monthly_mixture_quantile(probability, means, scales, weights, df):
+    """Invert the predictive Student-t mixture CDF without Monte Carlo noise."""
+    component_quantiles = means + stats.t.ppf(probability, df) * scales
+    low, high = component_quantiles.min(axis=0), component_quantiles.max(axis=0)
+    for _ in range(50):
+        midpoint = (low + high) / 2
+        cdf = np.sum(weights[:, None] * stats.t.cdf((midpoint - means) / scales, df), axis=0)
+        below = cdf < probability
+        low = np.where(below, midpoint, low)
+        high = np.where(below, high, midpoint)
+    return (low + high) / 2
+
+
+def _monthly_bayesian_forecast(pre, post, covariates, interval, draws, seed,
+                               seasonality="Auto", local_trend=True, validate=True):
+    """Average conjugate structural forecasts using pre-period evidence only.
+
+    A finite prior grid covers smooth and adaptive levels/slopes and seasonal
+    shrinkage. Each grid point has a proper coefficient prior conditional on V,
+    and p(V) proportional to 1/V. Forecast paths mix the posterior grid weights
+    and retain shared parameter/state uncertainty across the entire post window.
     """
     combined = pd.concat([pre, post])
     signals, valid, notes = _build_exog(combined, covariates, combined.index)
@@ -908,89 +959,127 @@ def _monthly_bayesian_forecast(pre, post, covariates, interval, draws, seed,
         design[:, seasonal_start:signal_start] = np.column_stack([np.sin(phase), np.cos(phase)])
     if columns:
         design[:, signal_start:] = signals[columns].to_numpy()
-
-    # Condition a diffuse initial level and proper coefficient priors on y[0].
-    # Seasonal amplitudes shrink towards zero; slope is in outcome units/month.
-    prior = np.ones(size - 1)
-    if local_trend:
-        prior[slope_index - 1] = 1.
-    if use_seasonality:
-        prior[seasonal_start - 1:signal_start - 1] = 1.
-    state = np.zeros(size)
-    state[0] = y[0]
-    covariance = np.diag(np.r_[1., prior])
-    cross = prior * design[0, 1:]
-    covariance[0, 0] += design[0, 1:] @ cross
-    covariance[0, 1:] = covariance[1:, 0] = -cross
-    sum_sq = 0.
-    filtered = [state.copy()]
-    for t in range(1, len(pre)):
-        transition, evolution = _monthly_state_transition(size, slope_index, gaps[t - 1])
-        state = transition @ state
-        covariance = transition @ covariance @ transition.T + evolution
-        row = design[t]
-        projected = covariance @ row
-        variance = 1 + row @ projected
-        error = y[t] - row @ state
-        state += projected * (error / variance)
-        covariance -= np.outer(projected, projected) / variance
-        covariance = (covariance + covariance.T) / 2
-        sum_sq += error**2 / variance
-        filtered.append(state.copy())
-
+    seasonal_ratios = [0., .1, 1., 10., 100.] if seasonality == 'Auto' else [.1, 1., 10., 100.]
+    if not use_seasonality:
+        seasonal_ratios = [0.]
+    candidates = [
+        _monthly_filter(y, design, gaps, slope_index, seasonal_start, signal_start, level, slope, seasonal)
+        for level in [.001, .03, .3]
+        for slope in ([0., .0001, .01] if local_trend else [0.])
+        for seasonal in seasonal_ratios]
+    log_evidence = np.array([candidate['log_evidence'] for candidate in candidates])
+    weights = np.exp(log_evidence - logsumexp(log_evidence))
     df = len(pre) - 1
     rng = np.random.default_rng(seed)
-    scale = np.sqrt(sum_sq / rng.chisquare(df, draws))
-    covariance = (covariance + covariance.T) / 2
-    paths_state = state + rng.multivariate_normal(np.zeros(size), covariance, size=draws) * scale[:, None]
+    membership = rng.choice(len(candidates), size=draws, p=weights)
     paths = np.empty((draws, len(post)))
-    mean, variances, future_states = [], [], []
-    for step, t in enumerate(range(len(pre), len(combined))):
-        transition, evolution = _monthly_state_transition(size, slope_index, gaps[t - 1])
-        state = transition @ state
-        covariance = transition @ covariance @ transition.T + evolution
-        row = design[t]
-        mean.append(row @ state)
-        variances.append(1 + row @ covariance @ row)
-        future_states.append(state.copy())
-        paths_state = paths_state @ transition.T
-        paths_state += rng.multivariate_normal(np.zeros(size), evolution, size=draws) * scale[:, None]
-        paths[:, step] = paths_state @ row + rng.normal(size=draws) * scale
-    mean = np.asarray(mean)
-    radius = stats.t.ppf((1 + interval) / 2, df) * np.sqrt(np.asarray(variances) * sum_sq / df)
-    states = np.asarray(filtered + future_states)
+    component_states, means, scales = [], [], []
+    for number, candidate in enumerate(candidates):
+        state = candidate['state'].copy()
+        covariance = candidate['covariance'].copy()
+        positions = np.flatnonzero(membership == number)
+        noise_scale = np.sqrt(candidate['sum_sq'] / rng.chisquare(df, len(positions)))
+        path_states = state + rng.multivariate_normal(np.zeros(size), covariance, size=len(positions)) * noise_scale[:, None]
+        future_states, model_means, model_scales = [], [], []
+        for step, t in enumerate(range(len(pre), len(combined))):
+            transition, evolution = _monthly_state_transition(size, slope_index, gaps[t - 1],
+                                                               candidate['level_ratio'], candidate['slope_ratio'])
+            state = transition @ state
+            covariance = transition @ covariance @ transition.T + evolution
+            model_means.append(design[t] @ state)
+            predictive_variance = (1 + design[t] @ covariance @ design[t]) * candidate['sum_sq'] / df
+            model_scales.append(np.sqrt(max(predictive_variance, np.finfo(float).tiny)))
+            future_states.append(state.copy())
+            if len(positions):
+                path_states = path_states @ transition.T
+                path_states += rng.multivariate_normal(np.zeros(size), evolution, size=len(positions)) * noise_scale[:, None]
+                paths[positions, step] = path_states @ design[t] + rng.normal(size=len(positions)) * noise_scale
+        component_states.append(np.asarray(candidate['filtered'] + future_states))
+        means.append(model_means)
+        scales.append(model_scales)
+    means, scales = np.asarray(means), np.asarray(scales)
+    mean = weights @ means
+    alpha = 1 - interval
+    lower = _monthly_mixture_quantile(alpha / 2, means, scales, weights, df)
+    upper = _monthly_mixture_quantile(1 - alpha / 2, means, scales, weights, df)
+    states = np.tensordot(weights, np.asarray(component_states), axes=(0, 0))
     components = combined[["_date"]].copy()
     components["level_and_trend"] = states[:, 0]
     components["seasonal"] = np.sum(states[:, seasonal_start:signal_start] * design[:, seasonal_start:signal_start], axis=1)
     components["comparison_signals"] = np.sum(states[:, signal_start:] * design[:, signal_start:], axis=1)
     components["expected"] = components[["level_and_trend", "seasonal", "comparison_signals"]].sum(axis=1)
     components["phase"] = ["Pre-launch filtered"] * len(pre) + ["Post-launch forecast"] * len(post)
+    fit_rows = [{'level_variance_ratio': item['level_ratio'], 'slope_variance_ratio': item['slope_ratio'],
+                 'seasonal_prior_variance_ratio': item['seasonal_ratio'], 'posterior_weight': float(weight)}
+                for item, weight in zip(candidates, weights)]
+    fit_rows.sort(key=lambda item: item['posterior_weight'], reverse=True)
+    fitting = {'method': 'Bayesian averaging over pre-period marginal likelihoods',
+               'candidate_count': len(candidates), 'effective_models': float(1 / np.sum(weights**2)),
+               'seasonal_probability': float(sum(weight for item, weight in zip(candidates, weights) if item['seasonal_ratio'] > 0)),
+               'candidates': fit_rows}
     notes.append(f"Exploratory estimate from {len(pre)} observed pre-launch months. "
-                 "State variance ratios and coefficient priors are fixed assumptions, not learned hyperparameters.")
+                 "Forecasts average over smooth and adaptive models using only pre-launch outcomes.")
     if use_seasonality:
-        notes.append("Annual seasonality uses a single sine/cosine pair with shrinkage towards zero. "
+        notes.append("Annual seasonality uses one sine/cosine pair. Its amplitude is regularized and averaged across shrinkage strengths. "
                      "Short history provides limited evidence for a repeating yearly pattern.")
         if len(pre) < 12:
-            notes.append("Fewer than 12 pre-launch months: the annual cycle is only partially observed; "
-                         "seasonal forecasts are particularly sensitive to the prior.")
+            notes.append("Fewer than 12 pre-launch months: the annual cycle is only partially observed, "
+                         "so seasonal forecasts remain sensitive to the candidate priors.")
+    backtest = _monthly_backtest(pre, columns, interval, seed, seasonality, local_trend, len(post)) if validate else {}
+    if backtest.get('folds'):
+        if backtest['mae'] > backtest['naive_mae']:
+            notes.append('Rolling pre-launch forecasts were less accurate than repeating the last observed value. '
+                         'Treat the estimated impact cautiously; more history or an unaffected comparison signal may help.')
+        if backtest['interval_coverage'] < interval * .8:
+            notes.append('Rolling pre-launch prediction intervals covered fewer outcomes than expected. '
+                         'The impact interval may understate uncertainty; the small validation sample also limits this check.')
     metadata = {"components": components, "seasonal_period": 12 if use_seasonality else None,
-                "level_variance_ratio": .1, "slope_variance_ratio": .001 if local_trend else 0.,
-                "slope_prior_variance_ratio": 1. if local_trend else 0.,
-                "seasonal_prior_variance_ratio": 1. if use_seasonality else 0.,
-                "seasonal_harmonics": int(use_seasonality)}
-    return mean, mean - radius, mean + radius, paths, columns, notes, metadata
+                "level_variance_ratio": float(sum(row['level_variance_ratio'] * row['posterior_weight'] for row in fit_rows)),
+                "slope_variance_ratio": float(sum(row['slope_variance_ratio'] * row['posterior_weight'] for row in fit_rows)),
+                "slope_prior_variance_ratio": 10. if local_trend else 0.,
+                "seasonal_prior_variance_ratio": float(sum(row['seasonal_prior_variance_ratio'] * row['posterior_weight'] for row in fit_rows)),
+                "seasonal_harmonics": int(use_seasonality), "fitting": fitting, "backtest": backtest}
+    return mean, lower, upper, paths, columns, notes, metadata
 
 
-def _monthly_state_transition(size, slope_index, gap):
+def _monthly_backtest(pre, covariates, interval, seed, seasonality, local_trend, post_periods):
+    """Refit each rolling origin using only observations available at that origin."""
+    minimum = 8 + 3 * len(covariates)
+    records = []
+    origins = list(range(max(minimum, len(pre) - 5), len(pre)))
+    for origin in origins:
+        holdout = pre.iloc[origin:origin + min(3, post_periods)]
+        predicted, lower, upper, _, _, _, _ = _monthly_bayesian_forecast(
+            pre.iloc[:origin], holdout, covariates, interval, 0, seed,
+            seasonality, local_trend, validate=False)
+        for step, (actual, expected, low, high) in enumerate(zip(holdout['_outcome'], predicted, lower, upper), 1):
+            records.append({'origin': str(pre.iloc[origin - 1]['_date'].date()), 'horizon': step,
+                            'date': str(holdout.iloc[step - 1]['_date'].date()), 'actual': float(actual),
+                            'predicted': float(expected), 'lower': float(low), 'upper': float(high),
+                            'last_value_baseline': float(pre.iloc[origin - 1]['_outcome'])})
+    if not records:
+        return {'status': 'Not enough pre-launch months for rolling validation', 'folds': 0, 'predictions': []}
+    frame = pd.DataFrame(records)
+    errors = frame.predicted - frame.actual
+    naive_mae = float((frame.last_value_baseline - frame.actual).abs().mean())
+    mae = float(errors.abs().mean())
+    return {'status': 'Limited rolling monthly validation', 'folds': len(origins), 'forecast_points': len(frame),
+            'mae': mae, 'rmse': float(np.sqrt(np.mean(errors**2))), 'naive_mae': naive_mae,
+            'mase': mae / naive_mae if naive_mae > 0 else None,
+            'interval_coverage': float(((frame.actual >= frame.lower) & (frame.actual <= frame.upper)).mean()),
+            'bias': float(errors.mean()), 'max_horizon': int(frame.horizon.max()), 'predictions': records}
+
+
+def _monthly_state_transition(size, slope_index, gap, level_ratio=.1, slope_ratio=.001):
     """Compose monthly level/slope innovations over an integer calendar gap."""
     transition = np.eye(size)
     evolution = np.zeros((size, size))
-    evolution[0, 0] = .1 * gap
+    evolution[0, 0] = level_ratio * gap
     if slope_index is not None:
         transition[0, slope_index] = gap
-        evolution[0, 0] += .001 * gap * (gap - 1) * (2 * gap - 1) / 6
-        evolution[0, slope_index] = evolution[slope_index, 0] = .001 * gap * (gap - 1) / 2
-        evolution[slope_index, slope_index] = .001 * gap
+        evolution[0, 0] += slope_ratio * gap * (gap - 1) * (2 * gap - 1) / 6
+        evolution[0, slope_index] = evolution[slope_index, 0] = slope_ratio * gap * (gap - 1) / 2
+        evolution[slope_index, slope_index] = slope_ratio * gap
     return transition, evolution
 
 
@@ -1061,7 +1150,7 @@ def fit_bsts_model(
         backtest = {"status": "Skipped in planner mode", "folds": 0, "failed_folds": 0, "failure_rate": 0.0, "mae": np.nan, "rmse": np.nan, "mape": np.nan, "wape": np.nan, "mase": np.nan, "interval_coverage": np.nan, "bias": np.nan}
     elif monthly_bayes:
         residual_pvalue, residual_autocorrelation = None, None
-        backtest = {"status": "Limited monthly history for holdout validation", "folds": 0}
+        backtest = monthly_details["backtest"]
     else:
         residuals = np.asarray(fitted.resid).astype(float)
         ljung = acorr_ljungbox(residuals, lags=[min(10, max(1, len(residuals) // 5))], return_df=True)
@@ -1078,7 +1167,7 @@ def fit_bsts_model(
     result["impact"] = impact
     stable = bool(np.isfinite(simulations).all()) if monthly_bayes else _model_is_stable(fitted, frame)
     if monthly_bayes:
-        reliability = {"overall": "Limited history", "components": {"holdout_validation": "Unavailable"},
+        reliability = {"overall": "Limited history", "components": {"holdout_validation": "Limited" if backtest.get('folds') else "Unavailable"},
                        "explanations": {"holdout_validation": backtest["status"]}, "residual_pvalue": None}
     else:
         reliability = assess_model_reliability(backtest, credible_interval, residual_pvalue, len(pre),
@@ -1102,9 +1191,10 @@ def fit_bsts_model(
         "planner_mode": planner_mode,
         "estimation": ("Bayesian monthly structural" if local_trend or period else "Bayesian monthly local level") if monthly_bayes else "Maximum likelihood",
         "components": monthly_details["components"] if monthly_bayes else None,
-        "monthly_priors": {key: value for key, value in monthly_details.items() if key not in {"components", "seasonal_period"}} if monthly_bayes else None,
-        "uncertainty_note": ("The level innovation variance is 0.1 times observation variance. When enabled, slope innovation variance is 0.001, initial slope variance is 1, and annual sine/cosine coefficient prior variances are 1 times observation variance. "
-                             "Intervals integrate uncertainty in the baseline level, enabled slope and seasonal coefficients, signal coefficients, noise variance and future outcomes."
+        "monthly_priors": {key: value for key, value in monthly_details.items() if key.endswith("_ratio") or key == "seasonal_harmonics"} if monthly_bayes else None,
+        "fitting": monthly_details["fitting"] if monthly_bayes else None,
+        "uncertainty_note": ("Monthly forecasts average a finite grid of level, slope and seasonal shrinkage models, weighted by their pre-launch marginal likelihoods. "
+                             "Intervals include uncertainty across candidate models, states, coefficients, noise variance and future outcomes. The candidate grid and coefficient prior families remain modelling assumptions."
                              if monthly_bayes else "Conditional on fitted parameters; future state and observation shocks are simulated."),
     }
 

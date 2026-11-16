@@ -164,12 +164,19 @@ def _insight_card(lines):
 
 
 def render_time_series_analysis():
+    blocked_reason = _render_time_series_analysis()
+    if blocked_reason:
+        st.info(blocked_reason)
+        st.button('Calculate results', type='primary', key='ts_simple_calculate', disabled=True)
+
+
+def _render_time_series_analysis():
     cfg = st.session_state.ts_config
     st.markdown('### Analyze results')
     source = st.radio('Data source',['Upload file','Databricks','Synthetic demo'],index=2,horizontal=True,key='ts_simple_source')
     st.session_state.ts_prepared_df = pd.DataFrame()
     if source == 'Databricks':
-        st.info('Databricks is not connected yet. Choose Upload file or Synthetic demo to continue.'); return
+        return 'Choose Upload file or Synthetic demo. Databricks is not connected yet.'
     demo = analysis_demo()
     if source == 'Synthetic demo':
         frame = demo.copy()
@@ -182,27 +189,29 @@ def render_time_series_analysis():
         mode = st.radio('How would you like to add data?',['Upload CSV / Excel','Enter or paste data'],horizontal=True,key='ts_simple_input_mode')
         if mode == 'Upload CSV / Excel':
             uploaded = st.file_uploader('Upload time-series data',type=['csv','xlsx','xlsm'],key='ts_simple_upload')
-            if uploaded is None: st.info('Upload a file with a date and numeric metric.'); return
+            if uploaded is None: return 'Upload a file with a date and numeric metric to enable Calculate results.'
             try:
                 frame = pd.read_excel(BytesIO(uploaded.getvalue()),dtype=str,keep_default_na=False,engine='openpyxl') if uploaded.name.lower().endswith(('.xlsx','.xlsm')) else read_table(uploaded.getvalue())
                 cfg.dataset_name = uploaded.name
             except (ValueError,UnicodeError,pd.errors.ParserError,ImportError,OSError) as exc:
-                st.error(f'Could not read the file: {exc}'); return
+                st.error(f'Could not read the file: {exc}')
+                return 'Correct the file format and upload it again.'
         else:
             how = st.radio('Input method',['Editable table','Paste CSV / tab-separated'],horizontal=True,key='ts_simple_input_style')
             if how == 'Editable table':
                 frame = st.data_editor(pd.DataFrame([{'Date':'','Partner':'','Segment':'','Metric':None}]),num_rows='dynamic',hide_index=True,use_container_width=True,key='ts_simple_editor')
             else:
                 pasted = st.text_area('Paste data with a header row',height=140,key='ts_simple_paste')
-                if not pasted.strip(): return
+                if not pasted.strip(): return 'Paste a table with a header, date column and numeric metric.'
                 try: frame = read_table(pasted)
                 except (ValueError,UnicodeError,pd.errors.ParserError) as exc:
-                    st.error(f'Could not read pasted data: {exc}'); return
+                    st.error(f'Could not read pasted data: {exc}')
+                    return 'Correct the pasted table format to enable Calculate results.'
             cfg.dataset_name = 'Entered time series'
     frame = normalize_uploaded_dataset(frame).reset_index(drop=True)
     st.session_state.ts_raw_df = frame.copy()
     if frame.empty or len(frame.columns)<2:
-        st.warning('Provide at least a date and a numeric metric.'); return
+        return 'Provide at least a date and a numeric metric to enable Calculate results.'
     st.markdown('**Data preview**')
     preview_columns = [col for col in frame.columns if str(col).strip().lower().replace('_',' ') != 'campaign name']
     if source == 'Synthetic demo':
@@ -221,7 +230,7 @@ def render_time_series_analysis():
     date_candidates = [col for col in columns if not pd.api.types.is_numeric_dtype(frame[col]) and safe_datetime_series(frame,col).notna().mean() >= .5]
     numeric = [col for col in columns if safe_numeric_series(frame,col).notna().mean() >= .5]
     if not date_candidates or not numeric:
-        st.warning('The file needs a recognizable date column and a numeric metric column.'); return
+        return 'The file needs a recognizable date column and a numeric metric column. Use dates such as 2025-01-01 and numeric outcome values.'
     default_date = inferred['date'] if inferred['date'] in date_candidates else date_candidates[0]
     default_metric = inferred['outcome'] if inferred['outcome'] in numeric else numeric[0]
     a,b = st.columns(2)
@@ -229,10 +238,11 @@ def render_time_series_analysis():
     try:
         flag, _ = infer_period_boundary(frame, date_col)
     except ValueError as exc:
-        st.error(f'Pre/post labels: {exc}'); return
+        st.error(f'Pre/post labels: {exc}')
+        return 'Correct the pre/post labels shown above to enable Calculate results.'
     flag = flag or 'None'
     metrics = [c for c in numeric if c != date_col and c != flag and not any(x in str(c).lower() for x in ('flag','true_effect','true_impact'))]
-    if not metrics: st.warning('Choose a numeric outcome column.'); return
+    if not metrics: return 'Provide a numeric outcome column to enable Calculate results.'
     metric = b.selectbox('Metric',metrics,index=metrics.index(default_metric) if default_metric in metrics else 0,key='ts_simple_metric')
     dims = _grouping_columns(frame,date_col,metric,flag)
     partner = next((c for c in dims if str(c).lower()=='partner'),None)
@@ -241,7 +251,7 @@ def render_time_series_analysis():
         options = [x for x in frame[partner].dropna().astype(str).str.strip().unique() if x]
         chosen_partners = st.multiselect('Partners',options,default=options,key='ts_simple_partners')
         selected = selected[selected[partner].astype(str).str.strip().isin(chosen_partners)]
-        if selected.empty: st.info('Select at least one Partner.'); return
+        if selected.empty: return 'Select at least one Partner to enable Calculate results.'
     else: chosen_partners = []
     group_options = ['No segment breakdown'] + dims
     group = st.selectbox('Group by (optional)',group_options,index=0,key='ts_simple_group')
@@ -249,43 +259,40 @@ def render_time_series_analysis():
     dimension_cols = list(dict.fromkeys(stable_dimensions + ([group] if group != group_options[0] else [])))
     for col in dimension_cols:
         if selected[col].isna().any() or selected[col].astype(str).str.strip().eq('').any():
-            st.error(f'{col}: fill in every row before analysis.'); return
+            st.error(f'{col}: fill in every row before analysis.')
+            return 'Fill in the missing grouping values shown above.'
         selected[col] = selected[col].astype(str).str.strip()
     dates = safe_datetime_series(selected,date_col)
     values = safe_numeric_series(selected,metric)
     invalid = dates.isna() | ~np.isfinite(values)
     if invalid.any():
-        st.error(row_issue(invalid, f'{int(invalid.sum()):,} rows have an invalid date or missing/non-numeric metric. Correct those rows before analysis.', selected.index.to_numpy() + 2)); return
+        st.error(row_issue(invalid, f'{int(invalid.sum()):,} rows have an invalid date or missing/non-numeric metric. Correct those rows before analysis.', selected.index.to_numpy() + 2))
+        return 'Correct the source rows identified above to enable Calculate results.'
     # A stable mix is essential: otherwise shifts in the population can look
     # like a campaign change. We cannot infer omitted dimensions or overlaps.
     if dimension_cols:
         coverage = selected.assign(_coverage_date=dates).groupby('_coverage_date')[dimension_cols].apply(lambda x:len(x.drop_duplicates()))
         total_cells = len(selected[dimension_cols].drop_duplicates())
         if (coverage != total_cells).any():
-            st.error('Some Partner/Segment combinations are missing on certain dates. Use a consistent population across the full period, or select a complete subset.'); return
+            st.error('Some Partner/Segment combinations are missing on certain dates. Use a consistent population across the full period, or select a complete subset.')
+            return 'Complete the missing Partner/Segment combinations or select a complete subset to enable Calculate results.'
     multiple = dates.duplicated().any()
+    requirements = []
     advanced_settings = st.expander('Advanced settings', expanded=False)
     with advanced_settings:
         if multiple:
             choices = ['Sum','Simple average']
-            aggregation = st.selectbox('Combine rows for the same date',choices,index=0 if source=='Synthetic demo' else None,
+            aggregation = st.selectbox('Combine rows for the same date',choices,index=0,
                 placeholder='Choose how to combine',key='ts_simple_aggregation',
                 help='Sum is appropriate for additive counts and totals. Simple average weights each row equally; rates and averages often need customer-count weights.')
             st.caption('Sum counts or totals only for non-overlapping rows. Simple average gives every row equal weight; do not use it for rates or averages unless that weighting is appropriate.')
-            if aggregation is None: st.info('Choose how to combine the selected rows.'); return
-            if source != 'Synthetic demo':
-                confirmation_scope = configuration_fingerprint({'data':signature,'partners':chosen_partners,'group':group,'metric':metric,'aggregation':aggregation})
-                if confirmation_scope != st.session_state.get('ts_simple_aggregation_confirmation_scope'):
-                    st.session_state.pop('ts_simple_disjoint',None)
-                    st.session_state.ts_simple_aggregation_confirmation_scope = confirmation_scope
-                confirmed = st.checkbox('I confirm rows are non-overlapping and the chosen aggregation is appropriate for this metric.',key='ts_simple_disjoint')
-                if not confirmed: st.info('Confirm how the rows are combined before calculating.'); return
         else: aggregation = None
     min_date,max_date = dates.min().date(),dates.max().date()
     try:
         _, inferred_launch = infer_period_boundary(selected, date_col)
     except ValueError as exc:
-        st.error(f'Pre/post labels: {exc}'); return
+        st.error(f'Pre/post labels: {exc}')
+        return 'Correct the pre/post labels shown above to enable Calculate results.'
     if inferred_launch:
         launch = inferred_launch
         st.info(f'Pre/post labels detected in {flag}. The first post-period begins {launch}; earlier dates are pre-period.')
@@ -293,28 +300,25 @@ def render_time_series_analysis():
         prior_launch = st.session_state.get('ts_simple_launch')
         if prior_launch is not None and not min_date <= prior_launch <= max_date: st.session_state.pop('ts_simple_launch',None)
         launch = st.date_input('Campaign launch date',value=None,min_value=min_date,max_value=max_date,key='ts_simple_launch')
-    if launch is None: st.info('Choose the campaign launch date.'); return
+    if launch is None:
+        requirements.append('Choose the campaign launch date above, or provide a valid pre/post label column.')
     st.caption('Both a before-and-after comparison and a modeled estimate will be calculated. The model needs sufficient history.')
     with advanced_settings:
         missing = st.selectbox('Missing periods',['Fail validation','Keep','Interpolate','Fill missing counts with zero'],key='ts_simple_missing')
         end_enabled = st.checkbox('Set a campaign end date',key='ts_simple_end_enabled')
         old_end = st.session_state.get('ts_simple_end')
-        if old_end is not None and not launch <= old_end <= max_date: st.session_state.pop('ts_simple_end',None)
-        end = st.date_input('Campaign end date',value=max_date,min_value=launch,max_value=max_date,key='ts_simple_end') if end_enabled else None
+        if old_end is not None and not (launch or min_date) <= old_end <= max_date: st.session_state.pop('ts_simple_end',None)
+        end = st.date_input('Campaign end date',value=max_date,min_value=launch or min_date,max_value=max_date,key='ts_simple_end') if end_enabled else None
         candidates = predictor_candidates(selected,metric,date_col,flag)
         candidates = [x for x in candidates if x not in dims]
         predictors = st.multiselect('Unaffected comparison signals (optional)',candidates,key='ts_simple_predictors',help='Choose only signals the campaign could not affect.')
-        signal_scope = configuration_fingerprint({'data':signature,'partners':chosen_partners,'group':group,'signals':predictors})
-        if signal_scope != st.session_state.get('ts_simple_confirmed_signal_selection'):
-            st.session_state.pop('ts_simple_predictor_confirm',None)
-            st.session_state.ts_simple_confirmed_signal_selection = signal_scope
-        affirmed = not predictors or st.checkbox('I confirm these comparison signals were not affected by the campaign.',key='ts_simple_predictor_confirm')
         seasonality = st.selectbox('Seasonality',['Auto','None','Weekly','Monthly','Annual'],key='ts_simple_seasonality')
         interval = st.selectbox('Confidence level',[.95,.90,.80],format_func=lambda x:f'{x:.0%}',key='ts_simple_interval')
         trend = st.checkbox('Use local trend',value=True,key='ts_simple_trend')
-    if not affirmed: st.info('Confirm the selected comparison signals are unaffected before calculating.'); return
     if group != group_options[0] and selected[group].nunique()>12:
-        st.warning('Choose a grouping column with at most 12 segments.'); return
+        requirements.append('Choose a grouping column with at most 12 segments.')
+    if requirements:
+        return '\n\n'.join(requirements)
     try:
         scopes = [('Overall',selected)]
         if group != group_options[0]: scopes += [(str(name),part) for name,part in selected.groupby(group,sort=True)]
@@ -322,15 +326,16 @@ def render_time_series_analysis():
         if any(not np.isfinite(pd.to_numeric(data['_outcome'],errors='coerce')).all() for _,data in prepared_scopes):
             raise ValueError('Some periods have no outcome. Select a missing-period option in Advanced settings.')
     except ValueError as exc:
-        st.error(f'Data validation: {exc}'); return
+        st.error(f'Data validation: {exc}')
+        return 'Resolve the data validation issue shown above. Missing periods can be configured in Advanced settings.'
     prepared = prepared_scopes[0][1]
     pre = prepared[prepared['_date']<pd.Timestamp(launch)]
     post = prepared[prepared['_date']>=pd.Timestamp(launch)]
     if end: post = post[post['_date']<=pd.Timestamp(end)]
-    if pre.empty or post.empty: st.warning('Choose a launch date with observations both before and after it.'); return
+    if pre.empty or post.empty: return 'Choose a launch date with observations both before and after it to enable Calculate results.'
     render_context_card('Data checks passed', [
         ('Data source', cfg.dataset_name), ('Metric', metric), ('Frequency', prepared.attrs['frequency']),
-        ('Before launch', f'{len(pre):,} periods'), ('After launch', f'{len(post):,} periods'),
+        ('Rows for each date', aggregation or 'One row per date'), ('Before launch', f'{len(pre):,} periods'), ('After launch', f'{len(post):,} periods'),
         ('Group by', group)], tone='success')
     st.caption(f"{len(prepared):,} {prepared.attrs['frequency'].lower()} periods · {len(pre):,} before launch · {len(post):,} in the selected outcome window")
     if prepared.attrs['frequency'] == 'Monthly' and (~pre["_date"].isin(prepared.attrs.get("interpolated_dates", ()))).sum() < 24:
@@ -338,12 +343,12 @@ def render_time_series_analysis():
                    'and 1 after, plus 3 pre-launch months for each comparison signal. Trend and seasonality follow Advanced settings; short seasonal histories remain uncertain.')
     cfg.date_column,cfg.outcome_column,cfg.campaign_flag_column = str(date_col),str(metric),str(flag)
     cfg.intervention_date,cfg.campaign_end_date = launch.isoformat(),end.isoformat() if end else ''
-    cfg.duplicate_policy,cfg.missing_policy = 'Fail validation',missing
+    cfg.duplicate_policy,cfg.missing_policy = ('Average' if aggregation == 'Simple average' else aggregation or 'Fail validation'),missing
     cfg.selected_covariates,cfg.seasonality,cfg.prediction_interval,cfg.local_trend = predictors,seasonality,interval,trend
     cfg.frequency = prepared.attrs['frequency']
     cfg.comparison_metric,cfg.comparison_window,cfg.symmetric_periods = 'Average per period','Symmetric',min(len(pre),len(post))
     st.session_state.ts_prepared_df = prepared
-    fingerprint = configuration_fingerprint({'model_version':3,'source':source,'dataset':cfg.dataset_name,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
+    fingerprint = configuration_fingerprint({'model_version':4,'source':source,'dataset':cfg.dataset_name,'data':signature,'scope':chosen_partners,'group':group,'aggregation':aggregation,
         'date_column':date_col,'metric':metric,'launch':cfg.intervention_date,'end':cfg.campaign_end_date,'missing':missing,'predictors':predictors,
         'seasonality':seasonality,'interval':interval,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
     if group != group_options[0]:
@@ -364,13 +369,13 @@ def render_time_series_analysis():
                 except ValueError as exc:
                     bundle.append({'name':name,'data':data,'prepost':None,'model':None,'error':str(exc)}); continue
                 try:
-                    model_key = configuration_fingerprint({'model_version':3,'missing':missing,'data':data_fingerprint(data),'launch':cfg.intervention_date,
+                    model_key = configuration_fingerprint({'model_version':4,'missing':missing,'data':data_fingerprint(data),'launch':cfg.intervention_date,
                         'end':cfg.campaign_end_date,'frequency':data.attrs['frequency'],'predictors':predictors,'interval':interval,
                         'seasonality':seasonality,'trend':trend,'seed':cfg.simulation_seed,'holdout':cfg.holdout_length})
                     if model_key not in model_cache:
                         model_cache[model_key] = fit_bsts_model(data,cfg.intervention_date,data.attrs['frequency'],predictors,interval,
                             campaign_end_date=cfg.campaign_end_date,seasonality=seasonality,local_trend=trend,
-                            seed=int(cfg.simulation_seed),holdout_length=int(cfg.holdout_length))
+                            draws=4000 if data.attrs['frequency'] == 'Monthly' else 1000, seed=int(cfg.simulation_seed),holdout_length=int(cfg.holdout_length))
                         if len(model_cache)>16: model_cache.pop(next(iter(model_cache)))
                     model = model_cache[model_key]
                     problem = None
@@ -470,6 +475,15 @@ def _render_scope(item,label,cfg,group,is_overall):
             season_note = str(period) + ' ' + data.attrs['frequency'].lower() + ' periods per cycle' if period else 'not included'
             if not period and cfg.seasonality != 'None': season_note += ' (the requested cycle may need more history or a compatible frequency)'
             st.caption(f"Model seasonality: {season_note} · Comparison signals: {', '.join(model.get('covariates', [])) or 'none'}.")
+            matching = model['result'].loc[model['result']['_date'].between(pp['post_start'], pp['post_end'])]
+            if not matching.empty:
+                expected_mean = float(matching['counterfactual'].mean())
+                baseline_movement = expected_mean - pp['pre_value']
+                difference_from_expected = pp['post_value'] - expected_mean
+                with st.expander('Why the two results differ'):
+                    st.write(f"For the same post window, the observed mean is {pp['post_value']:,.2f}. The model expects {expected_mean:,.2f} without launch, compared with the before mean of {pp['pre_value']:,.2f}.")
+                    st.write(f"The observed change {pp['post_value'] - pp['pre_value']:+,.2f} equals expected baseline movement {baseline_movement:+,.2f} plus the difference from that baseline {difference_from_expected:+,.2f}. Pre–post lift divides by the before mean. Model lift divides by the expected baseline.")
+                    st.caption('The headline model total uses the full selected post window. This explanation uses the matching pre–post window when its length differs.')
             st.markdown('**Actual vs estimated without campaign**')
             if bayesian:
                 st.caption('The baseline forecasts from pre-launch data using the enabled trend, seasonal cycle and comparison signals. '
@@ -491,10 +505,20 @@ def _render_scope(item,label,cfg,group,is_overall):
                         st.line_chart(components.set_index('_date')[['level_and_trend', 'seasonal', 'comparison_signals']].rename(
                             columns={'level_and_trend': 'Level and trend', 'seasonal': 'Annual seasonal contribution',
                                      'comparison_signals': 'Comparison signal contribution'}))
-                        st.write('Fixed prior settings (relative to observation variance):')
+                        st.write('Posterior average model parameters (relative to observation variance)')
                         st.json(model.get('monthly_priors', {}))
-                st.write('Validation:',model.get('reliability','Review'))
-                st.json(model.get('backtest',{}))
+                st.write('Validation', model.get('reliability','Review'))
+                backtest = model.get('backtest', {})
+                st.json({key: value for key, value in backtest.items() if key != 'predictions'})
+                if backtest.get('predictions'):
+                    st.markdown('**Forecasts tested before launch**')
+                    st.caption('Each rolling origin refits the model on earlier months and predicts held-out pre-launch outcomes. Lower MAE / RMSE is better. The last-value baseline repeats the most recent training value.')
+                    st.dataframe(pd.DataFrame(backtest['predictions']), hide_index=True, use_container_width=True)
+                if model.get('fitting'):
+                    fitting = model['fitting']
+                    st.write(f"Fitting averages {fitting['candidate_count']} candidate models using pre-launch evidence. Effective model count {fitting['effective_models']:.1f}.")
+                    st.dataframe(pd.DataFrame(fitting['candidates']), hide_index=True, use_container_width=True,
+                                 column_config={'posterior_weight': st.column_config.NumberColumn(format='%.3f')})
                 st.write('Comparison signals used:',', '.join(model.get('covariates',[])) or 'None')
         else:
             st.markdown('### Counterfactual results')

@@ -74,10 +74,9 @@ def test_grouped_results_and_explicit_aggregation():
     dates = pd.date_range('2025-01-06',periods=12,freq='W-MON')
     text = 'Date,Partner,Segment,Revenue\n'+''.join(f'{d.date()},{p},{seg},{100+i+(20 if seg=="High" else 0)}\n' for i,d in enumerate(dates) for p in ['A','B'] for seg in ['Low','High'])
     app.text_area(key='ts_simple_paste').set_value(text).run()
-    assert app.selectbox(key='ts_simple_aggregation').value is None
+    assert app.selectbox(key='ts_simple_aggregation').value == 'Sum'
     app.selectbox(key='ts_simple_group').set_value('Segment').run()
     app.selectbox(key='ts_simple_aggregation').set_value('Sum').run()
-    app.checkbox(key='ts_simple_disjoint').check().run()
     app.date_input(key='ts_simple_launch').set_value(dates[6].date()).run()
     app.button(key='ts_simple_calculate').click().run(timeout=90)
     assert not app.exception
@@ -88,12 +87,12 @@ def test_grouped_results_and_explicit_aggregation():
     assert any('Results by Segment' in x.value for x in app.markdown)
     assert sum('RESULT INSIGHTS' in x.value for x in app.markdown) == 3
     app.multiselect(key='ts_simple_partners').set_value(['A']).run()
-    assert not app.checkbox(key='ts_simple_disjoint').value
+    assert not any(item.key == 'ts_simple_disjoint' for item in app.checkbox)
     assert not app.get('plotly_chart')
     incomplete = text.replace('2025-01-20,A,High,122\n','')
     app.text_area(key='ts_simple_paste').set_value(incomplete).run()
     assert any('combinations are missing' in item.value for item in app.error)
-    assert not any(button.key == 'ts_simple_calculate' for button in app.button)
+    assert app.button(key='ts_simple_calculate').disabled
 
 
 def test_aggregation_preserves_shared_signals_and_rejects_divergent():
@@ -161,7 +160,7 @@ def test_insight_tracks_data_and_does_not_invent_a_model():
     assert 'includes zero' in text and 'Poor' in text and 'not enough' not in text
 
 
-def test_comparison_signal_confirmation_is_refreshed():
+def test_comparison_signals_are_optional_without_a_confirmation_gate():
     app = enter_analysis()
     app.radio(key='ts_simple_source').set_value('Upload file').run()
     app.radio(key='ts_simple_input_mode').set_value('Enter or paste data').run()
@@ -171,13 +170,10 @@ def test_comparison_signal_confirmation_is_refreshed():
     app.text_area(key='ts_simple_paste').set_value(text).run()
     app.date_input(key='ts_simple_launch').set_value(dates[6].date()).run()
     app.multiselect(key='ts_simple_predictors').set_value(['External signal']).run()
-    assert not app.checkbox(key='ts_simple_predictor_confirm').value
-    app.checkbox(key='ts_simple_predictor_confirm').check().run()
-    assert app.checkbox(key='ts_simple_predictor_confirm').value
+    assert not app.exception and not app.button(key='ts_simple_calculate').disabled
+    assert not any(item.key == 'ts_simple_predictor_confirm' for item in app.checkbox)
     app.multiselect(key='ts_simple_predictors').set_value([]).run()
-    app.multiselect(key='ts_simple_predictors').set_value(['External signal']).run()
-    assert not app.checkbox(key='ts_simple_predictor_confirm').value
-    assert not any(button.key == 'ts_simple_calculate' for button in app.button)
+    assert not app.button(key='ts_simple_calculate').disabled
 
 
 def test_monthly_paste_runs_bayesian_counterfactual_and_report():
@@ -203,4 +199,59 @@ def test_monthly_paste_runs_bayesian_counterfactual_and_report():
     assert b'Monthly model calculation' in report
     assert b'Trend and seasonal contributions by month' in report
     assert model['seasonal_period'] == 12
+    assert model['backtest']['folds'] == 2
+    assert model['fitting']['candidate_count'] > 1
+    assert any('Why the two results differ' in item.label for item in app.expander)
     assert any('Trend and seasonal components' in x.value for x in app.markdown)
+
+
+def test_uploaded_file_has_advanced_defaults_and_an_accessible_calculate_button(monkeypatch):
+    from types import SimpleNamespace
+    import streamlit as st
+
+    dates = pd.date_range('2025-01-06', periods=16, freq='W-MON')
+    frame = pd.DataFrame([
+        {'Date': date, 'Partner': partner, 'Segment': 'All', 'Revenue': 100 + i + (10 if partner == 'B' else 0)}
+        for i, date in enumerate(dates) for partner in ['A', 'B']])
+    uploaded = SimpleNamespace(name='business-history.csv', getvalue=lambda: frame.to_csv(index=False).encode())
+    monkeypatch.setattr(st, 'file_uploader', lambda *args, **kwargs: uploaded)
+    app = enter_analysis()
+    app.radio(key='ts_simple_source').set_value('Upload file').run()
+    assert not app.exception
+    assert app.date_input(key='ts_simple_launch').value is None
+    assert app.selectbox(key='ts_simple_aggregation').value == 'Sum'
+    assert not any(item.key == 'ts_simple_disjoint' for item in app.checkbox)
+    assert app.button(key='ts_simple_calculate').disabled
+    assert any('launch date' in item.value for item in app.info)
+    assert all(button.key != 'ts_simple_calculate' for expander in app.expander for button in expander.get('button'))
+    app.date_input(key='ts_simple_launch').set_value(dates[8].date()).run()
+    assert not app.exception and not app.button(key='ts_simple_calculate').disabled
+    app.button(key='ts_simple_calculate').click().run(timeout=90)
+    assert not app.exception and not app.error
+    assert app.session_state.ts_prepost_result['post_observations'] == 8
+    assert app.session_state.ts_config.dataset_name == 'business-history.csv'
+    assert app.session_state.ts_config.duplicate_policy == 'Sum'
+    app.selectbox(key='ts_simple_aggregation').set_value('Simple average').run()
+    assert not app.get('plotly_chart')
+    app.button(key='ts_simple_calculate').click().run()
+    assert app.session_state.ts_prepost_result['pre_value'] == pytest.approx(108.5)
+    app.multiselect(key='ts_simple_partners').set_value(['A']).run()
+    assert not app.exception and not app.button(key='ts_simple_calculate').disabled
+    assert not app.get('plotly_chart')
+
+
+def test_calculate_stays_visible_for_missing_file_or_invalid_source_rows():
+    app = enter_analysis()
+    app.radio(key='ts_simple_source').set_value('Upload file').run()
+    assert app.button(key='ts_simple_calculate').disabled
+    assert any('Upload a file' in item.value for item in app.info)
+    app.radio(key='ts_simple_input_mode').set_value('Enter or paste data').run()
+    app.radio(key='ts_simple_input_style').set_value('Paste CSV / tab-separated').run()
+    assert app.button(key='ts_simple_calculate').disabled
+    dates = pd.date_range('2025-01-01', periods=12, freq='D')
+    text = 'Date,Revenue,pre_post\n' + ''.join(f"{date.date()},{100+i},{'pre' if i < 6 else 'post'}\n" for i, date in enumerate(dates))
+    app.text_area(key='ts_simple_paste').set_value(text.replace('2025-01-03,102,pre', '2025-01-03,,pre')).run()
+    assert not app.exception and app.button(key='ts_simple_calculate').disabled
+    assert any('source rows' in item.value for item in app.info)
+    app.text_area(key='ts_simple_paste').set_value(text).run()
+    assert not app.exception and not app.button(key='ts_simple_calculate').disabled
