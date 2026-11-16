@@ -24,11 +24,14 @@ def demo_data():
 
 
 def historical_metric_chart(data, grouping, primary, options, selections=None):
-    """Compare ordered options within each Partner and segment, keeping gaps visible."""
+    """Connect observed strategies within each Partner and segment only."""
     partners = list(data.partner.unique())
     segments = ordered_groups(data.segment.unique(), grouping)
-    index = pd.MultiIndex.from_product([partners, segments, options], names=['partner', 'segment', 'strategy'])
-    rows = data.set_index(['partner', 'segment', 'strategy']).reindex(index).reset_index()
+    # Groups often have different available credit lines. Inserting other groups'
+    # missing options breaks every line when those options interleave.
+    rows = data.loc[data.strategy.isin(options)].copy()
+    rows = rows.assign(_strategy_order=rows.strategy.map({option: i for i, option in enumerate(options)}))
+    rows = rows.sort_values('_strategy_order', kind='stable').drop(columns='_strategy_order')
     fig = px.line(rows, x='strategy', y='sample_mean', color='segment', line_group='segment',
                   facet_col='partner', facet_col_wrap=2, markers=True,
                   category_orders={'strategy': options, 'segment': segments, 'partner': partners},
@@ -59,8 +62,12 @@ def historical_metric_chart(data, grouping, primary, options, selections=None):
         if roles not in ({'Control'}, {'Test'}):
             continue
         color = ROLE_COLORS[next(iter(roles))]
+        # Numeric-looking CSV labels ("250", "2000") are interpreted as
+        # coordinates by Plotly shapes. Use category positions for every label
+        # so assignment guides cannot expand the axis and squash the data.
+        position = options.index(arm)
         fig.add_shape(type='line', xref=xaxis, yref=f'{yaxis} domain',
-                      x0=arm, x1=arm, y0=0, y1=1, layer='below',
+                      x0=position, x1=position, y0=0, y1=1, layer='below',
                       line=dict(color=color, width=1.6, dash='dash'))
     fig.for_each_annotation(lambda annotation: annotation.update(text=annotation.text.split('=', 1)[-1]))
     fig.update_layout(height=360 if len(partners) <= 2 else 590, margin=dict(t=40, b=70, l=30, r=20),
@@ -581,6 +588,7 @@ def render_customer_plan():
     options = historical_strategy_order(history.strategy.unique())
     st.markdown('### Review historical strategies')
     st.caption(f'{primary} · {len(partners):,} selected partners · {len(segments):,} groups · {len(options):,} historical options')
+    st.caption('Lines connect observed historical means in credit-line order. Unprovided options are not estimated. A group with one observed option shows a single point.')
     group_view = f'By {grouping}'
     overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')

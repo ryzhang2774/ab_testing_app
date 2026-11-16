@@ -167,6 +167,41 @@
 .stApp .work-intro p {margin:16px 0 20px}
 .stApp [data-testid="stHorizontalBlock"]:has(.work-intro) button {min-height:46px;border-radius:8px}
 .stApp .plan-hero em {font-style:normal}
+
+/* Compact desktop home for laptop viewports and Windows display scaling.
+   Scope the shell changes to the chooser so analysis workspaces keep their room. */
+@media (min-width:1000px) and (max-width:1440px), (min-width:1000px) and (max-height:820px) {
+  .stApp:has(.intro-spread) [data-testid="stSidebar"] {
+    width:208px!important;min-width:208px!important;max-width:208px!important;
+  }
+  .stApp:has(.intro-spread) [data-testid="stSidebarContent"] {padding:24px 12px}
+  .stApp:has(.intro-spread) .ledger-product {font:600 18px/28px var(--display);padding:0 8px 24px}
+  .stApp:has(.intro-spread) [data-testid="stSidebar"] .stButton button {
+    min-height:48px;padding:8px!important;gap:8px;
+  }
+  .stApp:has(.intro-spread) [data-testid="stSidebar"] .stButton button p {
+    font-size:14px!important;line-height:20px!important;white-space:normal;overflow-wrap:normal;
+  }
+  .stApp:has(.intro-spread) [data-testid="stSidebar"] .stButton button > div {
+    min-width:0;flex:1;
+  }
+  .stApp .block-container:has(.intro-spread) {padding:0 24px 24px}
+  .stApp .intro-spread {margin:0 -24px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+  .stApp .home-intro {padding:24px 0 24px 32px}
+  .stApp .home-intro h1 {font:600 48px/48px var(--display);letter-spacing:-.05em;text-wrap:balance}
+  .stApp .home-intro p {font:400 16px/24px var(--display);margin:16px 0;max-width:39ch}
+  .stApp .home-cover {min-height:280px}
+  .stApp .intro-actions .book-demo {padding:8px 12px;gap:16px;font:600 16px/24px var(--display)}
+  .stApp .explore-title {font:600 30px/36px var(--display);margin:24px 0 4px}
+  .stApp .method-art img {height:144px;object-fit:contain}
+  .stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button {
+    padding:12px 16px 4px;
+  }
+  .stApp :is([data-testid="stColumn"],[data-testid="column"]):has(.method-art) button p {
+    font:600 16px/24px var(--display);letter-spacing:-.025em;
+  }
+  .stApp .method-description {font:400 14px/20px var(--display);padding:4px 16px 16px}
+}
 /* Streamlit subtracts a paragraph margin from HTML blocks. Keep figure and card insets intact. */
 .stApp [data-testid="stMarkdownContainer"]:has(> :is(.method-description,.method-art,.intro-art,.work-intro,.intro-spread)) {margin-bottom:0}
 .stApp .block-container:has(.intro-spread) [data-testid="stElementContainer"]:has(style):not(:has(.intro-spread,button)) {display:none}

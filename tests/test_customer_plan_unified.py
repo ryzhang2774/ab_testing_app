@@ -100,7 +100,7 @@ def test_many_credit_lines_have_distinct_styles_and_plausible_demo():
     assert balance['Sample number'].nunique() > 10
 
 
-def test_historical_line_chart_orders_options_and_keeps_missing_cells_separate():
+def test_historical_line_chart_orders_observed_options_without_inventing_missing_cells():
     data = pd.DataFrame([
         {'partner':'Holland', 'segment':'High', 'strategy':'Test B', 'sample_mean':30},
         {'partner':'Holland', 'segment':'High', 'strategy':'Control', 'sample_mean':10},
@@ -109,16 +109,45 @@ def test_historical_line_chart_orders_options_and_keeps_missing_cells_separate()
     ])
     fig = historical_metric_chart(data, 'FICO group', 'Revolving Balance', ['Control', 'Test A', 'Test B'])
     high = next(trace for trace in fig.data if trace.name == 'High')
-    assert list(high.x) == ['Control', 'Test A', 'Test B']
-    assert high.y[0] == 10 and pd.isna(high.y[1]) and high.y[2] == 30
+    assert list(high.x) == ['Control', 'Test B']
+    assert list(high.y) == [10, 30]
     marked = historical_metric_chart(data, 'FICO group', 'Revolving Balance', ['Control', 'Test A', 'Test B'],
                                      {'High': {'control':'Test B', 'tests':['Control']},
                                       'Low': {'control':'Control', 'tests':['Test A']}})
-    assert list(next(t for t in marked.data if t.name == 'High').text) == ['Test', 'Historical only', 'Control']
-    assert list(next(t for t in marked.data if t.name == 'Low').text) == ['Control', 'Test', 'Historical only']
+    assert list(next(t for t in marked.data if t.name == 'High').text) == ['Test', 'Control']
+    assert list(next(t for t in marked.data if t.name == 'Low').text) == ['Control', 'Test']
     assert high.connectgaps is False
     assert fig.layout.xaxis.title.text == 'Historical strategy'
     assert fig.layout.yaxis.title.text == 'Revolving Balance historical mean'
+
+
+def test_uploaded_interleaved_credit_lines_remain_connected_per_group():
+    raw = pd.DataFrame([
+        {'Partner': partner, 'FICO group': group, 'Strategy': amount,
+         'Metric': 'Balance', 'Sample mean': amount / 10, 'Sample variance': 400, 'Sample number': 100}
+        for partner in ['A', 'B']
+        for group, amounts in [('650–699', [7000, 250, 3500, 2000]), ('700–749', [8000, 5000, 500, 2500])]
+        for amount in amounts
+    ])
+    data = normalize_table(raw, grouping='FICO group')
+    from src.experiment_platform.customer_grouping import historical_strategy_order
+    from src.experiment_platform.customer_plan_ui import pool_statistics, overall_metric_chart, group_metric_charts
+    options = historical_strategy_order(data.strategy.unique())
+    pooled = pool_statistics(data, ['segment', 'strategy']).assign(partner='All selected Partners')
+    charts = [historical_metric_chart(data, 'FICO group', 'Balance', options),
+              overall_metric_chart(data, pooled, 'FICO group', 'Balance', options)]
+    charts += [fig for _, fig in group_metric_charts(pooled, 'FICO group', 'Balance', options, {})]
+    for chart in charts:
+        for trace in chart.data:
+            assert list(map(float, trace.x)) == sorted(map(float, trace.x))
+            assert pd.notna(trace.y).all()
+            assert len(trace.x) >= 2
+            assert 'lines' in trace.mode
+    assert len(data) == 16
+    marked = historical_metric_chart(data, 'FICO group', 'Balance', options,
+        {'650–699': {'control':'250', 'tests':['2000']},
+         '700–749': {'control':'500', 'tests':['8000']}})
+    assert all(isinstance(shape.x0, int) and 0 <= shape.x0 < len(options) for shape in marked.layout.shapes)
 
 
 def test_overall_chart_weights_customers_and_partner_view_has_no_assignment_guides():
@@ -157,10 +186,10 @@ def test_group_charts_keep_each_groups_control_and_tests_separate():
         choice = selected[group]
         assert len(fig.data) == 1 and list(fig.data[0].y) == [12] * 4
         assert {(s.x0, s.line.color) for s in fig.layout.shapes} == (
-            {(choice['control'], ROLE_COLORS['Control'])} | {(x, ROLE_COLORS['Test']) for x in choice['tests']})
+            {(options.index(choice['control']), ROLE_COLORS['Control'])} | {(options.index(x), ROLE_COLORS['Test']) for x in choice['tests']})
     selected['750+']['tests'] = ['7000']
-    assert [s.x0 for s in panels()['750+'].layout.shapes] == ['2000','7000']
-    assert [s.x0 for s in panels()['650–699'].layout.shapes] == ['1000','2000']
+    assert [s.x0 for s in panels()['750+'].layout.shapes] == [1,3]
+    assert [s.x0 for s in panels()['650–699'].layout.shapes] == [0,1]
 
 
 def test_fico_bar_axes_are_categorical_and_ordered_with_sparse_partner_cells():

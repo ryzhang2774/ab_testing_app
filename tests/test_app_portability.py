@@ -58,7 +58,9 @@ def test_timeseries_landing_and_workflows_survive_timestamp_strftime_failure():
 
 def test_timeseries_plan_failure_is_actionable_not_an_app_exception():
     source = Path("app.py").read_text()
-    source = source.replace('init_state()\nwith st.sidebar:', 'def run_duration_power_simulation(*args, **kwargs):\n    raise RuntimeError("Model fit unavailable")\n\ninit_state()\nwith st.sidebar:')
+    anchor = '\ninit_state()\n'
+    assert source.count(anchor) == 1
+    source = source.replace(anchor, '\ndef run_duration_power_simulation(*args, **kwargs):\n    raise RuntimeError("Model fit unavailable")\n\ninit_state()\n')
     app = AppTest.from_string(source, default_timeout=45).run()
     app.session_state.main_page = "Time Series"
     app.session_state.ts_intent = "plan"
@@ -78,7 +80,9 @@ def run_duration_power_simulation(data, frequency, covariates, seasonality, loca
     return _analytical_duration_plan(data, [4, 8], effect, effect_type, target_power, kwargs.get('alpha', .05), ramp_period, kwargs.get('effect_pattern', 'constant'))
 
 '''
-    source = source.replace('init_state()\nwith st.sidebar:', fast_planner + 'init_state()\nwith st.sidebar:')
+    anchor = '\ninit_state()\n'
+    assert source.count(anchor) == 1
+    source = source.replace(anchor, '\n'+fast_planner+'init_state()\n')
     app = AppTest.from_string(source, default_timeout=60).run()
     app.session_state.main_page = 'Time Series'
     app.session_state.ts_intent = 'plan'

@@ -5247,6 +5247,14 @@ def geo_data_step() -> bool:
     )
     cfg: GeoConfig = st.session_state.geo_config
     cfg.data_source = st.radio("Data Source", ["Upload File", "Internal Data", "Synthetic Demo"], index=["Upload File", "Internal Data", "Synthetic Demo"].index(cfg.data_source), horizontal=True, key="geo_source")
+    if st.session_state.geo_intent == 'plan':
+        template = load_geo_demo()
+        template = template.loc[template.week < pd.Timestamp(GEO_DEMO_LAUNCH), ['week','dma','applications','spend','population','existing_customers']]
+        template_dates = sorted(template.week.unique())[-24:]
+        template = template.loc[template.week.isin(template_dates)]
+        st.download_button('Download matching data template (CSV)',template.to_csv(index=False),
+                           'geo-matching-template.csv','text/csv',key='geo_matching_template')
+        st.caption('One row per DMA and date. Date, DMA and the primary metric are required; additional pre-launch business measures are optional. Automatic matching needs at least 12 complete periods. The template contains example values to replace.')
     if cfg.data_source == "Upload File":
         def clear_removed_upload():
             if st.session_state.get("geo_upload") is None:
@@ -5344,6 +5352,11 @@ def geo_data_step() -> bool:
         cfg.spend_column = c7.selectbox("Campaign Spend / Exposure", ["None"] + columns, index=(["None"] + columns).index(cfg.spend_column), help="Optional metadata for reporting.")
     try:
         panel = prepare_geo_panel(raw, cfg.date_column, cfg.dma_column, cfg.outcome_column)
+        if len(panel) != len(raw):
+            st.error(f'{len(raw)-len(panel):,} source rows have an invalid date, DMA or primary outcome. Correct these rows before matching or analysis; they will not be silently discarded.')
+            st.session_state.geo_panel_df = pd.DataFrame()
+            st.session_state.geo_assignment = pd.DataFrame()
+            return False
         st.session_state.geo_panel_df = panel
         quality = validate_geo_panel(panel)
         min_date, max_date = panel["_date"].min().date(), panel["_date"].max().date()
@@ -5384,32 +5397,24 @@ def geo_assignment_step(show_heading: bool = True, balance_date: str | None = No
         st.info("Upload and map a DMA panel first.")
         return False
     planning = st.session_state.geo_intent == "plan"
+    automatic = planning and st.radio('Market design', ['Automatically match candidates', 'Use recorded assignment'],
+                                     horizontal=True,key='geo_market_design_mode') == 'Automatically match candidates'
     labels = (panel[cfg.group_column].astype("string").str.strip().dropna()
               if cfg.group_column in panel else pd.Series(dtype="string"))
     labels = sorted(set(labels[labels.ne("")].str.lower()))
-    if not labels:
-        if not planning:
-            st.info("Analysis needs the assignment used during the campaign. Select its column under Column mapping and optional fields, or upload the recorded groups.")
+    if automatic:
+        from src.experiment_platform.geo_design_ui import render_matching_setup
+        design = render_matching_setup(panel,cfg)
+        if design is None:
             return False
-        history = panel.loc[panel["_date"] < pd.Timestamp(cfg.planned_launch_date)]
-        if cfg.data_source == "Synthetic Demo":
-            seed = GEO_DEMO_ASSIGNMENT_SEED
-        else:
-            if cfg.assignment_seed is None:
-                cfg.assignment_seed = secrets.randbits(32)
-            seed = cfg.assignment_seed
-        try:
-            assignment = assign_market_pairs(history, seed, cfg.pair_column)
-        except ValueError as exc:
-            st.info(str(exc))
-            return False
-        pairing = ("Using the pairs in your file." if cfg.pair_column != "None" else
-                   "Markets with similar average outcomes over shared pre-launch dates are paired.")
-        st.caption(f"Proposed assignment · {pairing} One market in each pair is randomly assigned to Test and the other to Control.")
-        if len(assignment) % 2:
-            st.caption("The unpaired market receives a separate random assignment.")
-        st.caption("Before launch, review shared media coverage and travel between markets for possible spillover. Download the assignment to use when setting up the campaign.")
+        assignment = design['assignment']
+        st.caption('Proposed pre-launch assignment. Download and freeze this design before campaign delivery. Analysis uses the assignment actually executed.')
+    elif not labels:
+        st.info("Select the recorded assignment column under Column mapping and optional fields. Analysis always needs the groups actually used during the campaign.")
+        return False
     else:
+        if planning:
+            st.session_state.geo_matched_design = None
         if len(labels) != 2:
             st.error("The assignment column must contain two groups. Check the selected column and its labels.")
             return False
@@ -5440,7 +5445,8 @@ def geo_assignment_step(show_heading: bool = True, balance_date: str | None = No
     m1.metric("Test DMAs", counts.get("Test", 0))
     m2.metric("Control DMAs", counts.get("Control", 0))
     m3.metric("Total DMAs", len(assignment))
-    st.plotly_chart(geo_dma_map(geo_map_frame(panel, assignment), "", show_labels=True), use_container_width=True)
+    map_history = panel.loc[panel['_date'] < pd.Timestamp(cfg.planned_launch_date)] if planning else panel
+    st.plotly_chart(geo_dma_map(geo_map_frame(map_history, assignment), "", show_labels=True), use_container_width=True)
     if planning:
         st.download_button("Download market assignment", assignment.to_csv(index=False), "market_assignment.csv", "text/csv")
     with st.expander("View market assignments"):
@@ -5462,14 +5468,14 @@ def geo_assignment_step(show_heading: bool = True, balance_date: str | None = No
             m2.metric("Mean Relative Difference", percent(balance["relative_difference"], 1))
             m3.metric("Trend Difference", percent(balance["trend_difference"], 1))
             st.write(f"Historical comparability: {balance['status']}")
-            st.caption("These diagnostics describe comparability; they do not change the provided assignment.")
+            st.caption("These diagnostics describe comparability; they do not change the assignment. The matching report separately checks unused historical data.")
     return True
 
 
 def geo_planning_step() -> None:
     render_business_guide(
-        "Choose the smallest change worth acting on. Historical market variation determines the duration and number of markets needed.",
-        "Output: duration and market requirement",
+        "Choose the smallest change worth acting on. Evaluate how detectable it is with the selected markets and historical variation.",
+        "Output: duration and detection chance",
     )
     cfg: GeoConfig = st.session_state.geo_config
     panel = st.session_state.geo_panel_df
@@ -5477,7 +5483,7 @@ def geo_planning_step() -> None:
     if panel.empty or assignment.empty:
         st.info("Map and validate the fixed A/B assignment before planning rollout.")
         return
-    quality = validate_geo_panel(panel)
+    quality = validate_geo_panel(panel.loc[panel['_date'] < pd.Timestamp(cfg.planned_launch_date)])
     frequency = str(quality["frequency"])
     c2, c3, c4 = st.columns(3)
     cfg.effect_type = c2.selectbox("Effect Scale", ["Relative lift", "Absolute change"], index=["Relative lift", "Absolute change"].index(cfg.effect_type), help="Use relative lift for a percentage change, or absolute change when the metric has a natural unit.")
@@ -5488,7 +5494,11 @@ def geo_planning_step() -> None:
         c5, c6, c7 = st.columns(3)
         cfg.target_power = c5.slider("Target Detection Chance", min_value=0.60, max_value=0.95, value=float(cfg.target_power), step=0.05)
         cfg.alpha = c6.select_slider("False-positive Rate", options=[0.01, 0.025, 0.05, 0.10], value=float(cfg.alpha))
-        cfg.estimand = c7.radio("DMA Weighting", ["Equal weight per DMA", "Market-size weighted"], index=["Equal weight per DMA", "Market-size weighted"].index(cfg.estimand), horizontal=True)
+        matching_design = st.session_state.get('geo_matched_design')
+        weight_choices = ["Equal weight per DMA"] if matching_design else ["Equal weight per DMA", "Market-size weighted"]
+        cfg.estimand = c7.radio("DMA Weighting", weight_choices, index=weight_choices.index(cfg.estimand) if cfg.estimand in weight_choices else 0, horizontal=True)
+        if matching_design:
+            st.caption('Paired planning uses equal weight per DMA and preserves the independent randomization components.')
         c8, c9 = st.columns(2)
         cfg.ramp_periods = c8.number_input("Ramp-up Periods", min_value=0, max_value=24, value=int(cfg.ramp_periods), step=1)
         cfg.outcome_delay_periods = c9.number_input("Outcome Maturation Delay", min_value=0, max_value=52, value=int(cfg.outcome_delay_periods), step=1)
@@ -5498,21 +5508,26 @@ def geo_planning_step() -> None:
         return
     def get_plan():
         try:
-            plan = plan_geo_test(
-                panel,
-                assignment,
-                cfg.planned_launch_date,
-                frequency,
-                cfg.effect_type,
-                cfg.expected_effect,
-                cfg.alpha,
-                cfg.target_power,
-                int(cfg.max_duration),
-                int(cfg.ramp_periods),
-                int(cfg.outcome_delay_periods),
-                weighted,
-                cfg.market_size_column,
-            )
+            if design := st.session_state.get('geo_matched_design'):
+                from src.experiment_platform.geo_matching import plan_matched_experiment
+                plan = plan_matched_experiment(panel,design,cfg.planned_launch_date,frequency,cfg.effect_type,
+                    cfg.expected_effect,cfg.alpha,cfg.target_power,int(cfg.max_duration),int(cfg.ramp_periods),int(cfg.outcome_delay_periods))
+            else:
+                plan = plan_geo_test(
+                    panel,
+                    assignment,
+                    cfg.planned_launch_date,
+                    frequency,
+                    cfg.effect_type,
+                    cfg.expected_effect,
+                    cfg.alpha,
+                    cfg.target_power,
+                    int(cfg.max_duration),
+                    int(cfg.ramp_periods),
+                    int(cfg.outcome_delay_periods),
+                    weighted,
+                    cfg.market_size_column,
+                )
             plan['_calculated_at'] = datetime.now().isoformat(timespec='seconds')
             st.session_state.geo_plan = plan
             st.session_state.geo_result_view = True
@@ -5540,14 +5555,15 @@ def geo_plan_results() -> None:
         ('Calculated at', plan.get('_calculated_at', 'Not recorded'))])
     frequency = validate_geo_panel(st.session_state.geo_panel_df)["frequency"]
     recommended = plan["recommended_duration"]
+    matched = plan.get('matched_design')
     row = plan["table"].loc[plan["table"]["Campaign Duration"] == recommended].iloc[0] if recommended is not None else plan["table"].iloc[-1]
     if recommended is None:
         panel_title = "More scale or time is needed"
-        panel_subtitle = "The selected effect is not detectable within the longest duration. Review the alternatives below."
+        panel_subtitle = "Historical simulations do not reach the selected detection target. Review the evaluated durations and available history." if matched else "The selected effect is not detectable within the longest duration. Review the alternatives below."
         panel_status = "Review design"
     else:
         panel_title = "Recommended Plan"
-        panel_subtitle = "The shortest evaluated option meeting the selected detection target."
+        panel_subtitle = "The shortest evaluated historical simulation meeting the detection target; review assumptions before launch." if matched else "The shortest evaluated option meeting the selected detection target."
         panel_status = "Ready to review"
     render_geo_kpi_panel(
         panel_title,
@@ -5555,8 +5571,8 @@ def geo_plan_results() -> None:
         panel_status,
         [
             ("Recommended Duration", duration_label(int(recommended), frequency) if recommended is not None else "Not reached", ""),
-            ("Required Test DMAs", str(int(row["Required Test DMAs"])), "test"),
-            ("Required Control DMAs", str(int(row["Required Control DMAs"])), "control"),
+            ("Selected Test DMAs" if matched else "Required Test DMAs", str(int(row["Required Test DMAs"])), "test"),
+            ("Selected Control DMAs" if matched else "Required Control DMAs", str(int(row["Required Control DMAs"])), "control"),
             ("Earliest Readout", str(row["Earliest Readout"]), ""),
         ],
         plan=True,
@@ -5567,10 +5583,17 @@ def geo_plan_results() -> None:
     display["Campaign Duration"] = display["Campaign Duration"].apply(lambda value: duration_label(int(value), frequency))
     display["Detection Chance"] = display["Detection Chance"].apply(lambda value: percent(value, 0))
     display = display[["Campaign Duration", "Detection Chance", "Required Test DMAs", "Required Control DMAs", "Earliest Readout", "Status"]]
+    if matched:
+        display = display.rename(columns={'Required Test DMAs':'Selected Test DMAs','Required Control DMAs':'Selected Control DMAs'})
+        st.caption(f"Historical simulation · {matched['independent_units']} independent randomization units. Durations are limited to the {matched['validation_periods']} untouched validation periods; no extra DMAs are assumed.")
+        from src.experiment_platform.geo_design_report import build_geo_design_html
+        st.download_button('Download complete design report (HTML)',build_geo_design_html(matched,st.session_state.geo_panel_df.loc[st.session_state.geo_panel_df._date < pd.Timestamp(cfg.planned_launch_date)],cfg,plan),
+                           'geographic-experiment-plan.html','text/html',key='geo_complete_design_report')
     st.markdown("**Other Duration Options**")
     st.dataframe(display, use_container_width=True, hide_index=True)
     if recommended is None:
-        st.warning("Add markets, accept a larger detectable effect, or extend the longest campaign duration.")
+        st.warning("Add eligible markets, accept a larger detectable effect, or provide more historical data to evaluate longer durations. This plan does not extrapolate beyond the held-out history." if matched else
+                   "Add markets, accept a larger detectable effect, or extend the longest campaign duration.")
     with st.expander("Review the markets and history used"):
         cfg = st.session_state.geo_config
         assignment = st.session_state.geo_assignment
@@ -5583,8 +5606,11 @@ def geo_plan_results() -> None:
                                       "Pre-launch average = 100"), use_container_width=True)
     with st.expander("How this plan was calculated (advanced)", expanded=False):
         st.write(plan["method_note"])
-        st.write("Historical Test-minus-Control variation is detrended, adjusted for lag-1 autocorrelation, and converted into the uncertainty of an average campaign effect. Detection chance uses a two-sided normal test. Required DMAs scale with squared uncertainty relative to the supplied effect scenario; duration and DMA count are separate design levers.")
-        st.write(f"Historical periods used: {plan['historical_periods']} | Estimated lag-1 autocorrelation: {number(plan['lag1_autocorrelation'], 2)}")
+        if not matched:
+            st.write("Historical Test-minus-Control variation is detrended, adjusted for lag-1 autocorrelation, and converted into the uncertainty of an average campaign effect. Detection chance uses a two-sided normal test. Required DMAs scale with squared uncertainty relative to the supplied effect scenario; duration and DMA count are separate design levers.")
+            st.write(f"Historical periods used: {plan['historical_periods']} | Estimated lag-1 autocorrelation: {number(plan['lag1_autocorrelation'], 2)}")
+        else:
+            st.dataframe(plan['table'][['Campaign Duration','Historical windows','Assignments per window','Null rejection rate']],hide_index=True,use_container_width=True)
 
 def geo_result_navigation() -> None:
     def edit_settings():
@@ -5810,13 +5836,13 @@ def geographic_page() -> None:
     render_geo_shell(intent)
     if not intent:
         workspace_intro("Geography", start_geography_workflow)
-        geo_landing_preview()
+        render_experiment_explainer('geo')
         return
     viewing_result = st.session_state.get("geo_result_view", False)
     if intent == "plan":
         page_header("Your geographic plan" if viewing_result else "Plan a geographic experiment",
-                    "Duration and market requirements for your selected effect." if viewing_result else
-                    "Set up your data, confirm the markets and choose the change you want to detect.")
+                    "Market allocation and duration estimates for your selected effect." if viewing_result else
+                    "Choose candidate markets, match their historical business data and plan the change you want to detect.")
     else:
         page_header("Geographic results" if viewing_result else "Analyze a geographic experiment",
                     "Compare outcomes across your fixed Test and Control markets.")
@@ -5842,7 +5868,7 @@ def geographic_page() -> None:
         panel = st.session_state.geo_panel_df
         cfg.planned_launch_date = st.date_input("Planned launch date", value=pd.Timestamp(cfg.planned_launch_date).date(),
                                                 min_value=panel["_date"].min().date()).isoformat()
-        st.subheader("Test and Control markets")
+        st.subheader("Match your markets")
         if geo_assignment_step(show_heading=False):
             st.subheader("Plan settings")
             geo_planning_step()
@@ -5884,7 +5910,7 @@ def time_series_page() -> None:
     render_ts_shell(intent)
     if not intent:
         workspace_intro("Time Series", start_time_series_workflow)
-        ts_landing_preview()
+        render_experiment_explainer('time')
         return
     page_header("Time series experiment", "Plan or measure a campaign when no randomized control group is available.")
     _, nav_right = st.columns([5, 1])
@@ -6311,9 +6337,7 @@ def classic_customer_page() -> None:
     intent = st.session_state.get("customer_intent")
     render_customer_shell(intent)
     if not intent:
-        from src.experiment_platform.customer_landing import credit_line_example
         workspace_intro("Customer", start_customer_workflow)
-        credit_line_example()
         st.markdown(
             '<section class="customer-explainer" aria-label="How a customer experiment works">'
             '<div class="customer-explainer-top"><div><div class="customer-explainer-eyebrow">The experiment at a glance</div>'

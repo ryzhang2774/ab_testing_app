@@ -56,9 +56,15 @@ The customer analysis flow accepts aggregate results from a completed randomized
 
 ### Geographic Tests
 
-For planning, supply one row per market and date with an outcome. Existing Test and Control assignments are preserved. With unassigned markets, the planner ranks markets by average outcome on shared pre-launch dates, pairs neighbors in that ranking, and randomly assigns one market in each pair to each arm. It can also use supplied pairs. With an odd number of markets the middle market gets its own random draw. Review potential spillover and export the assignment before launch.
+The introduction explains the workflow without displaying simulated portfolio results. Planning accepts one row per DMA and date, with a primary outcome and optional historical business measures such as spend, eligible customers, population or risk-mix proportions. A downloadable CSV template is available.
 
-The first page previews the market panel visually before configuration, including geographic coverage, Test / Control composition, outcome history, and source data. Planning then estimates the market count and rollout duration supported by the market groups and effect scenario. Analysis requires the actual market assignments from the campaign.
+The default **Automatically match candidates** flow requires at least four eligible markets and twelve regular historical periods. Select candidate DMAs and auxiliary numeric fields. The earlier history determines normalized outcome paths, level, trend, volatility, and auxiliary mean/trend features. The latest 25% (at least four periods) is held out from matching. The distance blocks have documented app defaults; they are not universal industry cutoffs.
+
+A SciPy mixed-integer optimization first maximizes feasible pairs, then minimizes total distance, subject to mandatory/excluded markets and a distance limit. An optional spillover cluster column prevents markets in the same cluster from receiving opposite assignments. Seeded fair coins flip independent assignment components; linked pairs share a component. Odd or incompatible markets become reserves with reasons rather than receiving standalone random assignments. The held-out outcomes never select pairs or improve the random seed.
+
+Review each pair, the map, training feature balance/SMD, held-out prediction error and an A/A randomization test. **Get plan** injects a constant per-Test-DMA effect into untouched historical windows and uses design-aware sign-flip tests. Enumeration is exact through ten independent components; larger designs use Monte Carlo references. Reported detection frequencies are conditional historical sensitivity estimates, not a prospective guarantee. Windows can overlap. There is no extrapolation beyond available validation history and no assumed additional DMAs. Few independent components can make the requested significance level unattainable. Download assignment CSV, matching HTML and the complete planning HTML with formulas, settings, historical inputs, feature values, validation predictions, seed and input fingerprint. Freeze assignments before launch.
+
+The alternate **Use recorded assignment** mode preserves supplied Test and Control groups and uses the existing assumption-based duration/market-count approximation. Analysis always requires actual executed assignments; it never rematches markets after launch. Existing panel DiD analysis is separate from the paired planning randomization test. In particular, a design with linked spillover clusters needs assignment-component-aware inference for its final randomized effect test; the existing DMA-clustered DiD is not a substitute for that test.
 
 Analysis uses panel Difference-in-Differences with:
 
@@ -73,7 +79,7 @@ Analysis uses panel Difference-in-Differences with:
 
 Use this workflow for campaigns or policy changes where no randomized control group exists. Daily, weekly, and monthly data are supported.
 
-The opening page shows the full historical series, campaign timing, available pre/post observations, detected frequency, predictor availability, and raw source columns.
+The opening page explains the workflow. Historical series and data previews appear inside planning and analysis after selecting a data source.
 
 The planning flow estimates detectable effect and campaign duration from historical pseudo-interventions. The expected campaign effect is a user-supplied business scenario, not a forecast of an unknown future effect. Results are evaluated through the longest selected duration and include calibration and limited-history safeguards.
 
@@ -358,6 +364,6 @@ The following are not yet implemented:
 - Shared database-backed portfolio storage and multi-user permissions
 - Full Bayesian structural time-series sampling
 - Approved DMA polygon geometry; the current map uses market centroids
-- Randomization-based geographic power simulation for large candidate-market pools
+- Prospective calibration and richer heterogeneous-effect simulation for large geographic designs
 - Covariate-adjusted, count/rate, ratio, and time-to-event customer estimators
 - Production audit logging, deployment hardening, and automated data pipelines
