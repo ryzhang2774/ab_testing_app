@@ -71,7 +71,7 @@ def test_plan_survives_missing_package_metadata_and_does_not_require_reportlab(m
     app.button(key='customer_demo_plan').click().run()
     next(b for b in app.button if b.label == 'Get plan').click().run(timeout=60)
     assert not app.exception
-    assert any(m.label == 'Total customers needed' for m in app.metric)
+    assert not any(m.label == 'Total customers needed' for m in app.metric)
     assert any('statsmodels' in w.value and 'version information' in w.value for w in app.warning)
     plan = app.session_state['customer_plan_result']
     assert plan['runtime_versions']['statsmodels'] == business_plan.VERSION_UNAVAILABLE
@@ -316,21 +316,17 @@ def test_customer_plan_demo_flow():
     group_plans = app.session_state['customer_plan_result']['group_plans']
     assert group_plans[1]['plan']['comparisons'][0]['control'] == 'Credit line 2000'
     assert group_plans[1]['plan']['comparisons'][0]['test'] == 'Credit line 3000'
-    assert any('Total customers needed' == m.label for m in app.metric)
+    assert not any('Total customers needed' == m.label for m in app.metric)
     expected = {g['segment']: sum(row['recruitment_n'] for row in g['plan']['arm_totals']) for g in group_plans}
     summary = next(d.value for d in app.dataframe if 'option_0' in d.value.columns).set_index('group')
-    assert summary.total.to_dict() == {**expected, 'All selected groups': sum(expected.values())}
+    assert summary.total.to_dict() == expected
     arms = sorted({arm['arm'] for g in group_plans for arm in g['plan']['arm_totals']},
                   key=lambda name: int(name.split()[-1]))
     for i, arm in enumerate(arms):
-        arm_total = 0
         for g in group_plans:
             roles = {row['name']: row['role'] for row in g['plan']['config']['arms']}
             count = next((row['recruitment_n'] for row in g['plan']['arm_totals'] if row['arm'] == arm), 0)
             assert summary.loc[g['segment'], f'option_{i}'] == (f'{count:,} · {roles[arm]}' if count else '—')
-            arm_total += count
-        assert summary.loc['All selected groups', f'option_{i}'] == f'{arm_total:,}'
-    assert next(m.value for m in app.metric if m.label == 'Total customers needed') == f'{sum(expected.values()):,}'
     assert not any('Duration' in m.label for m in app.metric)
     app.text_input(key='customer_plan_name').set_value('Credit line test').run()
     assert not app.exception

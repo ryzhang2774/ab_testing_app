@@ -350,14 +350,8 @@ def render_customer_plan():
                 allocation_rows.append({'Group': group, 'Role': roles[option], 'Option': option,
                                         'Required customers': n, 'Allocation': f'{n/total:.1%}'})
             table_rows.append(row)
-        by_option = counts.groupby(level='arm').sum()
-        table_rows.append({'group': 'All selected groups', 'total': total,
-                           **{f'option_{i}': f'{by_option[option]:,}' for i, option in enumerate(options)}})
         with st.container(border=True):
-            summary, breakdown = st.columns([1, 1.65], gap='medium')
-            summary.metric('Total customers needed', f'{total:,}')
-            with breakdown:
-                recruitment_composition(groups, [row['total'] for row in table_rows[:-1]], total, grouping)
+            recruitment_composition(groups, [row['total'] for row in table_rows], total, grouping)
 
         change_label = (f"{primary_metric['effect']:g}% of Control mean" if primary_metric['effect_scale'] == 'Relative %'
                         else f"{primary_metric['effect']:g} metric units")

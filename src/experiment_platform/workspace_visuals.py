@@ -126,7 +126,7 @@ def recruitment_composition(groups, counts, total, grouping):
         legend.append(f'<li><span class="cohort-label"><i style="background:{ink}"></i>{label}</span>'
                       f'<strong>{count:,}</strong><span>{percent}</span></li>')
     st.markdown(
-        f'<section class="cohort-figure"><h2>Recruitment by {escape(str(grouping))}</h2>'
+        f'<section class="cohort-figure"><h2>Sample size by {escape(str(grouping))}</h2>'
         f'<div class="cohort-band" aria-hidden="true">{"".join(bands)}</div>'
         '<div class="cohort-labels" aria-hidden="true"><span>Group</span><span>Customers</span><span>Share of plan</span></div>'
         f'<ul>{"".join(legend)}</ul></section>', unsafe_allow_html=True)
