@@ -150,7 +150,7 @@ def test_uploaded_interleaved_credit_lines_remain_connected_per_group():
     assert all(isinstance(shape.x0, int) and 0 <= shape.x0 < len(options) for shape in marked.layout.shapes)
 
 
-def test_overall_chart_weights_customers_and_partner_view_has_no_assignment_guides():
+def test_overall_chart_shows_weighted_group_lines_without_aggregate_or_assignment_guides():
     from src.experiment_platform.customer_plan_ui import overall_metric_chart, pool_statistics
     history = pd.DataFrame([
         ('A', 'Low', '1000', 10, 4, 90), ('B', 'Low', '1000', 20, 8, 10),
@@ -158,8 +158,12 @@ def test_overall_chart_weights_customers_and_partner_view_has_no_assignment_guid
     ], columns=['partner','segment','strategy','sample_mean','sample_variance','sample_number'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
     fig = overall_metric_chart(history, pooled, 'FICO group', 'Balance', ['1000','2000'])
-    assert list(fig.data[0].y) == [21, 25]
-    assert list(fig.data[0].customdata) == [200, 20]
+    assert {trace.name for trace in fig.data} == {'Low','High'}
+    low = next(trace for trace in fig.data if trace.name == 'Low')
+    high = next(trace for trace in fig.data if trace.name == 'High')
+    assert list(low.y) == [11, 25]
+    assert list(low.customdata[:,0]) == [100,20]
+    assert list(high.y) == [31]
     by_partner = historical_metric_chart(history, 'FICO group', 'Balance', ['1000','2000'])
     for chart in (fig, by_partner):
         assert not chart.layout.shapes
@@ -280,6 +284,8 @@ def test_customer_plan_demo_flow():
     app.button(key='customer_demo_plan').click().run()
     assert not app.exception
     assert app.radio(key='customer_plan_source').value == 'Synthetic demo'
+    assert next(item.value for item in app.number_input if item.label == 'Smallest change worth detecting (MDE)') == 25.
+    assert next(item.value for item in app.number_input if item.label == 'False positive rate (alpha)') == .1
     assert not next(c for c in app.checkbox if c.label == 'Protect against multiple comparisons (Bonferroni)').value
     assert not app.exception
     assert any('Choose your grouping column' in item.value for item in app.markdown)

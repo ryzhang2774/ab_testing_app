@@ -90,13 +90,8 @@ def group_metric_charts(pooled, grouping, primary, options, selections):
 
 
 def overall_metric_chart(history, pooled, grouping, primary, options):
+    """Show all selected group means together, without an aggregate line."""
     fig = historical_metric_chart(pooled, grouping, primary, options)
-    total = pool_statistics(history, ['strategy']).set_index('strategy').reindex(options)
-    fig.add_scatter(x=options, y=total.sample_mean, customdata=total.sample_number,
-                    name='Overall (all selected groups)', mode='lines+markers',
-                    line=dict(color='#144c70', width=4), connectgaps=False,
-                    hovertemplate='%{x}<br>Overall mean: %{y:,.2f}<br>Historical customers: %{customdata:,}<extra></extra>')
-    fig.data = (fig.data[-1], *fig.data[:-1])
     fig.layout.annotations = ()
     return fig
 
@@ -587,8 +582,8 @@ def render_customer_plan():
     overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
     with overall_tab:
-        st.caption(f'The bold line shows the overall mean of {primary} across selected Partners and groups. '
-                   f'The other lines show group means. Choose Control and Tests in the {group_view} tab.')
+        st.caption(f'Compare historical {primary} across selected groups. Each line shows one group, pooled across selected Partners. '
+                   f'Choose Control and Tests in the {group_view} tab.')
         st.plotly_chart(overall_metric_chart(history, pooled, grouping, primary, options),
                         use_container_width=True, key='customer_history_overall')
         render_history_details(pool_statistics(history, ['strategy']), 'strategy', 'Strategy', primary, options)
@@ -653,12 +648,12 @@ def render_customer_plan():
     scales=['Relative %','Absolute']
     scale=scale_col.selectbox('Change measured as', scales, index=scales.index(draft.get('scale')) if draft.get('scale') in scales else 0)
     effect = mde_col.number_input('Smallest change worth detecting (MDE)', min_value=0.001,
-                                  value=float(draft.get('effect', 5.0)),
+                                  value=float(draft.get('effect', 25.0)),
                                   step=1.0 if scale == 'Relative %' else 0.01,
                                   help='Smallest change worth detecting, not a prediction of the outcome.')
     with st.expander('Advanced settings'):
         a,b=st.columns(2)
-        alpha=a.number_input('False positive rate (alpha)', min_value=.001,max_value=.2,value=float(draft.get('alpha',.05)),step=.01,format='%.3f')
+        alpha=a.number_input('False positive rate (alpha)', min_value=.001,max_value=.2,value=float(draft.get('alpha',.1)),step=.01,format='%.3f')
         power=b.number_input('Detection chance (power)', min_value=.5,max_value=.99,value=float(draft.get('power',.8)),step=.05)
         multiplicity=st.checkbox('Protect against multiple comparisons (Bonferroni)', value=draft.get('multiplicity',False),
                                  help='Adjust the significance level across planned comparisons. Without this protection, the chance of at least one false positive increases when comparing multiple Tests.')
