@@ -15,7 +15,10 @@ from .business_plan import build_plan
 from .business_store import code_fingerprint
 from .customer_demo import demo_credit_line_caption, historical_demo
 from .customer_palette import ROLE_COLORS, STRATEGY_COLORS
-from .customer_grouping import ordered_groups, historical_strategy_order
+from .customer_grouping import ordered_groups, historical_strategy_order, credit_line_amount
+from .customer_trend import fit_historical_trend, recommend_test_lines, historical_trend_regions
+from .customer_trend_charts import historical_trend_chart
+from .customer_strategy_picker import render_strategy_picker
 from .workspace_visuals import allocation_bars, recruitment_composition, render_history_details, render_context_card
 
 COLUMNS = ['Partner', 'FICO group', 'PD score group', 'Strategy', 'Metric', 'Sample mean', 'Sample variance', 'Sample number']
@@ -94,6 +97,23 @@ def overall_metric_chart(history, pooled, grouping, primary, options):
     fig = historical_metric_chart(pooled, grouping, primary, options)
     fig.layout.annotations = ()
     return fig
+
+
+def _use_recommended_tests(widget_key, recommended):
+    st.session_state[widget_key] = list(recommended)
+
+
+def _compact_strategy_label(option):
+    amount = credit_line_amount(option)
+    return f'{amount:,.0f}' if amount is not None and amount.is_integer() else str(option)
+
+
+def available_group_strategies(data, partners, segment, metrics):
+    """Only recommend options that the existing sample-size plan can evaluate."""
+    selected = data.loc[data.segment.eq(segment) & data.partner.isin(partners) & data.metric.isin(metrics)]
+    cells = set(zip(selected.partner, selected.strategy, selected.metric))
+    return [option for option in historical_strategy_order(selected.strategy.unique())
+            if all((partner, option, metric) in cells for partner in partners for metric in metrics)]
 
 
 def _canonical_input(frame, default_metric='Primary metric'):
@@ -577,7 +597,7 @@ def render_customer_plan():
     options = historical_strategy_order(history.strategy.unique())
     st.markdown('### Review historical strategies')
     st.caption(f'{primary} · {len(partners):,} selected partners · {len(segments):,} groups · {len(options):,} historical options')
-    st.caption('Lines connect observed historical means in credit-line order. Unprovided options are not estimated. A group with one observed option shows a single point.')
+    st.caption('Charts show observed historical means. Glowing hollow points in the group view suggest credit lines to test.')
     group_view = f'By {grouping}'
     overall_tab, group_tab, partner_tab = st.tabs(['Overall', group_view, 'By Partner'])
     pooled = pool_statistics(history, ['segment', 'strategy']).assign(partner='All selected Partners')
@@ -594,13 +614,17 @@ def render_customer_plan():
         render_history_details(pool_statistics(history, ['partner', 'strategy']), 'partner', 'Partner', primary, options)
 
     with group_tab:
-        st.caption('Choose the current strategy as Control and the alternatives as Tests. '
-                   'Dashed lines mark Control (blue square) and Tests (teal diamonds).')
         separate = st.checkbox('Set Control and Test options separately for each group',
                                value=draft.get('group_selections', True) is not None)
+        st.caption('Glowing hollow points are recommendations. Click a data point to add or remove a Test; drag a Test line to move it. The settings on the right stay in sync.' if separate
+                   else 'Glowing hollow points are recommendations. Choose shared Control and Test options using the selectors below.')
         saved_groups = draft.get('group_selections') or {}
         selections = {}
         chart_columns = {}
+        trends = {}
+        recommendations = {}
+        picker_settings = {}
+        history_key = fingerprint({'history': history.to_csv(index=False), 'guardrail': guardrail})[:16]
         if not separate:
             left, right = st.columns(2)
             control = left.selectbox('Control', options,
@@ -611,28 +635,71 @@ def render_customer_plan():
 
         for segment in ordered_groups(segments, grouping):
             st.markdown(f'**{segment}**')
+            group_rows = history.loc[history.segment.eq(segment)]
+            trend = fit_historical_trend(group_rows, partners)
+            trends[segment] = trend
+            eligible = available_group_strategies(data, partners, segment, [primary] + ([guardrail] if guardrail else []))
             if not separate:
                 selections[segment] = {'control': control, 'tests': tests}
+                recommendations[segment] = recommend_test_lines(trend, control, eligible)
                 chart_columns[segment] = st.container()
                 continue
             chart_columns[segment], settings = st.columns([2, 1], gap='medium')
-            group_options = historical_strategy_order(history.loc[history.segment.eq(segment), 'strategy'])
+            group_options = historical_strategy_order(group_rows.strategy)
             if len(group_options) < 2:
                 settings.warning('This group needs history for at least two strategies.')
                 selections[segment] = {'control': None, 'tests': []}
                 continue
             previous = saved_groups.get(segment, {})
-            key = fingerprint({'group': grouping, 'segment': segment})[:16]
+            key = fingerprint({'group': grouping, 'segment': segment, 'history': history_key})[:16]
             selected_control = settings.selectbox(
                 f'Control — {segment}', group_options, key='customer_control_' + key,
                 index=group_options.index(previous['control']) if previous.get('control') in group_options else 0)
             available_tests = [option for option in group_options if option != selected_control]
+            recommended = recommend_test_lines(trend, selected_control, eligible)
+            recommendations[segment] = recommended
+            default_tests = recommended or available_tests[:1]
+            tests_key = 'customer_tests_' + key
+            picker_settings[segment] = {'key':key, 'tests_key':tests_key, 'allowed':eligible}
+            if tests_key not in st.session_state:
+                st.session_state[tests_key] = [option for option in previous.get('tests', default_tests) if option in available_tests]
             selected_tests = settings.multiselect(
-                f'Test options — {segment}', available_tests, key='customer_tests_' + key,
-                default=[option for option in previous.get('tests', available_tests[:1]) if option in available_tests])
+                f'Test options — {segment}', available_tests, key=tests_key,
+                format_func=_compact_strategy_label)
             selections[segment] = {'control': selected_control, 'tests': selected_tests}
+            with settings.expander('Fit details'):
+                if trend['available']:
+                    st.caption('Plotted points show original historical means, pooled by sample count across selected Partners. Only recommendations and regions use a smooth trend with capped precision weights and a fixed Partner mix, using historical counts at ' + trend['reference'] + '.')
+                    st.caption('Recommendations are exploratory. Sample sizing uses MDE and the original historical statistics, not the fitted trend.')
+                    regions = historical_trend_regions(trend)
+                    plateau = next((region for region in regions if region['label'] == 'Possible plateau'), None)
+                    st.caption('Growth region marks sustained positive slope. Possible plateau marks a stable flatter section, with slope no more than one quarter of the initial slope. The unshaded transition reflects uncertainty about where flattening begins.')
+                    if plateau:
+                        st.caption(f"Possible plateau: {plateau['x0']:,.0f} to {plateau['x1']:,.0f}. This is a historical pattern, not an optimal credit line.")
+                    else:
+                        st.caption('No stable rising-to-plateau pattern was identified in the current history.')
+                    if len(recommended) <= 1:
+                        st.caption('Intermediate suggestions are unavailable for this selection. You can still choose Tests manually.')
+                    if trend['skipped']:
+                        st.caption(f"{trend['skipped']} historical options lack at least one selected Partner and were excluded from the fitted trend.")
+                else:
+                    st.caption(trend['reason'])
+                if recommended:
+                    st.button('Use recommended Tests', key='customer_use_recommended_' + key,
+                              on_click=_use_recommended_tests, args=(tests_key, recommended))
 
         for i, (segment, fig) in enumerate(group_metric_charts(pooled, grouping, primary, options, selections)):
+            if trends[segment]['available']:
+                choice = selections[segment]
+                fig = historical_trend_chart(trends[segment], primary, choice['control'], choice['tests'], recommendations.get(segment, []),
+                                             history=pooled.loc[pooled.segment.eq(segment)])
+                if separate and segment in picker_settings:
+                    picker = picker_settings[segment]
+                    revision = fingerprint({'scope':picker['key'], 'control':choice['control'], 'tests':choice['tests']})
+                    with chart_columns[segment]:
+                        render_strategy_picker(fig, trends[segment], choice['control'], choice['tests'], picker['allowed'],
+                                               key='customer_picker_' + picker['key'], tests_key=picker['tests_key'], revision=revision)
+                    continue
             chart_columns[segment].plotly_chart(fig, use_container_width=True, key=f'customer_history_group_{i}')
         render_history_details(pooled, 'segment', grouping, primary, options)
 

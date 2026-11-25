@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Interactive credit line selection</title>
+  <link rel="stylesheet" href="picker.css">
+  <script src="plotly.min.js" defer></script>
+  <script src="picker.js" defer></script>
+</head>
+<body>
+  <main aria-label="Interactive credit line selection">
+    <div id="chart" aria-label="Click a historical data point to toggle a Test; drag a Test line to move it."></div>
+    <div class="legend" aria-label="Chart legend"><span><i class="fit"></i>Historical mean</span><span><i class="tests"></i>Your Tests</span><span><i class="recommended"></i>Recommended</span></div>
+    <p id="feedback" role="status" aria-live="polite"></p>
+  </main>
+</body>
+</html>

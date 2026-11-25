@@ -14,6 +14,16 @@ def _calculate(data):
     return calculate_plan(data, ['Holland','PriceLine'], list(data.segment.unique()), 'Credit line 1000', ['Credit line 2000','Credit line 3000'], 'Revolving Balance', 'NCL', 5, 'Relative %', .05, .8, True)
 
 
+def _chart_specs(container):
+    import json
+    specs = [json.loads(chart.proto.spec) for chart in container.get('plotly_chart')]
+    for component in container.get('component_instance'):
+        args = json.loads(component.proto.json_args)
+        if 'figure' in args:
+            specs.append(json.loads(args['figure']))
+    return specs
+
+
 def test_shared_control_keeps_neyman_ratios_for_all_tests():
     rows = [('250', 120, 47729.07, 23627), ('2000', 199.34, 155682.07, 43962),
             ('3500', 323.23, 466854.65, 88513), ('7000', 405.80, 874489.39, 30874)]
@@ -301,15 +311,29 @@ def test_customer_plan_demo_flow():
     assert [tab.label for tab in chart_tabs] == ['Overall', 'By FICO group', 'By Partner']
     import json
     for tab in chart_tabs:
-        assert not tab.get('expander')
-        charts = tab.get('plotly_chart')
+        assert [expander.label for expander in tab.get('expander')] == (['Fit details'] * 3 if tab.label == 'By FICO group' else [])
+        charts = _chart_specs(tab)
         details = [json.loads(chart.proto.spec) for chart in tab.get('arrow_vega_lite_chart')]
         assert [fig['mark']['type'] for fig in details] == ['bar', 'rect']
         assert [fig['encoding']['x']['field'] for fig in details] == ['strategy', 'strategy']
         assert details[0]['encoding']['y']['field'] == 'sample_number'
         assert details[1]['encoding']['color']['field'] == 'historical_sd'
-        guides = [json.loads(chart.proto.spec)['layout'].get('shapes', []) for chart in charts]
+        guides = [chart['layout'].get('shapes', []) for chart in charts]
         assert sum(bool(lines) for lines in guides) == (3 if tab.label == 'By FICO group' else 0)
+        if tab.label == 'By FICO group':
+            assert all(any(trace.get('name') == 'Recommended' for trace in chart['data']) for chart in charts)
+    first_tests = next(item for item in app.multiselect if item.label == 'Test options — FICO 650–699')
+    assert len(first_tests.value) == 4 and first_tests.value[-1] == 'Credit line 5500'
+    first_tests.set_value(['Credit line 2000']).run()
+    assert all(len(item.value) == 4 for item in app.multiselect
+               if item.label in ('Test options — FICO 700–749','Test options — FICO 750+'))
+    group_charts = _chart_specs(next(tab for tab in app.tabs if tab.label == 'By FICO group'))
+    selected_chart = group_charts[0]
+    assert {shape['x0'] for shape in selected_chart['layout']['shapes'] if shape['type'] == 'line'} == {500, 2000}
+    assert len(next(trace for trace in selected_chart['data'] if trace.get('name') == 'Recommended')['x']) == 4
+    next(button for button in app.button if button.key.startswith('customer_use_recommended_')).click().run()
+    assert len(next(item for item in app.multiselect if item.label == 'Test options — FICO 650–699').value) == 4
+    assert not app.exception
     assert next(s for s in app.selectbox if s.label == 'Primary metric').options == ['Revolving Balance', 'RAR', 'NCL']
     next(s for s in app.selectbox if s.label == 'Group by').set_value('PD score group').run()
     assert not app.exception
